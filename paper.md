@@ -46,8 +46,8 @@ For simulation codes that can handle nested structured grids, little to no
 adaptation work is needed for use with the `DisCoTec` framework.
 `DisCoTec` demonstrates its superiority in higher-dimensional time-dependent
 simulations, such as high-fidelity plasma simulations in 4- to 6-dimensions
-[@pollingerStableMassconservingSparse2023].
-And already in the 2D case, improvements are observable.
+[@pollingerStableMassconservingSparse2023] and even for simulations in two
+dimensions, improvements may be observed.
 
 A central part of the combination technique at scale is the transformation of
 grid coefficients into a multi-scale basis.
@@ -65,16 +65,17 @@ combination technique.
 
 # Statement of need
 
-Higher-dimensional problems (by which we typically mean more than three space
+Higher-dimensional problems (by which we mean more than three space
 dimensions and one time dimension) quickly require infeasible amounts of
-computational resources such as memory and core-hours---they are haunted by the
-so-called curse of dimensionality.
+computational resources such as memory and core-hours as the problem size
+increases---they are haunted by the
+so-called 'curse of dimensionality'.
 An example of this are high-fidelity plasma simulations in the field of confined
 fusion research.
 Current approaches to this problem include dimensionally-reduced models
-(which may not always be applicable), and restricting oneself to a very limited resolution.
+(which may not always be applicable), and restricting computations to a very limited resolution.
 Multi-scale (hierarchical) methods, such as the sparse grid combination
-technique, provide an alternative approach to addressing the curse of dimensionality.
+technique that `DisCoTec` employs, provide an alternative approach to addressing the curse of dimensionality.
 While some implementations of the sparse grid combination technique are
 available in the context of UQ, there is currently no other implementation for
 parallel simulations that require distributed computing.
@@ -92,7 +93,7 @@ which can be used with `DisCoTec` in a black-box fashion.
 The sparse grid combination technique (with time-stepping) is a multi-scale
 approach for solving higher-dimensional problems.
 Instead of solving the problem on one grid that is very finely resolved in all dimensions,
-the problem is solved on the so-called component grids which are all rather
+the problem is solved on the so-called 'component grids' which are all rather
 coarsely resolved---each of them differently in the different dimensions.
 For instance, the following schematic shows a two-dimensional combination scheme, 
 consisting of seven component grids.
@@ -116,12 +117,12 @@ the simulation is finished.
 `DisCoTec` provides the necessary infrastructure for the combination technique
 with a black-box approach, enabling massive parallelism---suitable for existing
 distributed solvers that use structured grids.
-An important feature is the usage of process groups, where multiple MPI ranks
+An important feature is the usage of 'process groups', where multiple MPI ranks
 will collaborate on a set of component grids, and the solver's existing
 parallelism can be re-used.
 The process groups are displayed as $pg_i$ in \autoref{fig:discotec-ranks}.
 
-![`DisCoTec` process groups: Each black square denotes one MPI rank. The ranks are grouped into the so-called process groups. Distributed operations in `DisCoTec` require either communication in the process group, or perpendicular to it---there is no need for global communication or synchronization, which avoids a major scaling bottleneck. The manager rank is optional. Figure first published in  [@pollingerStableMassconservingHighdimensional2024]. \label{fig:discotec-ranks}](gfx/discotec-ranks.pdf)
+![`DisCoTec` process groups: Each black square denotes one MPI rank. The ranks are grouped into the so-called 'process groups'. Distributed operations in `DisCoTec` require either communication in the process group, or perpendicular to it---there is no need for global communication or synchronization, which avoids a major scaling bottleneck. The manager rank is optional. Figure first published in  [@pollingerStableMassconservingHighdimensional2024]. \label{fig:discotec-ranks}](gfx/discotec-ranks.pdf)
 
 In addition, the number of process groups can be increased to leverage the
 combination technique's embarrassing parallelism in the solver time steps.
@@ -142,7 +143,7 @@ The `DisCoTec` repository contains example scripts and documentation for
 utilizing UFTP as an example of a transfer tool, but the approach is not limited
 to UFTP.
 
-`DisCoTec` provides a conveniently automated way of installing through the supplied
+`DisCoTec` provides a conveniently automated way of installing using a
 [`spack` package](https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/discotec/package.py)
 [@gamblinSpackPackageManager2015].
 
