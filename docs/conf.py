@@ -41,7 +41,7 @@ myst_enable_extensions = [
 # -- Exhale configuration ---------------------------------------------------
 # Setup the breathe extension
 breathe_projects = {
-    "DisCoTec": "./generated_docs/xml"
+    "DisCoTec": "./doc_out/doxygen/xml/"
 }
 breathe_default_project = "DisCoTec"
 
