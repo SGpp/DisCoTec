@@ -117,7 +117,16 @@ source folder.
 
 ## Run the tests
 
-To run the compiled tests, go to folder `tests` and run
+To run the compiled tests, go to folder `tests` and make sure the correct MPI runtime
+is loaded to your path, e.g. with
+
+```bash
+. ../spack/share/spack/setup-env.sh
+spack load openmpi # <- use the one you compiled with
+mpiexec --version # <- expected output?
+```
+
+Then, run
 
 ```bash
 mpiexec -np 9 ./test_distributedcombigrid_boost
@@ -138,6 +147,8 @@ Any DisCoTec executable must be run through MPI (either `mpirun` or `mpiexec`),
 and if no argument to the binary is specified, it will use the file called
 `ctparam` in the current working directory.
 Make sure that it exists and describes the parameters you want to run.
+
+As with the tests, make sure the correct MPI is loaded to your path.
 
 The exact format and naming in `ctparam` is not (yet) standardized, to allow
 adaptation for different solver applications.
