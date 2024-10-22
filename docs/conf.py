@@ -40,12 +40,10 @@ myst_enable_extensions = [
 
 # -- Exhale configuration ---------------------------------------------------
 # Setup the breathe extension
-breathe_projects = {
-    "DisCoTec": "./doc_out/doxygen/xml/"
-}
+breathe_projects = {"DisCoTec": "./generated_docs/xml/"}
 breathe_default_project = "DisCoTec"
 
- # Setup the exhale extension
+# Setup the exhale extension
 exhale_args = {
     # These arguments are required
     "containmentFolder":     "./api",
