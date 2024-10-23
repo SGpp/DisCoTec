@@ -36,7 +36,6 @@ pysgpp/pysgpp_wrap.h
 #ignoreing build output
 lib/sgpp/*
 *.log
-Doxyfile
 base/doc/doxygen/examples.doxy
 base/doc/doxygen/modules.doxy
 
@@ -97,3 +96,9 @@ coverage
 
 # ignoring heaptrack output files
 heaptrack.*
+
+# ignoring documentation generated files
+docs/_*
+docs/api/
+docs/generated_docs/
+generated_docs/

@@ -3,7 +3,7 @@
 [![Build Status](https://jenkins-sim.informatik.uni-stuttgart.de/buildStatus/icon?job=DisCoTec%2Fmain)](https://jenkins-sim.informatik.uni-stuttgart.de/job/DisCoTec/job/main/)
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 [![Zenodo DOI](https://zenodo.org/badge/226341053.svg)](https://zenodo.org/badge/latestdoi/226341053)
-[![Latest spack version](https://img.shields.io/spack/v/discotec)](https://spack.readthedocs.io/en/latest/package_list.html#discotec)
+[![Latest spack version](https://img.shields.io/spack/v/discotec)](https://packages.spack.io/package.html?name=discotec)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/cac5bc0841784657b2bb75ea46e7cf01)](https://app.codacy.com/gh/SGpp/DisCoTec/dashboard)
 
 ## What is DisCoTec?
@@ -64,15 +64,6 @@ The image describes the two ways of scaling up:
 One can either increase the size or the number of process groups.
 Figure originally published in (Pollinger [2024](https://elib.uni-stuttgart.de/handle/11682/14229)).
 
-All component grids are distributed to process groups (either statically, or
-dynamically through the manager rank).
-During the solver time step and most of the combination, MPI communication only
-happens within the process groups.
-Conversely, for the sparse grid reduction using the combination coefficients,
-MPI communication only happens between a rank and its colleagues in the other
-process groups, e.g., rank 0 in group 0 will only talk to rank 0 in all other groups.
-Thus, major bottlenecks arising from global communication can be avoided altogether.
-
 Combining the two ways of scaling up, DisCoTec's scalability was demonstrated on
 several machines, with the experiments comprising up to 524288 cores:
 
@@ -87,45 +78,68 @@ one pg of four processes in the upper left corner.
 The largest parallelization is 64 pgs of 2048 processes each.
 Figure originally published in (Pollinger [2024](https://elib.uni-stuttgart.de/handle/11682/14229)).
 
-This image also describes the challenges in large-scale experiments with DisCoTec:
-If the process groups become too large, the MPI communication of the multiscale
-transform starts to dominate the combination time.
-If there are too many pgs, the combination reduction will dominate the
-combination time.
-However, the times required for the solver stay relatively constant;
-they are determined by the solver's own scaling and the load balancing quality.
+Find a more detailed discussion in the [docs](https://discotec.readthedocs.io/en/latest/parallelism.html).
 
 There are only few codes that allow weak scaling up to this problem size:
 a size that uses most of the available main memory of the entire system.
 
-## Contributing
+## When to Use DisCoTec?
 
-We welcome contributions! To find a good place to start coding, have a look at
-the currently open issues.
+If you are using a structured grid solver and want to increase its
+accuracy while not spending additional compute or memory resources on it,
+DisCoTec may be a viable option.
+The codes most likely in this situation are the ones that solve
+high-dimensional problems and thus suffer the curse of dimensionality,
+such as the 4-6D discretizations occurring in plasma physics or
+computational quantum chemistry.
+But if you have a "normal" 2-3D problem and find yourself
+resource constrained, DisCoTec could be for you, too!
+Use its multiscale benefits without worrying about any
+multiscale yourself 😊
 
-- Please describe issues and intended changes in the [issue tracker](https://github.com/SGpp/DisCoTec/issues).
-- Please develop new features in a new branch (typically on your own fork) and
-  then create a [pull request](https://github.com/SGpp/DisCoTec/pulls).
-- New features will only be merged to the main branch if they are sufficiently
-  tested: please add unit tests in [/tests](/tests).
+Why not try it [with your own solver](https://discotec.readthedocs.io/en/latest/simple_tutorial.html)?
+
+### What Numerical Advantage Can I Expect?
+
+Depends on your problem!
+[Figure 3.6 here](http://elib.uni-stuttgart.de/handle/11682/14229)
+shows a first-order accurate 2D solver achieving
+approximately second-order accuracy with the Combination Technique considering
+the total number of DOF.
+(Figure omitted due to licensing, first published
+[here](https://www.sciencedirect.com/science/article/pii/S0021999123004333).)
+
+## When Not to Use DisCoTec?
+
+1. If memory and/or time constraints are not your limiting factor; you can easily
+   achieve the numerical accuracy you need with your resources.
+2. If your solver just does not fit the discretization constraints imposed by DisCoTec:
+   - a rectilinear (or mapped to rectilinear) domain
+   - structured rectilinear grids in your main data structure (=typically the
+     unknown function), stored as a linearized array
+   - numbers of values per dimension that can be chosen as various powers of two,
+     and where any power of two is a coarsened version of the discretization achieved
+     with the next power of two ("nested discretization").
+   - if distributed-memory parallelism is used, it must be MPI
+   - currently, DisCoTec does not support Discontinuous Galerkin schemes,
+     but it could be part of future versions (through Alpert multiwavelets).
+     Let us know in case you are interested!
 
 ## Installing
 
-### Installation instructions: spack
-
 DisCoTec can be installed via spack, which handles all dependencies.
-If you want to develop DisCoTec code or examples, the `spack dev-build` workflow
-is recommended as follows.
+We recommend the `spack dev-build` workflow:
 
 Clone both `spack` and `DisCoTec` to find or build the dependencies and then
 compile DisCoTec:
 
 ```bash
-git clone git@github.com:spack/spack.git  # use https if your ssh is not set up on github
+git clone git@github.com:spack/spack.git  # use https if ssh is not set up on github
 ./spack/bin/spack external find  # find already-installed packages
 ./spack/bin/spack compiler find  # find compilers present on system
 ./spack/bin/spack info discotec@main  # shows DisCoTec's variants
-./spack/bin/spack spec discotec@main  # shows DisCoTec's dependency tree and which parts are already found
+# shows DisCoTec's dependency tree and which parts are already found
+./spack/bin/spack spec discotec@main
 
 git clone git@github.com:SGpp/DisCoTec.git
 cd DisCoTec
@@ -136,172 +150,13 @@ This will first build all dependencies, and then build DisCoTec inside the
 cloned folder.
 The executables are placed in the respective `example` and `test` folders.
 
-### Installation instructions: CMake
+[Here are Docs](https://discotec.readthedocs.io/en/latest/getting_started.html#installation-with-spack)
+for CMake options and further Spack customization hints.
 
-#### Dependencies
+## Read The Full Documentation
 
-cmake >= (3.24.2),
-libmpich-dev (>= 3.2-6), or other MPI library
-libboost-all-dev (>= 1.60)
+[DisCoTec documentation here!](https://discotec.readthedocs.io/en/latest/)
 
-Additional (optional) dependencies:
+[SeLaLib public source](https://github.com/selalib/selalib) and [SeLaLib documentation](https://selalib.github.io/selalib.html)
 
-- OpenMP
-- HDF5
-- HighFive
-
-#### Complete build
-
-```bash
-git clone https://github.com/SGpp/DisCoTec.git DisCoTec
-cmake -S DisCoTec -B DisCoTec/build
-cmake --build DisCoTec/build -j
-```
-
-#### Advanced build
-
-All examples and the tools can be built on their own.
-To build a specific example, run the specific cmake command in the example folder.
-For example, run the following commands
-
-```bash
-git clone https://github.com/SGpp/DisCoTec.git DisCoTec
-cd DisCoTec/examples/combi_example
-cmake -S . -B build
-cmake --build build -j
-```
-
-to build the `combi_example`.
-
-For building only the DisCoTec library, run cmake with the `src` folder as
-source folder.
-
-#### Optional CMake Options
-
-- `DISCOTEC_TEST=**ON**|OFF` - Build tests if you build the complete project.
-- `DISCOTEC_BUILD_MISSING_DEPS=**ON**|OFF`- First order dependencies that are
-  not found are built automatically (glpk is always built).
-- `DISCOTEC_TIMING=**ON**|OFF` - Enables internal timing
-- `DISCOTEC_USE_HDF5=**ON**|OFF`
-- `DISCOTEC_USE_HIGHFIVE=**ON**|OFF` - Enables HDF5 support via HighFive. If
-  `DISCOTEC_USE_HIGHFIVE=ON`, `DISCOTEC_USE_HDF5` has also to be `ON`.
-- `DISCOTEC_UNIFORMDECOMPOSITION=**ON **|OFF` - Enables the uniform
-  decomposition of the grid.
-- `DISCOTEC_GENE=ON|**OFF**` - Currently GEne is not supported with CMake!
-- `DISCOTEC_OPENMP=ON|**OFF**` - Enables OpenMP support.
-- `DISCOTEC_ENABLEFT=ON|**OFF**` - Enables the use of the FT library.
-- `DISCOTEC_USE_LTO=**ON**|OFF` - Enables link time optimization if the compiler
-  supports it.
-- `DISCOTEC_OMITREADYSIGNAL=ON|**OFF**` - Omit the ready signal in the MPI
-  communication. This can be used to reduce the communication overhead.
-- `DISCOTEC_USENONBLOCKINGMPICOLLECTIVE=ON|**OFF**` - Flag currently unused
-- `DISCOTEC_WITH_SELALIB=ON|**OFF**` - Looks for SeLaLib dependencies and
-  compiles [the matching example](/examples/selalib_distributed/)
-
-To run the compiled tests, go to folder `tests` and run
-
-```bash
-mpiexec -np 9 ./test_distributedcombigrid_boost
-```
-
-where you can use all the parameters of the boost test suite.
-If timings matter, consider the pinning described in the respective section.
-Or you can run the tests with `ctest` in the build folder.
-
-## Executing DisCoTec Binaries
-
-DisCoTec executables are configured through `ctparam` files, which are parsed on
-startup.
-The `ctparam` file will contain the combination technique parameters (dimension,
-minimum and maximum level) as well as parallelization parameters (number and
-size of process groups, parallelism within process groups) in `.ini` file format.
-
-Any DisCoTec executable must be run through MPI (either `mpirun` or `mpiexec`),
-and if no argument to the binary is specified, it will use the file called
-`ctparam` in the current working directory.
-Make sure that it exists and describes the parameters you want to run.
-
-The exact format and naming in `ctparam` is not (yet) standardized, to allow
-adaptation for different solver applications.
-Please refer to existing parameter files.
-
-## Rank and Thread Pinning
-
-The number and size of process groups (in MPI ranks) can be read from the
-`ctparam` files:
-
-```bash
-NGROUP=$(grep ngroup ctparam | awk -F"=" '{print $2}')
-NPROCS=$(grep nprocs ctparam | awk -F"=" '{print $2}')
-```
-
-Correct pinning is of utmost importance to performance, especially if DisCoTec
-was compiled with OpenMP support.
-The desired pinning is the simplest one you can imagine: Each node and, within a
-node, each socket is filled consecutively with MPI rank numbers.
-If OpenMP is used, MPI pinning is strided by the number of threads. The threads
-should be placed close to their MPI rank.
-This means for all compilers, if the desired number of OpenMP threads per rank
-is `N`, one needs
-
-```bash
-export OMP_NUM_THREADS=$N;export OMP_PLACES=cores;export OMP_PROC_BIND=close
-```
-
-If OpenMP is used for compilation but should not be used for execution, `N`
-should be set to 1 to avoid unintended effects.
-
-### Intel-MPI
-
-Intel-MPI requires some [environment variables](https://software.intel.com/content/www/us/en/develop/documentation/mpi-developer-reference-linux/top/environment-variable-reference/process-pinning/environment-variables-for-process-pinning.html),
-in particular [for OpenMP](https://www.intel.com/content/www/us/en/docs/mpi-library/developer-guide-linux/2021-6/running-an-mpi-openmp-program.html):
-
-```bash
-mpiexec -n $(($NGROUP*$NPROCS)) -genv I_MPI_PIN_PROCESSOR_LIST="allcores" -genv I_MPI_PIN_DOMAIN=omp $DISCOTEC_EXECUTABLE
-```
-
-In SLURM, it is important to set --ntasks-per-node to match the number of
-desired tasks (`$CORES_PER_NODE`/`$OMP_NUM_THREADS`).
-Validate with verbose output: `export I_MPI_DEBUG=4`
-
-### OpenMPI
-
-OpenMPI uses command line arguments, pinning may clash with SLURM settings
-depending on the exact call.
-
-```bash
-mpiexec.openmpi --rank-by core --map-by node:PE=${OMP_NUM_THREADS} -n $(($NGROUP*$NPROCS)) $DISCOTEC_EXECUTABLE
-```
-
-Validate with verbose output: `--report-bindings`
-
-### MPT
-
-With mpt, one uses the `omplace` wrapper tool to set the correct pinning.
-
-```bash
-mpirun -n $(($NGROUP*$NPROCS)) omplace -v -nt ${OMP_NUM_THREADS} $DISCOTEC_EXECUTABLE
-```
-
-Validate with very verbose output: `-vv` .
-
-## GENE submodules as dependencies for GENE examples
-
-*Warning: The CMake Integration is currently not adapted to use GENE!*
-
-There are gene versions as submodules: a linear one in the gene_mgr folder, and
-a nonlinear one in gene-non-linear. To get them, you need access to their
-respective repos at MPCDF. Then go into the folder and
-
-```bash
-git submodule init
-git submodule update
-```
-
-or use the `--recursive` flag when cloning the repo.
-
-## Further Readmes
-
-- [widely-distribued simulations](/third_level_manager/README.md)
-- [the subspace writer tool](/tools/subspace_writer/README.md)
-- [selalib simulations with DisCoTec](/examples/selalib_distributed/README.md)
+For the current GENE documentation, you need to apply for access at [genecode.org](https://genecode.org/).
