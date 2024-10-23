@@ -220,9 +220,9 @@ This can be realized completely independently of DisCoTec.
 Tokens are written by each instance when the files are ready for transfer.
 As soon as these tokens are transferred, the receiving instance assumes that the
 data is complete and starts reading it in.
-The [DisCoTec/third_level_manager](../third_level_manager) folder contains,
-among others, adaptable example UFTP scripts for the transfer between JUDAC,
-HAWK, and SuperMUC-NG and their documentation.
+The [DisCoTec/third_level_manager](https://github.com/SGpp/DisCoTec/blob/main/third_level_manager)
+folder contains, among others, adaptable example UFTP scripts for the transfer
+between JUDAC, HAWK, and SuperMUC-NG and their documentation.
 
 Running widely-distributed simulations requires that you first split up the
 combination scheme and save it into separate files for the different systems.

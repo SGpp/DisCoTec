@@ -113,7 +113,7 @@ source folder.
   communication. This can be used to reduce the communication overhead.
 - `DISCOTEC_USENONBLOCKINGMPICOLLECTIVE=ON|**OFF**` - Flag currently unused
 - `DISCOTEC_WITH_SELALIB=ON|**OFF**` - Looks for SeLaLib dependencies and
-  compiles [the matching example](/examples/selalib_distributed/)
+  compiles [the matching example](https://github.com/SGpp/DisCoTec/blob/main/examples/selalib_distributed/)
 
 ## Run the tests
 
@@ -154,6 +154,7 @@ The exact format and naming in `ctparam` is not (yet) standardized, to allow
 adaptation for different solver applications.
 Please refer to existing parameter files and example implementations.
 
+(pinning-with-various-mpi-implementations)=
 ### Pinning With Various MPI Implementations
 
 Correct pinning is of utmost importance to performance, especially if DisCoTec
