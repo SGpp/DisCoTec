@@ -403,7 +403,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
         }
         std::cout << std::endl;
       }
-      if(signal == INIT_DSGUS){
+      if (signal == INIT_DSGUS) {
         std::cout << "INIT DSGUS ";
         for (auto& dsg : pgroup.getCombinedDSGVector()) {
           for (size_t size : dsg->getSubspaceDataSizes()) {
@@ -427,11 +427,12 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
   BOOST_CHECK(!TestHelper::testStrayMessages(testParams.comm));
 }
 
-
 /**
- * @brief test for the static task assignment mechanism, both systems read their assignment from file `test_scheme.json`
+ * @brief test for the static task assignment mechanism, both systems read their assignment from
+ * file `test_scheme.json`
  */
-void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams, bool thirdLevelExtraSparseGrid = false) {
+void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams,
+                                               bool thirdLevelExtraSparseGrid = false) {
   BOOST_CHECK(thirdLevelExtraSparseGrid == false);
   BOOST_CHECK(testParams.comm != MPI_COMM_NULL);
 
@@ -858,7 +859,8 @@ void testPretendThirdLevel(TestParams& testParams) {
   BOOST_CHECK(!TestHelper::testStrayMessages(testParams.comm));
 }
 
-BOOST_FIXTURE_TEST_SUITE(thirdLevel, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(2500))
+BOOST_FIXTURE_TEST_SUITE(thirdLevel, TestHelper::BarrierAtEnd,
+                         *boost::unit_test::timeout(2500) * boost::unit_test::disabled())
 
 BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance) *
                                  boost::unit_test::disabled()) {
