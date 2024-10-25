@@ -1,15 +1,14 @@
 #ifndef SRC_SGPP_COMBIGRID_SPARSEGRID_DISTRIBUTEDSPARSEGRIDUNIFORM_HPP_
 #define SRC_SGPP_COMBIGRID_SPARSEGRID_DISTRIBUTEDSPARSEGRIDUNIFORM_HPP_
-#include "sparsegrid/AnyDistributedSparseGrid.hpp"
-#include "utils/LevelSetUtils.hpp"
-#include "utils/Types.hpp"
-
 #include <boost/iterator/counting_iterator.hpp>
 #include <cassert>
 #include <numeric>
 #include <set>
 #include <vector>
 
+#include "sparsegrid/AnyDistributedSparseGrid.hpp"
+#include "utils/LevelSetUtils.hpp"
+#include "utils/Types.hpp"
 
 namespace combigrid {
 // forward declarations
@@ -19,6 +18,12 @@ class DistributedFullGrid;
 template <typename FG_ELEMENT>
 class DistributedSparseGridUniform;
 
+/**
+ * @brief Container for distributed sparse grid data
+ *
+ * This class is used to store the data of a distributed sparse grid in a contiguous memory block.
+ * In addition, it provides storage for Kahan summation terms.
+ */
 template <typename FG_ELEMENT>
 class DistributedSparseGridDataContainer {
  public:
@@ -30,10 +35,12 @@ class DistributedSparseGridDataContainer {
     kahanDataBegin_.resize(dsgu_.getNumSubspaces(), nullptr);
   }
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
   DistributedSparseGridDataContainer(const DistributedSparseGridDataContainer&) = delete;
   DistributedSparseGridDataContainer& operator=(const DistributedSparseGridDataContainer&) = delete;
   DistributedSparseGridDataContainer(DistributedSparseGridDataContainer&&) = default;
   DistributedSparseGridDataContainer& operator=(DistributedSparseGridDataContainer&&) = default;
+#endif  // DOXYGEN_SHOULD_SKIP_THIS
 
   // allocates memory for subspace data and sets pointers to subspaces
   void createSubspaceData() {
@@ -146,7 +153,10 @@ class DistributedSparseGridDataContainer {
   std::vector<FG_ELEMENT> kahanData_;  // Kahan summation residual terms
 };
 
-/* This class can store a distributed sparse grid with a uniform space
+/**
+ * @brief a distributed sparse grid with uniform domain decomposition (on all process groups)
+ *
+ * This class can store a distributed sparse grid with a uniform space
  * decomposition. During construction no data is created and the data size of
  * the subspaces is initialized to zero (data sizes are usually set the
  * first time by registering the dsg in a distributed fullgrid during local
@@ -162,112 +172,224 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
   // should be enough for the current scenario (cf. test_createTruncatedHierarchicalLevels_large)
   // using SubspaceIndexType = AnyDistributedSparseGrid::SubspaceIndexType;
 
-  /** create sparse grid of dimension d and specify for each dimension the
-   * maximum discretization level
+  /**
+   * @brief create sparse grid
+   *
    * No data is allocated and the sizes of the subspace data is initialized to 0.
+   *
+   * @param dim dimensionality of the grid
+   * @param lmax maximum level of the grid
+   * @param lmin minimum level of the grid
+   * @param comm communicator for the grid
    */
   explicit DistributedSparseGridUniform(DimType dim, const LevelVector& lmax,
                                         const LevelVector& lmin, CommunicatorType comm);
 
   /**
-   * create an empty (no data) sparse grid with given subspaces.
+   * @brief create an empty (no data) sparse grid with given subspaces.
    */
   explicit DistributedSparseGridUniform(DimType dim, const std::vector<LevelVector>& subspaces,
                                         CommunicatorType comm);
 
   virtual ~DistributedSparseGridUniform() = default;
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
   // cheap rule of 5
   DistributedSparseGridUniform() = delete;
   DistributedSparseGridUniform(const DistributedSparseGridUniform& other) = delete;
   DistributedSparseGridUniform& operator=(const DistributedSparseGridUniform&) = delete;
   DistributedSparseGridUniform(DistributedSparseGridUniform&& other) = delete;
   DistributedSparseGridUniform& operator=(DistributedSparseGridUniform&& other) = delete;
+#endif  // DOXYGEN_SHOULD_SKIP_THIS
 
   DistributedSparseGridDataContainer<FG_ELEMENT>& getDataContainer();
 
   void swapDataContainers(DistributedSparseGridDataContainer<FG_ELEMENT>& otherContainer);
 
+  /**
+   * @brief (re-)allocate memory for (another) set of subspaces
+   */
   void allocateDifferentSubspaces(std::set<SubspaceIndexType>&& subspaces);
 
   const std::set<SubspaceIndexType>& getCurrentlyAllocatedSubspaces() const;
 
   bool isSubspaceCurrentlyAllocated(SubspaceIndexType subspaceIndex) const;
 
+  /**
+   * @brief print the subspace sizes of the grid to the output stream
+   */
   void print(std::ostream& os) const;
 
-  // allocates memory for subspace data and sets pointers to subspaces
+  /**
+   * @brief allocates memory for subspace data
+   */
   void createSubspaceData();
 
-  // allocates memory for kahan term data and sets pointers for it
+  /**
+   * @brief allocates memory for kahan term data
+   */
   void createKahanBuffer();
 
-  // deletes memory for subspace data and invalids pointers to subspaces
+  /**
+   * @brief deletes memory for subspace data and invalidates pointers to subspaces
+   */
   void deleteSubspaceData();
 
-  // creates data if necessary and sets all data elements to zero
+  /**
+   * @brief sets all data elements to value zero, allocates if not yet allocated
+   */
   void setZero();
 
-  // return all level vectors
+  /**
+   * @brief get the level vectors of all subspaces
+   */
   inline const std::vector<LevelVector>& getAllLevelVectors() const;
 
-  // return level vector of subspace i
+  /**
+   * @brief get the level vector of subspace i
+   */
   inline const LevelVector& getLevelVector(SubspaceIndexType i) const;
   inline const LevelVector& getLevelVector(size_t i) const;
 
+  /**
+   * @brief get the subspace index corresponding to a level vector
+   *
+   * uses a lowerBound to search for the level vector in the range of levels_
+   *
+   * @param l level vector
+   * @param lowerBound lower bound for the search
+   */
   inline SubspaceIndexType getIndexInRange(const LevelVector& l, IndexType lowerBound) const;
 
-  // return index of subspace i
+  /**
+   * @brief get the subspace index corresponding to a level vector
+   *
+   * for an optimized search, \see getIndexInRange
+   */
   inline SubspaceIndexType getIndex(const LevelVector& l) const;
 
-  // returns a pointer to first element in subspace i
+  /**
+   * @brief returns a pointer to first element in subspace i
+   */
   inline FG_ELEMENT* getData(SubspaceIndexType i);
-
-  // returns a const pointer to first element in subspace i
   inline const FG_ELEMENT* getData(SubspaceIndexType i) const;
 
-  // allows a linear access to the whole subspace data stored in this dsg
+  /**
+   * @brief returns a pointer to first element in subspace 0
+   */
   inline FG_ELEMENT* getRawData();
-
   inline const FG_ELEMENT* getRawData() const;
 
+  /**
+   * @brief get the number of dimensions
+   */
   inline DimType getDim() const;
 
-  // clear the levels_ vector, it is only necessary for registration of full grids
+  /**
+   * @brief clear the levels_ vector
+   *
+   * used for registration of full grids
+   */
   void resetLevels();
 
+  /**
+   * @brief re-set the size of a subspace
+   *
+   * this does not change allocated memory
+   */
   inline void setDataSize(SubspaceIndexType i, SubspaceSizeType newSize) override;
 
+  /**
+   * @brief get the number of allocated numbers in subspace i
+   *
+   * @return getSubspaceDataSizes()[i] if i is allocated, 0 otherwise
+   */
   SubspaceSizeType getAllocatedDataSize(SubspaceIndexType i) const;
 
+  /**
+   * @brief get the minimum value stored in every subspace
+   *
+   * make sure to call accumulateMinMaxCoefficients() first
+   */
   std::vector<combigrid::real>& getMinCoefficientsPerSubspace();
 
+  /**
+   * @brief get the maximum value stored in every subspace
+   *
+   * make sure to call accumulateMinMaxCoefficients() first
+   */
   std::vector<combigrid::real>& getMaxCoefficientsPerSubspace();
 
+  /**
+   * @brief clear the min/max coefficient vectors
+   */
   void clearMinMaxCoefficientsPerSubspace();
 
+  /**
+   * @brief accumulate the min/max coefficients of all subspaces
+   */
   void accumulateMinMaxCoefficients();
 
+  /**
+   * @brief register a DistributedFullGrid in this DistributedSparseGridUniform
+   *
+   * overwrites this' subspace sizes for all subspaces contained in the full grid, but does not
+   * allocate memory
+   */
   inline void registerDistributedFullGrid(const DistributedFullGrid<FG_ELEMENT>& dfg);
 
+  /**
+   * @brief add a DistributedFullGrid to this DistributedSparseGridUniform
+   *
+   * data of subspaces that are in the DistributedFullGrid AND allocated in this
+   * DistributedSparseGridUniform are filled with the data from the DistributedFullGrid
+   *
+   * @param dfg the DistributedFullGrid to add
+   * @param coeff the coefficient to multiply the data with
+   * @tparam sparseGridFullyAllocated if true, assumes that all subspaces are allocated here
+   */
   template <bool sparseGridFullyAllocated = true>
   inline void addDistributedFullGrid(const DistributedFullGrid<FG_ELEMENT>& dfg,
                                      combigrid::real coeff);
 
-  // returns the number of allocated grid points == size of the raw data vector
+  /**
+   * @brief returns the number of allocated grid points
+   *
+   * to get the size of the raw data vector in bytes, multiply by sizeof(FG_ELEMENT)
+   */
   inline size_t getRawDataSize() const;
 
-  // returns true if data for the subspaces has been created
+  /**
+   * @brief returns true if the subspace data has been allocated
+   *
+   * also retuns true if only a part of the subspaces have been allocated
+   */
   bool isSubspaceDataCreated() const;
 
-  // max-reduce subspace sizes from another DSGU (which has the same subspaces, but they may be less
-  // or more populated than in this DSGU)
+  /**
+   * @brief max-reduce subspace sizes from another DistributedSparseGridUniform
+   *
+   * the other DistributedSparseGridUniform must have the same subspaces as this one, but their
+   * sizes may or may not be populated the same way as in this DistributedSparseGridUniform
+   */
   void maxReduceSubspaceSizes(const DistributedSparseGridUniform<FG_ELEMENT>& other);
 
-  // copy data from another DSGU (which has the same subspaces, but they may be less or more
-  // populated than in this DSGU)
+  /**
+   * @brief copy data from another DistributedSparseGridUniform
+   *
+   * only copies data that has been allocated in both this and the other
+   * DistributedSparseGridUniform
+   *
+   * @param other the DistributedSparseGridUniform, needs to have the same subspaces as this
+   */
   void copyDataFrom(const DistributedSparseGridUniform<FG_ELEMENT>& other);
 
+  /**
+   * @brief copy data from another DistributedSparseGridUniform
+   *
+   * only copies data in the subspaces that are in the subspaceIndices set (or other iterable); they
+   * must be allocated in both this and the other DistributedSparseGridUniform
+   */
   template <typename SubspaceIndexContainer>
   void copyDataFrom(const DistributedSparseGridUniform<FG_ELEMENT>& other,
                     const SubspaceIndexContainer& subspaceIndices);

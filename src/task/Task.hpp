@@ -62,11 +62,13 @@ class Task {
        LoadModel* loadModel,
        FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})));
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
   // cheapest rule of 5 ever
   Task(const Task& other) = delete;
   Task(Task&& other) = delete;
   Task& operator=(const Task& other) = delete;
   Task& operator=(Task&& other) = delete;
+#endif  // DOXYGEN_SHOULD_SKIP_THIS
 
   // fault tolerance info
   FaultCriterion* faultCriterion_;

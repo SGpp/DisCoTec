@@ -77,6 +77,7 @@ class DistributedFullGrid {
                       const std::vector<IndexVector>& decomposition = std::vector<IndexVector>());
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
+  // rule of 5
   DistributedFullGrid(const DistributedFullGrid& other) = delete;
   DistributedFullGrid& operator=(const DistributedFullGrid&) = delete;
   DistributedFullGrid(DistributedFullGrid&& other) = default;

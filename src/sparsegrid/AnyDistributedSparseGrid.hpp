@@ -9,8 +9,11 @@
 
 namespace combigrid {
 
-/* sparse grid base class; agnostic of the dimensionality and
- * data type used*/
+/**
+ * @brief sparse grid base class
+ *
+ * this class is agnostic of the dimensionality and data type of the grid
+ */
 class AnyDistributedSparseGrid {
  public:
   // type used to index the subspaces
@@ -22,47 +25,103 @@ class AnyDistributedSparseGrid {
   virtual ~AnyDistributedSparseGrid();
 
   // cheap rule of 5
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
   AnyDistributedSparseGrid() = delete;
   AnyDistributedSparseGrid(const AnyDistributedSparseGrid& other) = delete;
   AnyDistributedSparseGrid& operator=(const AnyDistributedSparseGrid&) = delete;
   AnyDistributedSparseGrid(AnyDistributedSparseGrid&& other) = delete;
   AnyDistributedSparseGrid& operator=(AnyDistributedSparseGrid&& other) = delete;
+#endif  // DOXYGEN_SHOULD_SKIP_THIS
 
   void clearSubspaceCommunicators();
 
-  // sum of all data sizes of all subspaces
+  /**
+   * @brief get sum of all data sizes of all subspaces of this grid on this rank
+   *
+   * @return the number of numbers stored; multiply by sizeof(FG_ELEMENT) to get bytes
+   */
   size_t getAccumulatedDataSize() const;
 
-  // sum of all data sizes of passed subspaces
+  /**
+   * @brief get sum of data sizes of select subspaces of this grid on this rank
+   *
+   * @param subsetOfSubspaces the indices of the subspaces to consider
+   * @return the number of numbers stored; multiply by sizeof(FG_ELEMENT) to get bytes
+   */
   size_t getAccumulatedDataSize(const std::set<SubspaceIndexType>& subsetOfSubspaces) const;
 
+  /**
+   * @brief get the communicator of this grid
+   *
+   * usally the same as theMPISystem()->getLocalComm()
+   */
   CommunicatorType getCommunicator() const;
 
-  // data size of the subspace at index i
+  /**
+   * @brief get the number of numbers in subspace i
+   */
   SubspaceSizeType getDataSize(SubspaceIndexType i) const;
   SubspaceSizeType getDataSize(size_t i) const;
 
+  /**
+   * @brief get the subspaces that are only in this process group
+   */
   std::set<typename AnyDistributedSparseGrid::SubspaceIndexType>& getIngroupSubspaces() const;
 
-  // return the number of subspaces
+  /**
+   * @brief get the number of subspaces
+   */
   SubspaceIndexType getNumSubspaces() const;
 
+  /**
+   * @brief get the rank of this process in the communicator
+   *
+   * usually the same as theMPISystem()->getLocalRank()
+   */
   RankType getRank() const;
 
-  // allows linear access to the data sizes of all subspaces
+  /**
+   * @brief get the data sizes of all subspaces
+   */
   const std::vector<SubspaceSizeType>& getSubspaceDataSizes() const;
-
   std::vector<SubspaceSizeType>& getSubspaceDataSizes();
 
+  /**
+   * @brief get the subspace communicators and the subspaces they are responsible for
+   *
+   * used for subspace reduce only
+   */
   const std::vector<std::pair<CommunicatorType, std::vector<SubspaceIndexType>>>&
   getSubspacesByCommunicator() const;
 
-  // sets data size of subspace with index i to newSize
+  /**
+   * @brief set the data size of a subspace
+   */
   virtual void setDataSize(SubspaceIndexType i, SubspaceSizeType newSize);
 
+  /**
+   * @brief set the communicator for communication with the other process groups
+   *
+   * usually perpendicular to the local communicator: all ranks in this communicator have an
+   * AnyDistributedSparseGrid that represents the same part of the domain
+   *
+   * used only for sparse grid reduce and outgroup reduce
+   *
+   * @param comm the communicator to use
+   */
   void setOutgroupCommunicator(CommunicatorType comm, RankType rankInComm);
 
-  // sets the communicators for subspaces (required for subspace reduce)
+  /**
+   * @brief generate the communicators for communication with the other process groups
+   *
+   * usually perpendicular to the local communicator: all ranks in this communicator have an
+   * AnyDistributedSparseGrid that represents the same part of the domain
+   *
+   * used only for subspace reduce
+   *
+   * @param comm the communicator to generate sub-communicators from
+   * @param rankInComm the rank in \p comm
+   */
   void setSubspaceCommunicators(CommunicatorType comm, RankType rankInComm);
 
  protected:
