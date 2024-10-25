@@ -286,7 +286,8 @@ class DistributedFullGrid {
   /** get coordinates of rank r's upper bounds */
   inline std::vector<real> getUpperBoundsCoords(RankType r) const;
 
-  /* get the neighboring process' rank in a given dimension
+  /**
+   * @brief get the neighboring process' rank in a given dimension
    *
    * in the sense that the neighbor has the same
    * partion coordinates in all other dimensions than d; and
@@ -665,155 +666,6 @@ DistributedFullGrid<FG_ELEMENT>::~DistributedFullGrid() {
   }
 }
 
-template <typename FG_ELEMENT>
-double DistributedFullGrid<FG_ELEMENT>::getPointDistanceToCoordinate(
-    IndexType oneDimensionalLocalIndex, double coord, DimType d) const {
-  const auto& h = getGridSpacing();
-  auto coordDistance =
-      static_cast<double>(this->getLowerBounds()[d] + (hasBoundaryPoints_[d] > 0 ? 0 : 1) +
-                          oneDimensionalLocalIndex) *
-          h[d] -
-      coord;
-#ifndef NDEBUG
-  if (std::abs(coordDistance) > h[d]) {
-    std::cout << "assert bounds " << coordDistance << coord << h << static_cast<int>(d)
-              << oneDimensionalLocalIndex << std::endl;
-    assert(false &&
-           "should only be called for coordinates within the support of this point's basis "
-           "function");
-  }
-#endif  // ndef NDEBUG
-  return std::abs(coordDistance);
-}
-
-template <typename FG_ELEMENT>
-FG_ELEMENT DistributedFullGrid<FG_ELEMENT>::evalIndexAndAllUpperNeighbors(
-    const IndexVector& localIndex, const std::vector<real>& coords) const {
-  FG_ELEMENT result = 0.;
-  auto localLinearIndex = this->getLocalLinearIndex(localIndex);
-  for (size_t localIndexIterate = 0;
-       localIndexIterate < combigrid::powerOfTwoByBitshift(this->getDimension());
-       ++localIndexIterate) {
-#ifndef NDEBUG
-    auto neighborVectorIndex = localIndex;
-#endif
-    auto neighborIndex = localLinearIndex;
-    real phi_c = 1.;  // value of product of iterate's basis function on coords
-    for (DimType d = 0; d < dim_; ++d) {
-      const auto lastIndexInDim = this->getLocalSizes()[d] - 1;
-      bool isUpperInDim = std::bitset<sizeof(int) * CHAR_BIT>(localIndexIterate).test(d);
-      auto iterateIndexInThisDimension = localIndex[d] + isUpperInDim;
-      if (iterateIndexInThisDimension < 0) {
-        phi_c = 0.;
-        break;
-      } else if (isUpperInDim && this->hasBoundaryPoints_[d] == 1 &&
-                 //  this->getCartesianUtils().isOnLowerBoundaryInDimension(d) &&
-                 iterateIndexInThisDimension == this->getGlobalSizes()[d]) {
-        // if we have a wrap-around AND are on the lowest cartesian process in this dimension
-        // we need to set the index in this dim to 0 and shift the coordinate by 1.
-        neighborIndex -= localIndex[d] * this->getLocalOffsets()[d];
-        iterateIndexInThisDimension = 0;
-        auto coordDistance =
-            getPointDistanceToCoordinate(iterateIndexInThisDimension, coords[d] - 1.0, d);
-        auto oneOverHinD = powerOfTwo[levels_[d]];
-        phi_c *= 1. - coordDistance * oneOverHinD;
-      } else if (iterateIndexInThisDimension > lastIndexInDim) {
-        phi_c = 0.;
-        break;
-      } else {
-        auto coordDistance =
-            getPointDistanceToCoordinate(iterateIndexInThisDimension, coords[d], d);
-        auto oneOverHinD = powerOfTwo[levels_[d]];
-        phi_c *= 1. - coordDistance * oneOverHinD;
-        neighborIndex += isUpperInDim * this->getLocalOffsets()[d];
-      }
-#ifndef NDEBUG
-      neighborVectorIndex[d] = iterateIndexInThisDimension;
-#endif
-    }
-    if (phi_c > 0.) {
-#ifndef NDEBUG
-      auto unlinearizedNeighborIndex = neighborVectorIndex;
-      this->getLocalVectorIndex(neighborIndex, unlinearizedNeighborIndex);
-      if (unlinearizedNeighborIndex != neighborVectorIndex) {
-        std::cerr << "expected " << unlinearizedNeighborIndex << " got " << neighborVectorIndex
-                  << std::endl;
-      }
-      if (neighborIndex < 0) {
-        std::cerr << "expected " << unlinearizedNeighborIndex << " got " << neighborVectorIndex
-                  << " or " << neighborIndex << std::endl;
-      }
-#endif
-      assert(neighborIndex > -1);
-      assert(neighborIndex < this->getNrLocalElements());
-      result += phi_c * this->getData()[neighborIndex];
-    }
-  }
-  return result;
-}
-
-template <typename FG_ELEMENT>
-FG_ELEMENT DistributedFullGrid<FG_ELEMENT>::evalLocal(const std::vector<real>& coords) const {
-  FG_ELEMENT value;
-  evalLocal(coords, value);
-  return value;
-}
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::evalLocal(const std::vector<real>& coords,
-                                                FG_ELEMENT& value) const {
-  assert(coords.size() == this->getDimension());
-  // get the lowest-index point of the points
-  // whose basis functions contribute to the interpolated value
-  const auto& h = getGridSpacing();
-  static thread_local IndexVector localIndexLowerNonzeroNeighborPoint;
-  localIndexLowerNonzeroNeighborPoint.resize(dim_);
-  for (DimType d = 0; d < dim_; ++d) {
-#ifndef NDEBUG
-    if (coords[d] < 0. || coords[d] > 1.) {
-      std::cout << "coords " << coords << " out of bounds" << std::endl;
-    }
-    assert(coords[d] >= 0. && coords[d] <= 1.);
-#endif  // ndef NDEBUG
-    // this is the local index of the point that is lower than the coordinate
-    // may also be negative if the coordinate is lower than this processes' coordinates
-    IndexType localIndexLowerNonzeroNeighborIndexInThisDimension = static_cast<IndexType>(
-        std::floor((coords[d] - this->getLowerBoundsCoord(d)) * this->getInverseGridSpacingIn(d)));
-
-    // check if we even need to evaluate on this process
-    if (localIndexLowerNonzeroNeighborIndexInThisDimension < -1) {
-      // index too small
-      value = 0.;
-      return;
-    } else if ((coords[d] >= 1.0 - h[d]) && this->hasBoundaryPoints_[d] == 1 &&
-               this->getCartesianUtils().isOnLowerBoundaryInDimension(d)) {
-      // if we have periodic boundary and this process is at the lower end of the dimension d
-      // we need the periodic coordinate => don't return 0
-    } else if (localIndexLowerNonzeroNeighborIndexInThisDimension > this->getLocalSizes()[d] - 1) {
-      // index too high
-      value = 0.;
-      return;
-    }
-    localIndexLowerNonzeroNeighborPoint[d] = localIndexLowerNonzeroNeighborIndexInThisDimension;
-  }
-  // evaluate at those points and sum up according to the basis function
-  value = evalIndexAndAllUpperNeighbors(localIndexLowerNonzeroNeighborPoint, coords);
-}
-
-template <typename FG_ELEMENT>
-std::vector<FG_ELEMENT> DistributedFullGrid<FG_ELEMENT>::getInterpolatedValues(
-    const std::vector<std::vector<real>>& interpolationCoords) const {
-  auto numValues = interpolationCoords.size();
-  std::vector<FG_ELEMENT> values;
-  values.resize(numValues);
-#pragma omp parallel for default(none) firstprivate(numValues) shared(values, interpolationCoords) \
-    schedule(static)
-  for (size_t i = 0; i < numValues; ++i) {
-    this->evalLocal(interpolationCoords[i], values[i]);
-  }
-  MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numValues), this->getMPIDatatype(),
-                MPI_SUM, this->getCommunicator());
-  return values;
-}
 
 template <typename FG_ELEMENT>
 void DistributedFullGrid<FG_ELEMENT>::getCoordsGlobal(IndexType globalLinearIndex,
@@ -1224,6 +1076,157 @@ template <typename FG_ELEMENT>
 MPI_Datatype DistributedFullGrid<FG_ELEMENT>::getMPIDatatype() const {
   return abstraction::getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
 }
+
+template <typename FG_ELEMENT>
+double DistributedFullGrid<FG_ELEMENT>::getPointDistanceToCoordinate(
+    IndexType oneDimensionalLocalIndex, double coord, DimType d) const {
+  const auto& h = getGridSpacing();
+  auto coordDistance =
+      static_cast<double>(this->getLowerBounds()[d] + (hasBoundaryPoints_[d] > 0 ? 0 : 1) +
+                          oneDimensionalLocalIndex) *
+          h[d] -
+      coord;
+#ifndef NDEBUG
+  if (std::abs(coordDistance) > h[d]) {
+    std::cout << "assert bounds " << coordDistance << coord << h << static_cast<int>(d)
+              << oneDimensionalLocalIndex << std::endl;
+    assert(false &&
+           "should only be called for coordinates within the support of this point's basis "
+           "function");
+  }
+#endif  // ndef NDEBUG
+  return std::abs(coordDistance);
+}
+
+template <typename FG_ELEMENT>
+FG_ELEMENT DistributedFullGrid<FG_ELEMENT>::evalIndexAndAllUpperNeighbors(
+    const IndexVector& localIndex, const std::vector<real>& coords) const {
+  FG_ELEMENT result = 0.;
+  auto localLinearIndex = this->getLocalLinearIndex(localIndex);
+  for (size_t localIndexIterate = 0;
+       localIndexIterate < combigrid::powerOfTwoByBitshift(this->getDimension());
+       ++localIndexIterate) {
+#ifndef NDEBUG
+    auto neighborVectorIndex = localIndex;
+#endif
+    auto neighborIndex = localLinearIndex;
+    real phi_c = 1.;  // value of product of iterate's basis function on coords
+    for (DimType d = 0; d < dim_; ++d) {
+      const auto lastIndexInDim = this->getLocalSizes()[d] - 1;
+      bool isUpperInDim = std::bitset<sizeof(int) * CHAR_BIT>(localIndexIterate).test(d);
+      auto iterateIndexInThisDimension = localIndex[d] + isUpperInDim;
+      if (iterateIndexInThisDimension < 0) {
+        phi_c = 0.;
+        break;
+      } else if (isUpperInDim && this->hasBoundaryPoints_[d] == 1 &&
+                 //  this->getCartesianUtils().isOnLowerBoundaryInDimension(d) &&
+                 iterateIndexInThisDimension == this->getGlobalSizes()[d]) {
+        // if we have a wrap-around AND are on the lowest cartesian process in this dimension
+        // we need to set the index in this dim to 0 and shift the coordinate by 1.
+        neighborIndex -= localIndex[d] * this->getLocalOffsets()[d];
+        iterateIndexInThisDimension = 0;
+        auto coordDistance =
+            getPointDistanceToCoordinate(iterateIndexInThisDimension, coords[d] - 1.0, d);
+        auto oneOverHinD = powerOfTwo[levels_[d]];
+        phi_c *= 1. - coordDistance * oneOverHinD;
+      } else if (iterateIndexInThisDimension > lastIndexInDim) {
+        phi_c = 0.;
+        break;
+      } else {
+        auto coordDistance =
+            getPointDistanceToCoordinate(iterateIndexInThisDimension, coords[d], d);
+        auto oneOverHinD = powerOfTwo[levels_[d]];
+        phi_c *= 1. - coordDistance * oneOverHinD;
+        neighborIndex += isUpperInDim * this->getLocalOffsets()[d];
+      }
+#ifndef NDEBUG
+      neighborVectorIndex[d] = iterateIndexInThisDimension;
+#endif
+    }
+    if (phi_c > 0.) {
+#ifndef NDEBUG
+      auto unlinearizedNeighborIndex = neighborVectorIndex;
+      this->getLocalVectorIndex(neighborIndex, unlinearizedNeighborIndex);
+      if (unlinearizedNeighborIndex != neighborVectorIndex) {
+        std::cerr << "expected " << unlinearizedNeighborIndex << " got " << neighborVectorIndex
+                  << std::endl;
+      }
+      if (neighborIndex < 0) {
+        std::cerr << "expected " << unlinearizedNeighborIndex << " got " << neighborVectorIndex
+                  << " or " << neighborIndex << std::endl;
+      }
+#endif
+      assert(neighborIndex > -1);
+      assert(neighborIndex < this->getNrLocalElements());
+      result += phi_c * this->getData()[neighborIndex];
+    }
+  }
+  return result;
+}
+
+template <typename FG_ELEMENT>
+FG_ELEMENT DistributedFullGrid<FG_ELEMENT>::evalLocal(const std::vector<real>& coords) const {
+  FG_ELEMENT value;
+  evalLocal(coords, value);
+  return value;
+}
+template <typename FG_ELEMENT>
+void DistributedFullGrid<FG_ELEMENT>::evalLocal(const std::vector<real>& coords,
+                                                FG_ELEMENT& value) const {
+  assert(coords.size() == this->getDimension());
+  // get the lowest-index point of the points
+  // whose basis functions contribute to the interpolated value
+  const auto& h = getGridSpacing();
+  static thread_local IndexVector localIndexLowerNonzeroNeighborPoint;
+  localIndexLowerNonzeroNeighborPoint.resize(dim_);
+  for (DimType d = 0; d < dim_; ++d) {
+#ifndef NDEBUG
+    if (coords[d] < 0. || coords[d] > 1.) {
+      std::cout << "coords " << coords << " out of bounds" << std::endl;
+    }
+    assert(coords[d] >= 0. && coords[d] <= 1.);
+#endif  // ndef NDEBUG
+    // this is the local index of the point that is lower than the coordinate
+    // may also be negative if the coordinate is lower than this processes' coordinates
+    IndexType localIndexLowerNonzeroNeighborIndexInThisDimension = static_cast<IndexType>(
+        std::floor((coords[d] - this->getLowerBoundsCoord(d)) * this->getInverseGridSpacingIn(d)));
+
+    // check if we even need to evaluate on this process
+    if (localIndexLowerNonzeroNeighborIndexInThisDimension < -1) {
+      // index too small
+      value = 0.;
+      return;
+    } else if ((coords[d] >= 1.0 - h[d]) && this->hasBoundaryPoints_[d] == 1 &&
+               this->getCartesianUtils().isOnLowerBoundaryInDimension(d)) {
+      // if we have periodic boundary and this process is at the lower end of the dimension d
+      // we need the periodic coordinate => don't return 0
+    } else if (localIndexLowerNonzeroNeighborIndexInThisDimension > this->getLocalSizes()[d] - 1) {
+      // index too high
+      value = 0.;
+      return;
+    }
+    localIndexLowerNonzeroNeighborPoint[d] = localIndexLowerNonzeroNeighborIndexInThisDimension;
+  }
+  // evaluate at those points and sum up according to the basis function
+  value = evalIndexAndAllUpperNeighbors(localIndexLowerNonzeroNeighborPoint, coords);
+}
+
+template <typename FG_ELEMENT>
+std::vector<FG_ELEMENT> DistributedFullGrid<FG_ELEMENT>::getInterpolatedValues(
+    const std::vector<std::vector<real>>& interpolationCoords) const {
+  auto numValues = interpolationCoords.size();
+  std::vector<FG_ELEMENT> values;
+  values.resize(numValues);
+#pragma omp parallel for default(none) firstprivate(numValues) shared(values, interpolationCoords) \
+    schedule(static)
+  for (size_t i = 0; i < numValues; ++i) {
+    this->evalLocal(interpolationCoords[i], values[i]);
+  }
+  MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numValues), this->getMPIDatatype(),
+                MPI_SUM, this->getCommunicator());
+  return values;
+}
+
 template <typename FG_ELEMENT>
 void DistributedFullGrid<FG_ELEMENT>::gatherFullGrid(FullGrid<FG_ELEMENT>& fg, RankType root) {
   int size = this->getCommunicatorSize();
@@ -1273,26 +1276,6 @@ void DistributedFullGrid<FG_ELEMENT>::gatherFullGrid(FullGrid<FG_ELEMENT>& fg, R
   }
 
   for (size_t i = 0; i < subarrayTypes.size(); ++i) MPI_Type_free(&subarrayTypes[i]);
-}
-
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::getFGPointsOfSubspaceRecursive(
-    DimType d, IndexType localLinearIndexSum, std::vector<IndexVector>& oneDIndices,
-    std::vector<IndexType>& subspaceIndices) const {
-  assert(d < dim_);
-  assert(oneDIndices.size() == dim_);
-  assert(!oneDIndices.empty());
-
-  for (const auto idx : oneDIndices[d]) {
-    auto updatedLocalIndexSum = localLinearIndexSum;
-    updatedLocalIndexSum += this->getLocalOffsets()[d] * idx;
-    if (d > 0) {
-      getFGPointsOfSubspaceRecursive(static_cast<DimType>(d - 1), updatedLocalIndexSum, oneDIndices,
-                                     subspaceIndices);
-    } else {
-      subspaceIndices.emplace_back(updatedLocalIndexSum);
-    }
-  }
 }
 
 template <typename FG_ELEMENT>
@@ -1354,71 +1337,6 @@ size_t DistributedFullGrid<FG_ELEMENT>::extractFromUniformSG(
     }
   }
   return numCopied;
-}
-
-template <typename FG_ELEMENT>
-IndexType DistributedFullGrid<FG_ELEMENT>::getStrideForThisLevel(LevelType l, DimType d) const {
-  assert(d < this->getDimension());
-  // special treatment for level 1 suspaces with boundary
-  return (l == 1 && hasBoundaryPoints_[d] > 0)
-             ? combigrid::powerOfTwoByBitshift(static_cast<LevelType>(levels_[d] - 1))
-             : combigrid::powerOfTwoByBitshift(static_cast<LevelType>(levels_[d] - l + 1));
-}
-
-template <typename FG_ELEMENT>
-IndexType DistributedFullGrid<FG_ELEMENT>::getLocalStartForThisLevel(
-    LevelType l, DimType d, IndexType strideForThisLevel) const {
-  const auto firstGlobal1dIdx = getFirstGlobal1dIndex(d);
-
-  // get global offset to find indices of this level
-  // this is the first global index that has level l in dimension d
-  IndexType offsetForThisLevel;
-  if (hasBoundaryPoints_[d] > 0) {
-    if (l == 1) {
-      offsetForThisLevel = 0;
-    } else {
-      // offsetForThisLevel = strideForThisLevel / 2;
-      offsetForThisLevel = combigrid::powerOfTwoByBitshift(static_cast<LevelType>(levels_[d] - l));
-    }
-  } else {
-    // offsetForThisLevel = strideForThisLevel / 2 - 1;
-    offsetForThisLevel =
-        combigrid::powerOfTwoByBitshift(static_cast<LevelType>(levels_[d] - l)) - 1;
-  }
-  assert(offsetForThisLevel > -1);
-  assert(strideForThisLevel >= offsetForThisLevel);
-
-  // first level-index that is on our partition
-  const IndexType firstGlobalIndexOnThisPartition =
-      (firstGlobal1dIdx < offsetForThisLevel)
-          ? 0
-          : (firstGlobal1dIdx - offsetForThisLevel + strideForThisLevel - 1) / strideForThisLevel;
-  // get global index of first local index which has level l
-  const IndexType globalStart =
-      (firstGlobalIndexOnThisPartition)*strideForThisLevel + offsetForThisLevel;
-  assert(getLevel(d, globalStart) == l ||
-         (getLevel(d, globalStart) == 0 && hasBoundaryPoints_[d] > 0 && l == 1));
-  assert(globalStart >= firstGlobal1dIdx);
-
-  return globalStart - firstGlobal1dIdx;
-}
-
-template <typename FG_ELEMENT>
-IndexType DistributedFullGrid<FG_ELEMENT>::getNumPointsOnThisPartition(
-    DimType d, IndexType localStart, IndexType strideForThisLevel) const {
-  assert(d < this->getDimension());
-  return (this->getLocalSizes()[d] - 1 < localStart)
-             ? 0
-             : (this->getLocalSizes()[d] - 1 - localStart) / strideForThisLevel + 1;
-}
-
-template <typename FG_ELEMENT>
-IndexType DistributedFullGrid<FG_ELEMENT>::getNumPointsOnThisPartition(LevelType l,
-                                                                       DimType d) const {
-  assert(!(l > levels_[d]));
-  const auto strideForThisLevel = getStrideForThisLevel(l, d);
-  return getNumPointsOnThisPartition(d, getLocalStartForThisLevel(l, d, strideForThisLevel),
-                                     strideForThisLevel);
 }
 
 template <typename FG_ELEMENT>
@@ -1621,83 +1539,6 @@ void DistributedFullGrid<FG_ELEMENT>::writePlotFileVTK(const char* filename) con
   // close file
   MPI_File_close(&fh);
   MPI_Type_free(&mysubarray);
-}
-
-template <typename FG_ELEMENT>
-MPI_Datatype DistributedFullGrid<FG_ELEMENT>::getUpwardSubarray(DimType d) {
-  // do index calculations
-  // set lower bounds of subarray
-  auto subarrayLowerBounds = this->getLowerBounds();
-  auto subarrayUpperBounds = this->getUpperBounds();
-  subarrayLowerBounds[d] += this->getLocalSizes()[d] - 1;
-
-  auto subarrayExtents = subarrayUpperBounds - subarrayLowerBounds;
-  assert(subarrayExtents[d] == 1);
-  auto subarrayStarts = subarrayLowerBounds - this->getLowerBounds();
-
-  // create MPI datatype
-  std::vector<int> sizes(this->getLocalSizes().begin(), this->getLocalSizes().end());
-  std::vector<int> subsizes(subarrayExtents.begin(), subarrayExtents.end());
-  // the starts are local indices
-  std::vector<int> starts(subarrayStarts.begin(), subarrayStarts.end());
-
-  // create subarray view on data
-  MPI_Datatype mysubarray;
-  MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(), subsizes.data(),
-                           starts.data(), MPI_ORDER_FORTRAN, this->getMPIDatatype(), &mysubarray);
-  MPI_Type_commit(&mysubarray);
-  return mysubarray;
-}
-
-template <typename FG_ELEMENT>
-std::vector<MPI_Datatype> DistributedFullGrid<FG_ELEMENT>::getUpwardSubarrays() {
-  // initialize upwardSubarrays_ only once
-  if (upwardSubarrays_.size() == 0) {
-    upwardSubarrays_.resize(this->getDimension());
-    for (DimType d = 0; d < this->getDimension(); ++d) {
-      upwardSubarrays_[d] = getUpwardSubarray(d);
-    }
-  }
-  return upwardSubarrays_;
-}
-
-template <typename FG_ELEMENT>
-MPI_Datatype DistributedFullGrid<FG_ELEMENT>::getDownwardSubarray(DimType d) {
-  // do index calculations
-  // set upper bounds of subarray
-  IndexVector subarrayLowerBounds = this->getLowerBounds();
-  IndexVector subarrayUpperBounds = this->getUpperBounds();
-  subarrayUpperBounds[d] -= this->getLocalSizes()[d] - 1;
-
-  auto subarrayExtents = subarrayUpperBounds - subarrayLowerBounds;
-  assert(subarrayExtents[d] == 1);
-  auto subarrayStarts = subarrayLowerBounds - this->getLowerBounds();
-
-  // create MPI datatype
-  // also, the data dimensions are reversed
-  std::vector<int> sizes(this->getLocalSizes().begin(), this->getLocalSizes().end());
-  std::vector<int> subsizes(subarrayExtents.begin(), subarrayExtents.end());
-  // the starts are local indices
-  std::vector<int> starts(subarrayStarts.begin(), subarrayStarts.end());
-
-  // create subarray view on data
-  MPI_Datatype mysubarray;
-  MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(), subsizes.data(),
-                           starts.data(), MPI_ORDER_FORTRAN, this->getMPIDatatype(), &mysubarray);
-  MPI_Type_commit(&mysubarray);
-  return mysubarray;
-}
-
-template <typename FG_ELEMENT>
-std::vector<MPI_Datatype> DistributedFullGrid<FG_ELEMENT>::getDownwardSubarrays() {
-  // initialize downwardSubarrays_ only once
-  if (downwardSubarrays_.size() == 0) {
-    downwardSubarrays_.resize(this->getDimension());
-    for (DimType d = 0; d < this->getDimension(); ++d) {
-      downwardSubarrays_[d] = getDownwardSubarray(d);
-    }
-  }
-  return downwardSubarrays_;
 }
 
 template <typename FG_ELEMENT>
@@ -1954,6 +1795,168 @@ void DistributedFullGrid<FG_ELEMENT>::setDecomposition(
 #endif  // not def NDEBUG
 
   decomposition_ = decomposition;
+}
+
+template <typename FG_ELEMENT>
+void DistributedFullGrid<FG_ELEMENT>::getFGPointsOfSubspaceRecursive(
+    DimType d, IndexType localLinearIndexSum, std::vector<IndexVector>& oneDIndices,
+    std::vector<IndexType>& subspaceIndices) const {
+  assert(d < dim_);
+  assert(oneDIndices.size() == dim_);
+  assert(!oneDIndices.empty());
+
+  for (const auto idx : oneDIndices[d]) {
+    auto updatedLocalIndexSum = localLinearIndexSum;
+    updatedLocalIndexSum += this->getLocalOffsets()[d] * idx;
+    if (d > 0) {
+      getFGPointsOfSubspaceRecursive(static_cast<DimType>(d - 1), updatedLocalIndexSum, oneDIndices,
+                                     subspaceIndices);
+    } else {
+      subspaceIndices.emplace_back(updatedLocalIndexSum);
+    }
+  }
+}
+
+template <typename FG_ELEMENT>
+IndexType DistributedFullGrid<FG_ELEMENT>::getStrideForThisLevel(LevelType l, DimType d) const {
+  assert(d < this->getDimension());
+  // special treatment for level 1 suspaces with boundary
+  return (l == 1 && hasBoundaryPoints_[d] > 0)
+             ? combigrid::powerOfTwoByBitshift(static_cast<LevelType>(levels_[d] - 1))
+             : combigrid::powerOfTwoByBitshift(static_cast<LevelType>(levels_[d] - l + 1));
+}
+
+template <typename FG_ELEMENT>
+IndexType DistributedFullGrid<FG_ELEMENT>::getLocalStartForThisLevel(
+    LevelType l, DimType d, IndexType strideForThisLevel) const {
+  const auto firstGlobal1dIdx = getFirstGlobal1dIndex(d);
+
+  // get global offset to find indices of this level
+  // this is the first global index that has level l in dimension d
+  IndexType offsetForThisLevel;
+  if (hasBoundaryPoints_[d] > 0) {
+    if (l == 1) {
+      offsetForThisLevel = 0;
+    } else {
+      // offsetForThisLevel = strideForThisLevel / 2;
+      offsetForThisLevel = combigrid::powerOfTwoByBitshift(static_cast<LevelType>(levels_[d] - l));
+    }
+  } else {
+    // offsetForThisLevel = strideForThisLevel / 2 - 1;
+    offsetForThisLevel =
+        combigrid::powerOfTwoByBitshift(static_cast<LevelType>(levels_[d] - l)) - 1;
+  }
+  assert(offsetForThisLevel > -1);
+  assert(strideForThisLevel >= offsetForThisLevel);
+
+  // first level-index that is on our partition
+  const IndexType firstGlobalIndexOnThisPartition =
+      (firstGlobal1dIdx < offsetForThisLevel)
+          ? 0
+          : (firstGlobal1dIdx - offsetForThisLevel + strideForThisLevel - 1) / strideForThisLevel;
+  // get global index of first local index which has level l
+  const IndexType globalStart =
+      (firstGlobalIndexOnThisPartition)*strideForThisLevel + offsetForThisLevel;
+  assert(getLevel(d, globalStart) == l ||
+         (getLevel(d, globalStart) == 0 && hasBoundaryPoints_[d] > 0 && l == 1));
+  assert(globalStart >= firstGlobal1dIdx);
+
+  return globalStart - firstGlobal1dIdx;
+}
+
+template <typename FG_ELEMENT>
+IndexType DistributedFullGrid<FG_ELEMENT>::getNumPointsOnThisPartition(
+    DimType d, IndexType localStart, IndexType strideForThisLevel) const {
+  assert(d < this->getDimension());
+  return (this->getLocalSizes()[d] - 1 < localStart)
+             ? 0
+             : (this->getLocalSizes()[d] - 1 - localStart) / strideForThisLevel + 1;
+}
+
+template <typename FG_ELEMENT>
+IndexType DistributedFullGrid<FG_ELEMENT>::getNumPointsOnThisPartition(LevelType l,
+                                                                       DimType d) const {
+  assert(!(l > levels_[d]));
+  const auto strideForThisLevel = getStrideForThisLevel(l, d);
+  return getNumPointsOnThisPartition(d, getLocalStartForThisLevel(l, d, strideForThisLevel),
+                                     strideForThisLevel);
+}
+
+template <typename FG_ELEMENT>
+MPI_Datatype DistributedFullGrid<FG_ELEMENT>::getUpwardSubarray(DimType d) {
+  // do index calculations
+  // set lower bounds of subarray
+  auto subarrayLowerBounds = this->getLowerBounds();
+  auto subarrayUpperBounds = this->getUpperBounds();
+  subarrayLowerBounds[d] += this->getLocalSizes()[d] - 1;
+
+  auto subarrayExtents = subarrayUpperBounds - subarrayLowerBounds;
+  assert(subarrayExtents[d] == 1);
+  auto subarrayStarts = subarrayLowerBounds - this->getLowerBounds();
+
+  // create MPI datatype
+  std::vector<int> sizes(this->getLocalSizes().begin(), this->getLocalSizes().end());
+  std::vector<int> subsizes(subarrayExtents.begin(), subarrayExtents.end());
+  // the starts are local indices
+  std::vector<int> starts(subarrayStarts.begin(), subarrayStarts.end());
+
+  // create subarray view on data
+  MPI_Datatype mysubarray;
+  MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(), subsizes.data(),
+                           starts.data(), MPI_ORDER_FORTRAN, this->getMPIDatatype(), &mysubarray);
+  MPI_Type_commit(&mysubarray);
+  return mysubarray;
+}
+
+template <typename FG_ELEMENT>
+std::vector<MPI_Datatype> DistributedFullGrid<FG_ELEMENT>::getUpwardSubarrays() {
+  // initialize upwardSubarrays_ only once
+  if (upwardSubarrays_.size() == 0) {
+    upwardSubarrays_.resize(this->getDimension());
+    for (DimType d = 0; d < this->getDimension(); ++d) {
+      upwardSubarrays_[d] = getUpwardSubarray(d);
+    }
+  }
+  return upwardSubarrays_;
+}
+
+template <typename FG_ELEMENT>
+MPI_Datatype DistributedFullGrid<FG_ELEMENT>::getDownwardSubarray(DimType d) {
+  // do index calculations
+  // set upper bounds of subarray
+  IndexVector subarrayLowerBounds = this->getLowerBounds();
+  IndexVector subarrayUpperBounds = this->getUpperBounds();
+  subarrayUpperBounds[d] -= this->getLocalSizes()[d] - 1;
+
+  auto subarrayExtents = subarrayUpperBounds - subarrayLowerBounds;
+  assert(subarrayExtents[d] == 1);
+  auto subarrayStarts = subarrayLowerBounds - this->getLowerBounds();
+
+  // create MPI datatype
+  // also, the data dimensions are reversed
+  std::vector<int> sizes(this->getLocalSizes().begin(), this->getLocalSizes().end());
+  std::vector<int> subsizes(subarrayExtents.begin(), subarrayExtents.end());
+  // the starts are local indices
+  std::vector<int> starts(subarrayStarts.begin(), subarrayStarts.end());
+
+  // create subarray view on data
+  MPI_Datatype mysubarray;
+  MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(), subsizes.data(),
+                           starts.data(), MPI_ORDER_FORTRAN, this->getMPIDatatype(), &mysubarray);
+  MPI_Type_commit(&mysubarray);
+  return mysubarray;
+}
+
+template <typename FG_ELEMENT>
+std::vector<MPI_Datatype> DistributedFullGrid<FG_ELEMENT>::getDownwardSubarrays() {
+  // initialize downwardSubarrays_ only once
+  if (downwardSubarrays_.size() == 0) {
+    downwardSubarrays_.resize(this->getDimension());
+    for (DimType d = 0; d < this->getDimension(); ++d) {
+      downwardSubarrays_[d] = getDownwardSubarray(d);
+    }
+  }
+  return downwardSubarrays_;
 }
 
 template <typename FG_ELEMENT>
