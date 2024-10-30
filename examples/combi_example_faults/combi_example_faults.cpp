@@ -129,7 +129,6 @@ int main(int argc, char** argv) {
 
       if ( !success ) {
         std::cout << "failed group detected at combi iteration " << i-1<< std::endl;
-//        manager.recover();
 
         std::vector<size_t> faultsID;
 

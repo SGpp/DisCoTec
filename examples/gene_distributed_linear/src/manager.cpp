@@ -298,7 +298,6 @@ int main(int argc, char** argv) {
 
         nfaults++; //increase the number of occured faults
         std::cout << "failed group detected at combi iteration " << i << std::endl;
-       // manager.recover(i, nsteps); has no access toi GENE Task
 
         //vector with IDs of faulted tasks (=component grids)
         std::vector<size_t> faultsID;
