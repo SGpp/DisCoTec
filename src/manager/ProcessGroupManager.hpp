@@ -16,88 +16,224 @@
 #include "utils/Types.hpp"
 
 namespace combigrid {
+/**
+ * @class ProcessGroupManager
+ * @brief The ProcessGroupManager is part of a ProcessManager and is responsible for communication
+ * with a single process group.
+ *
+ * Through the use of non-blocking operations in the ProcessGroupManager, the ProcessManager can
+ * instruct multiple process groups at once.
+ */
 class ProcessGroupManager {
- public:
-  ProcessGroupManager() = delete;
+  friend class ProcessManager;
 
+ public:
+  /**
+   * Constructor
+   *
+   * @param pgroupRootID the rank of each process of this group in the global communicator;
+   * this is the same as the process group number, as the global communicator contains one member of
+   * each process group
+   */
   explicit ProcessGroupManager(RankType pgroupRootID);
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+  ProcessGroupManager() = delete;
+  ~ProcessGroupManager() = default;
+  // rule of 5
   ProcessGroupManager(ProcessGroupManager const&) = delete;
-
   ProcessGroupManager& operator=(ProcessGroupManager const&) = delete;
+  ProcessGroupManager(ProcessGroupManager&&) = delete;
+  ProcessGroupManager& operator=(ProcessGroupManager&&) = delete;
+#endif  // DOXYGEN_SHOULD_SKIP_THIS
 
+  /**
+   * @brief signal the process group to initalize and run the task \p t
+   */
   bool runfirst(Task* t);
 
+  /**
+   * @brief signal the process group to run a time step on all of its tasks
+   */
   bool runnext();
 
+  /**
+   * @brief signal the process group to initialized its sparse grid data structures
+   */
   bool initDsgus();
 
+  /**
+   * @brief signal the process group to exit
+   */
   bool exit();
 
-  /* non-blocking call to retrieve status of process group */
+  /**
+   * @brief non-blocking call to retrieve status of process group
+   */
   inline StatusType getStatus();
 
-  inline void setStatus(StatusType status);
-
-  /* blocks until process group finished computation */
+  /**
+   * @brief blocks until process group finished computation
+   */
   inline StatusType waitStatus();
 
+  /**
+   * @brief get a collection of all tasks currently assigned to this group
+   */
   inline const TaskContainer& getTaskContainer() const;
 
+  /**
+   * @brief remove a task from the process group
+   *
+   * this does not change the state in the workers!
+   */
   inline void removeTask(Task* t);
 
+  /**
+   * @brief signal to perform a system-wide combination
+   */
   bool combine();
 
-  // third Level stuff
+  /**
+   * @brief signal to perform a widely-distributed combination
+   *
+   * based on TCP/socket setup with third level manager. cf. ProcessManager::combineThirdLevel
+   */
   bool combineThirdLevel(const ThirdLevelUtils& thirdLevel, CombiParameters& params,
                          bool isSendingFirst);
-
+  /**
+   * @brief signal to perform a whole widely-distributed combination
+   *
+   * based on file-exchange mechanism (w/o third level manager); equivalent to calling
+   * combineThirdLevelFileBasedWrite and combineThirdLevelFileBasedReadReduce in succession
+   */
   bool combineThirdLevelFileBased(const std::string& filenamePrefixToWrite,
                                   const std::string& writeCompleteTokenFileName,
                                   const std::string& filenamePrefixToRead,
                                   const std::string& startReadingTokenFileName);
 
+  /**
+   * @brief signal to start a widely-distributed combination
+   *
+   * based on file-exchange mechanism (w/o third level manager)
+   */
   bool combineThirdLevelFileBasedWrite(const std::string& filenamePrefixToWrite,
                                        const std::string& writeCompleteTokenFileName);
 
+  /**
+   * @brief signal to reduce the results of a widely-distributed combination
+   *
+   * based on file-exchange mechanism (w/o third level manager)
+   */
   bool combineThirdLevelFileBasedReadReduce(const std::string& filenamePrefixToRead,
                                             const std::string& startReadingTokenFileName);
 
+  /**
+   * @brief signal to pretend a widely-distributed combination
+   *
+   * based on TCP/socket setup with third level manager; for testing the widely-distributed
+   * combination between the workers in and outside the third level process group
+   */
   bool pretendCombineThirdLevelForWorkers(CombiParameters& params);
 
+  /**
+   * @brief signal to perform the first part of a system-wide combination, namely hierarchization
+   * and reduction (but not dehierarchization)
+   *
+   * based on file-exchange mechanism (w/o third level manager)
+   */
   bool combineSystemWide();
 
+  /**
+   * @brief send new CombiParameters to the process group
+   */
   bool updateCombiParameters(CombiParameters& params);
 
-  /* Check if group fault occured at this combination step using the fault simulator */
+  /**
+   * @brief Check if group fault occured at this combination step using the fault simulator
+   */
   bool isGroupFault();
 
+  /**
+   * @brief assign a task to the process group
+   */
   bool addTask(Task*);
   bool refreshTask(Task*);
 
-  // resets tasks only on workers not in group manager
+  /**
+   * @brief signal to delete all tasks in the process group
+   *
+   * does not change the state in this ProcessGroupManager!
+   */
   bool resetTasksWorker();
 
-  bool recompute(Task*);
+  /**
+   * @brief assign a task to the process group, and let the workers run a time step
+   *
+   * used for fault tolerance; the task will be re-initialized from the current sparse grid solution
+   */
+  bool recompute(Task* t);
 
+  /**
+   * @brief signal to recover the communicator ranks of the process group
+   */
   bool recoverCommunicators();
 
+  /**
+   * @brief signal to interpolate the current solution from all component grids on this group at
+   * resolution level \p leval and write the results to a binary file readable with Paraview
+   */
   bool parallelEval(const LevelVector& leval, const std::string& filename);
 
+  /**
+   * @brief signal the group to write minimum and maximum subspace coefficients to a file
+   *
+   * @param filename the filename to write to
+   */
   void writeSparseGridMinMaxCoefficients(const std::string& filename);
 
+  /**
+   * @brief signal to perform diagnostics on the task with the given ID
+   *
+   * can only be used with Tasks that implement the doDiagnostics method
+   */
   void doDiagnostics(size_t taskID);
 
+  /**
+   * @brief signal to compute the Lp norm of the current component grids, and gather them
+   *
+   * @param p the p in Lp norm
+   * @return a map from task ID to Lp norm
+   */
   void getLpNorms(int p, std::map<size_t, double>& norms);
 
+  /**
+   * @brief signal to interpolate the analytical solution at the given resolution level \p leval
+   */
   std::vector<double> evalAnalyticalOnDFG(const LevelVector& leval);
 
+  /**
+   * @brief signal to interpolate the analytical solution at the given resolution level \p leval and
+   * compute the difference to the current solution
+   *
+   * @return the Lp norms of the error: maximum norm, l1 norm, l2 norm
+   */
   std::vector<double> evalErrorOnDFG(const LevelVector& leval);
 
+  /**
+   * @brief signal to interpolate the current component grids at the given \p
+   * interpolationCoordsSerial
+   *
+   * non-blocking; the results will be written to values after the requests have completed
+   */
   void interpolateValues(const std::vector<real>& interpolationCoordsSerial,
                          std::vector<CombiDataType>& values, MPI_Request* request = nullptr,
                          const std::string& filenamePrefix = "");
 
+  /**
+   * @brief signal to interpolate the current component grids at the given \p
+   * interpolationCoordsSerial and write results; one file per grid.
+   */
   void writeInterpolatedValuesPerGrid(const std::vector<real>& interpolationCoordsSerial,
                                       const std::string& filenamePrefix);
 
@@ -116,21 +252,45 @@ class ProcessGroupManager {
    * @returns If successful the removed task or a nullptr if no task with the
    *          given level vector is found.
    */
-  Task *rescheduleRemoveTask(const LevelVector& lvlVec);
+  Task* rescheduleRemoveTask(const LevelVector& lvlVec);
 
-
-  bool hasTask(size_t taskID){
+  /**
+   * @brief returns true if the group is currently assigned the task with the given \p taskID
+   */
+  bool hasTask(size_t taskID) {
     auto foundIt = std::find_if(tasks_.begin(), tasks_.end(),
                                 [taskID](Task* t) { return ((t->getID()) == taskID); });
     return foundIt != tasks_.end();
   }
 
+  /**
+   * @brief signal to write the group's component grids to vtk plot file each
+   */
   bool writeCombigridsToVTKPlotFile();
 
+  /**
+   * @brief signal to write the group's sparse grid data structures to disk
+   *
+   * using custom binary format with MPI-IO (and compression, if enabled)
+   *
+   * @param filenamePrefix the prefix of the filename to write to
+   */
   bool writeDSGsToDisk(const std::string& filenamePrefix);
 
+  /**
+   * @brief signal to read the group's sparse grid data structures from disk
+   *
+   * using custom binary format with MPI-IO (and decompression, if enabled)
+   *
+   * @param filenamePrefix the prefix of the filename to read from
+   */
   bool readDSGsFromDisk(const std::string& filenamePrefix);
 
+  /**
+   * @brief store the task for this process group
+   *
+   * Does not change the state in the workers!
+   */
   void storeTaskReference(Task* t);
 
  private:
@@ -149,6 +309,8 @@ class ProcessGroupManager {
   std::vector<size_t> dsguDataSizePerWorker_;
 
   void recvStatus();
+
+  inline void setStatus(StatusType status);
 
   // Helper functions for Communication with ProcessGroups
   bool storeTaskReferenceAndSendTaskToProcessGroup(Task* t, SignalType signal);

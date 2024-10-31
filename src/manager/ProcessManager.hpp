@@ -67,6 +67,9 @@ class ProcessManager {
   /**
    * @brief signal to run the first combination step, i.e. initialize and run each task
    *
+   * this is where initial load balancing is done: tasks are sorted by expected runtime and assigned
+   * to process groups as they become available again
+   *
    * @param doInitDSGUs whether to initialize the DSGUs after the first combination step
    * @return true if no group failed
    */
@@ -251,9 +254,12 @@ class ProcessManager {
    */
   void getGroupFaultIDs(std::vector<size_t>& faultsID,
                         std::vector<ProcessGroupManagerID>& groupFaults);
+
   /**
-   * @brief signal to interpolate the current solution from all component grids at resolution level
-   * \p leval
+   * @brief signal one group to interpolate the current solution from the current sparse grid at
+   * resolution level \p leval
+   *
+   * writes the solution to a binary file readable with Paraview
    */
   void parallelEval(const LevelVector& leval, std::string& filename, size_t groupID);
 
