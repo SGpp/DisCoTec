@@ -59,8 +59,10 @@ int main(int argc, char** argv) {
   MPI_Cart_create(MPI_COMM_SELF, 3, new int[3]{1, 1, 1}, new int[3]{1, 1, 1}, 1, &commSelfPeriodic);
 
   for (const auto& df : diagnosticsFiles) {
-    combigrid::OwningDistributedFullGrid<double> combinedFullGrid(dim_x, lmax_x, commSelfPeriodic, {1, 1, 1}, {1, 1, 1}, false);
-    combigrid::DistributedSparseGridUniform<double> combinedSparseGrid(dim_x, lmax_x, lmin_x, commSelfPeriodic);
+    combigrid::OwningDistributedFullGrid<double> combinedFullGrid(dim_x, lmax_x, commSelfPeriodic,
+                                                                  {1, 1, 1}, {1, 1, 1}, false);
+    combigrid::DistributedSparseGridUniform<double> combinedSparseGrid(dim_x, lmax_x, lmin_x,
+                                                                       commSelfPeriodic);
     combinedSparseGrid.registerDistributedFullGrid(combinedFullGrid);
     combinedSparseGrid.createSubspaceData();
 
@@ -148,7 +150,8 @@ int main(int argc, char** argv) {
               << Stats::getDuration("dehierarchize") << " milliseconds" << std::endl;
 
     boost::const_multi_array_ref<double, 3> combinedValues =
-        combinedFullGrid.getTensor().getAsConstMultiArrayRef<3>();
+        boost::const_multi_array_ref<double, 3>(combinedFullGrid.getData(),
+                                                combinedFullGrid.getGlobalSizes());
     boost::multi_array<double, 3> combinedValuesCopy = combinedValues;
 
     // output interpolated values to h5 file

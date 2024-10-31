@@ -80,8 +80,12 @@ pipeline {
                                         spack compiler find  
                                         # remove compilers with stl/linker/fortran issues
                                         spack compiler remove -a gcc@10.1.0: || true # ignore if this compiler was not found
-                                        spack spec -y discotec@main -lto %${compiler} ^${mpiimpl} #+selalib # --only dependencies # actually build discotec, such that load command will work
-                                        spack install -y discotec@main -lto %${compiler} ^${mpiimpl} #+selalib # --only dependencies # actually build discotec, such that load command will work
+                                        # cf. error w/ hdf5, during selalib build: The link interface of target "hdf5-static" contains: ZLIB::ZLIB but the target was not found.
+                                        # https://forum.hdfgroup.org/t/cmake-zlib-dependency-not-properly-propagted-by-hdf5-targets/5149
+                                        # spack install zlib
+                                        # spack load zlib
+                                        spack spec -y discotec@main -lto %${compiler} ^${mpiimpl} # +selalib # --only dependencies # actually build discotec, such that load command will work
+                                        spack install -y discotec@main -lto %${compiler} ^${mpiimpl} # +selalib # --only dependencies # actually build discotec, such that load command will work
                                         spack install -y lz4 %${compiler}
                                         '''
                                     }
