@@ -11,8 +11,6 @@
 
 namespace combigrid {
 
-ProcessManager::~ProcessManager() {}
-
 void ProcessManager::sortTasks(){
   LoadModel* lm = loadModel_.get();
   assert(lm);
@@ -318,50 +316,6 @@ bool ProcessManager::recoverCommunicators(std::vector<ProcessGroupManagerID> fai
   return failedRecovery;
 }
 
-void ProcessManager::recover(int i, int nsteps) {  // outdated
-
-  assert(false && "deprecated function recover");
-  std::vector<size_t> faultsID;
-  std::vector<ProcessGroupManagerID> groupFaults;
-  getGroupFaultIDs(faultsID, groupFaults);
-
-  /* call optimization code to find new coefficients */
-  const std::string prob_name = "interpolation based optimization";
-  std::vector<size_t> redistributeFaultsID, recomputeFaultsID;
-  recomputeOptimumCoefficients(prob_name, faultsID, redistributeFaultsID, recomputeFaultsID);
-  // time does not need to be updated in gene but maybe in other applications
-  /*  for ( auto id : redistributeFaultsID ) {
-      GeneTask* tmp = static_cast<GeneTask*>(getTask(id));
-      tmp->setStepsTotal((i+1)*nsteps);
-      tmp->setCombiStep(i+1);
-    }
-
-    for ( auto id : recomputeFaultsID ) {
-      GeneTask* tmp = static_cast<GeneTask*>(getTask(id));
-      tmp->setStepsTotal((i)*nsteps);
-      tmp->setCombiStep(i);
-    }*/
-  /* recover communicators*/
-  bool failedRecovery = recoverCommunicators(groupFaults);
-  /* communicate new combination scheme*/
-  if (failedRecovery) {
-    std::cout << "redistribute \n";
-    redistribute(redistributeFaultsID);
-  } else {
-    std::cout << "reinitializing group \n";
-    reInitializeGroup(groupFaults, recomputeFaultsID);
-  }
-
-  /* if some tasks have to be recomputed, do so*/
-  if (!recomputeFaultsID.empty()) {
-    recompute(recomputeFaultsID, failedRecovery, groupFaults);
-  }
-  std::cout << "updateing Combination Parameters \n";
-  // needs to be after reInitialization!
-  this->updateCombiParameters();
-  /* redistribute failed tasks to living groups */
-  // redistribute(faultsID);
-}
 
 void ProcessManager::restoreCombischeme() {
   LevelVector lmin = params_.getLMin();
@@ -526,7 +480,9 @@ void ProcessManager::writeInterpolationCoordinates(
   h5io::writeValuesToH5File(interpolationCoords, saveFilePath, "manager", "coordinates");
 }
 
-void ProcessManager::monteCarloThirdLevel(size_t numPoints, std::vector<std::vector<real>>& coordinates, std::vector<CombiDataType>& values) {
+void ProcessManager::monteCarloThirdLevel(size_t numPoints,
+                                          std::vector<std::vector<real>>& coordinates,
+                                          std::vector<CombiDataType>& values) {
   Stats::startEvent("manager MC third level");
   coordinates = montecarlo::getRandomCoordinates(numPoints, params_.getDim());
   auto ourCoordinatesSerial = serializeInterpolationCoords(coordinates);

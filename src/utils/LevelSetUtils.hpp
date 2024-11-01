@@ -75,7 +75,9 @@ inline bool isPowerOfTwo(const T& x) {
   return (x != 0) && ((x & (x - 1)) == 0);
 }
 
-// get downward closed set of a single LevelVector
+/**
+ * @brief get downward closed set of a single LevelVector
+ */
 std::vector<LevelVector> getDownSet(combigrid::LevelVector const& l);
 
 struct AllKOutOfDDimensions {
@@ -95,6 +97,7 @@ class HypercubeDownSetGenerator {
     currentLevel_[levelUpTo_.size() - 1] = 0;
   }
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
   // rule of 5
   HypercubeDownSetGenerator() = delete;
   HypercubeDownSetGenerator(const HypercubeDownSetGenerator& other) = default;
@@ -102,14 +105,10 @@ class HypercubeDownSetGenerator {
   HypercubeDownSetGenerator& operator=(const HypercubeDownSetGenerator& other) = default;
   HypercubeDownSetGenerator& operator=(HypercubeDownSetGenerator&& other) = default;
   ~HypercubeDownSetGenerator() = default;
+#endif  // DOXYGEN_SHOULD_SKIP_THIS
 
   LevelType getTotalNumberOfLevels() {
     return std::accumulate(levelUpTo_.begin(), levelUpTo_.end(), 1, std::multiplies<LevelType>());
-  }
-
-  bool isFinished() {
-    return std::all_of(currentLevel_.begin(), currentLevel_.end(),
-                       [this](const LevelType& l) { return l == levelUpTo_[0]; });
   }
 
   LevelVector getNextLevel() {
@@ -130,6 +129,11 @@ class HypercubeDownSetGenerator {
   }
 
  private:
+  bool isFinished() {
+    return std::all_of(currentLevel_.begin(), currentLevel_.end(),
+                       [this](const LevelType& l) { return l == levelUpTo_[0]; });
+  }
+
   const LevelVector levelUpTo_;
   LevelVector currentLevel_;
 };

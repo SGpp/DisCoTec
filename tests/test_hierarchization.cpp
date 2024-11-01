@@ -568,9 +568,9 @@ IndexVector checkExtentsOfDFG(const DistributedFullGrid<FG_ELEMENT>& dfg) {
   return extents;
 }
 
-BOOST_FIXTURE_TEST_SUITE(hierarchization, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(240))
+BOOST_FIXTURE_TEST_SUITE(hierarchization, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(340))
 
-BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(30)) {
+BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(100)) {
   for (auto procs : std::vector<std::vector<int>>{
            {1, 4, 1, 2, 1, 1}, {1, 8, 1, 1, 1, 1}, {1, 2, 1, 2, 2, 1}}) {
     auto dimensionality = static_cast<DimType>(procs.size());

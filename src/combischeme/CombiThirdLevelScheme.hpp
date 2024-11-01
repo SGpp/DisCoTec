@@ -1,4 +1,7 @@
-#include "sparsegrid/SGrid.hpp"
+#include <vector>
+
+#include "utils/Types.hpp"
+#include "utils/LevelVector.hpp"
 
 namespace combigrid {
 

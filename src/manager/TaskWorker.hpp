@@ -5,39 +5,94 @@
 #include "utils/Types.hpp"
 
 namespace combigrid {
-
+/**
+ * @class TaskWorker
+ *
+ * @brief The TaskWorker class is responsible for managing the component grids, and for operations
+ * that use them within the process group only
+ */
 class TaskWorker {
  public:
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
   explicit TaskWorker() = default;
 
   TaskWorker(TaskWorker const&) = delete;
   TaskWorker& operator=(TaskWorker const&) = delete;
 
   ~TaskWorker() { this->deleteTasks(); };
+#endif  // DOXYGEN_SHOULD_SKIP_THIS
 
+  /**
+   * @brief dehierarchize all full grids
+   *
+   * inverse operation to hierarchizeFullGrids
+   *
+   * @param boundary the boundary conditions used for hierarchization
+   * @param hierarchizationDims the hierarchized dimensions
+   * @param hierarchicalBases the hierarchical bases used for hierarchization
+   * @param lmin the minimum level vector the grids are hierarchized to
+   */
   inline void dehierarchizeFullGrids(const std::vector<BoundaryType>& boundary,
                                      const std::vector<bool>& hierarchizationDims,
                                      const std::vector<BasisFunctionBasis*>& hierarchicalBases,
                                      const LevelVector& lmin);
 
+  /**
+   * @brief delete all tasks
+   */
   inline void deleteTasks();
 
+  /**
+   * @brief get a reference to the last task
+   */
   inline std::unique_ptr<Task>& getLastTask();
 
+  /**
+   * @brief get the Lp norms of the current component grids
+   *
+   * @param p the p in Lp norm (0 for maximum norm)
+   * @return a vector of results, one for each task
+   */
   inline std::vector<double> getLpNorms(int p) const;
 
+  /**
+   * @brief get a reference to the tasks container
+   */
   inline const std::vector<std::unique_ptr<Task>>& getTasks() const;
 
+  /**
+   * @brief hierarchize all full grids
+   *
+   * inverse operation to dehierarchizeFullGrids
+   *
+   * @param boundary the boundary conditions used for hierarchization
+   * @param hierarchizationDims the dimensions to hierarchize
+   * @param hierarchicalBases the hierarchical bases used for hierarchization
+   * @param lmin the minimum level vector to hierarchize to
+   */
   inline void hierarchizeFullGrids(const std::vector<BoundaryType>& boundary,
                                    const std::vector<bool>& hierarchizationDims,
                                    const std::vector<BasisFunctionBasis*>& hierarchicalBases,
                                    const LevelVector& lmin);
 
+  /**
+   * @brief initialize a task, takes over ownership of the task too
+   *
+   * @param t the task to initialize
+   * @param taskDecomposition the decomposition of the task's points to the process grid
+   * @param taskCommunicator the communicator for the task
+   */
   inline void initializeTask(std::unique_ptr<Task> t, LevelVectorList const& taskDecomposition,
                              CommunicatorType taskCommunicator);
 
+  /**
+   * @brief remove a task from the task storage
+   */
   inline void removeTask(size_t index);
 
+  /**
+   * @brief run all tasks by calling their run method
+   */
   inline void runAllTasks();
 
  private:

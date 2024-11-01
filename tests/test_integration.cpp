@@ -279,7 +279,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
   else {
     BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getLocalComm()), nprocs);
     if (nprocs == 1) {
-      BOOST_CHECK(theMPISystem()->isMaster());
+      BOOST_CHECK(theMPISystem()->isProcessGroupMaster());
     }
     BOOST_TEST_CHECKPOINT("Worker starts");
     BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getLocalComm()));

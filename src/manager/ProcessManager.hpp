@@ -1,182 +1,387 @@
 #ifndef PROCESSMANAGER_HPP_
 #define PROCESSMANAGER_HPP_
 
-#include <vector>
 #include <numeric>
+#include <vector>
 
 #include "combischeme/CombiMinMaxScheme.hpp"
 #include "fault_tolerance/LPOptimizationInterpolation.hpp"
+#include "loadmodel/LearningLoadModel.hpp"
+#include "loadmodel/LoadModel.hpp"
 #include "manager/ProcessGroupManager.hpp"
 #include "manager/ProcessGroupSignals.hpp"
-#include "loadmodel/LoadModel.hpp"
-#include "loadmodel/LearningLoadModel.hpp"
-#include "rescheduler/TaskRescheduler.hpp"
-#include "rescheduler/StaticTaskRescheduler.hpp"
 #include "mpi/MPISystem.hpp"
+#include "rescheduler/StaticTaskRescheduler.hpp"
+#include "rescheduler/TaskRescheduler.hpp"
 #include "task/Task.hpp"
-#include "manager/ProcessGroupManager.hpp"
-#include "combischeme/CombiMinMaxScheme.hpp"
 #include "third_level/ThirdLevelUtils.hpp"
 #include "utils/MonteCarlo.hpp"
 
 namespace combigrid {
 
+/**
+ * @brief The ProcessManager class orchestrates the whole simulation in case of a manager-worker
+ * scheme in DisCoTec.
+ *
+ * It should only be instantiated once---on the manager rank---and it holds one ProcessGroupManager
+ * instance for communication with each of the process groups.
+ *
+ * All other ranks should instantiate a ProcessGroupWorker and call wait() on the worker, until an
+ * exit signal is received.
+ */
 class ProcessManager {
  public:
-   /**
-    * Constructor for a process manager.
-    *
-    * @param pgroups The process groups.
-    * @param instances The tasks.
-    * @param params The parameters for the combination technique.
-    * @param loadModel The load model to use for scheduling. If it is a 
-    *                  learning load model duration information is added for 
-    *                  every task after every run.
-    * @param rescheduler The rescheduler to use for dynamic task rescheduling.
-    *                    By default the static task rescheduler is used and 
-    *                    therefore no rescheduling perfomed.
-    */
+  /**
+   * @brief Constructor
+   *
+   * @param pgroups a vector of ProcessGroupManager s
+   * @param instances a vector of Task s
+   * @param params the combination parameters
+   * @param loadModel The load model to use for (re)scheduling
+   * @param rescheduler The rescheduler to use for dynamic task rescheduling.
+   *                    By default, the static task rescheduler is used and
+   *                    therefore no rescheduling perfomed.
+   */
   ProcessManager(ProcessGroupManagerContainer& pgroups, TaskContainer& instances,
-                 CombiParameters& params, std::unique_ptr<LoadModel> loadModel, 
-                 std::unique_ptr<TaskRescheduler> rescheduler = std::unique_ptr<TaskRescheduler>(new StaticTaskRescheduler{}))
-    : pgroups_{pgroups},
-      tasks_{instances},
-      params_{params},
-      loadModel_{std::move(loadModel)},
-      rescheduler_{std::move(rescheduler)},
-      thirdLevel_{params.getThirdLevelHost(), params.getThirdLevelPort()},
-      thirdLevelPGroup_{pgroups_[params.getThirdLevelPG()]}
-  {
-     // only setup third level if explicitly desired
-     if (params.getThirdLevelHost() != "")
-       setupThirdLevel();
+                 CombiParameters& params, std::unique_ptr<LoadModel> loadModel,
+                 std::unique_ptr<TaskRescheduler> rescheduler =
+                     std::unique_ptr<TaskRescheduler>(new StaticTaskRescheduler{}))
+      : pgroups_{pgroups},
+        tasks_{instances},
+        params_{params},
+        loadModel_{std::move(loadModel)},
+        rescheduler_{std::move(rescheduler)},
+        thirdLevel_{params.getThirdLevelHost(), params.getThirdLevelPort()},
+        thirdLevelPGroup_{pgroups_[params.getThirdLevelPG()]} {
+    // only setup third level if explicitly desired
+    if (params.getThirdLevelHost() != "") setupThirdLevel();
   }
 
+  /**
+   * @brief Removes the process groups with the given indices from the simulation
+   *
+   * Used for fault tolerance
+   */
   inline void removeGroups(std::vector<int> removeIndices);
 
-  // todo: use general class AppInstance here
-  // todo: add remove function
-  inline void addTask(Task* t);
-
+  /**
+   * @brief signal to run the first combination step, i.e. initialize and run each task
+   *
+   * this is where initial load balancing is done: tasks are sorted by expected runtime and assigned
+   * to process groups as they become available again
+   *
+   * @param doInitDSGUs whether to initialize the DSGUs after the first combination step
+   * @return true if no group failed
+   */
   bool runfirst(bool doInitDSGUs = true);
 
+  /**
+   * @brief signal to initialize the sparse grid data structures on the worker ranks
+   */
   void initDsgus();
 
+  /**
+   * @brief signal to exit the simulation
+   */
   void exit();
 
-  virtual ~ProcessManager();
+  virtual ~ProcessManager() = default;
 
+  /**
+   * @brief wait until all groups have signaled completion on the last signal
+   */
   void waitForAllGroupsToWait() const;
 
-  template <typename FG_ELEMENT>
-  inline FG_ELEMENT eval(const std::vector<real>& coords);
-
+  /**
+   * @brief signal to run a combination step after the first one
+   */
   bool runnext();
 
+  /**
+   * @brief signal to combine the results of the tasks, according to the CombiParameters
+   *
+   * This function performs the so-called recombination. First, the combination
+   * solution will be reduced in the given sparse grid space (first within, then across process
+   * groups). Also, the local component grids will be updated from the globally combined solution.
+   */
   inline void combine();
 
+  /**
+   * @brief signal to perform a widely-distributed combination
+   *
+   * based on TCP/socket setup with third level manager.
+   *
+   * Combination with third level parallelism e.g. between two HPC systems:
+   * The process manager induces a local and global combination first.
+   * Then he signals ready to the third level manager who decides which system
+   * sends and receives first. All pgs which do not participate in the third level
+   * combination directly idle in a broadcast function and wait for their update
+   * from the third level pg.
+   *
+   * Different roles of the manager:
+   *
+   * Senders role:
+   * The processGroupManager transfers the dsgus from the workers of the third
+   * level pg to the third level manager, who further forwards them to the remote
+   * system. After sending, he receives the remotely reduced data and sends it back
+   * to the third level pg.
+   *
+   * Receivers role:
+   * In the role of the receiver, the ProcessGroupManager receives the remote dsgus
+   * and reduces it with the local solution.
+   * Afterwards, he sends the solution back to the remote system and to the local
+   * workers.
+   */
   inline void combineThirdLevel();
 
+  /**
+   * @brief signal to start a widely-distributed combination
+   *
+   * based on file-exchange mechanism (w/o third level manager)
+   */
   inline void combineThirdLevelFileBasedWrite(const std::string& filenamePrefixToWrite,
                                               const std::string& writeCompleteTokenFileName);
 
+  /**
+   * @brief signal to reduce the results of a widely-distributed combination
+   *
+   * based on file-exchange mechanism (w/o third level manager)
+   */
   inline void combineThirdLevelFileBasedReadReduce(const std::string& filenamePrefixToRead,
                                                    const std::string& startReadingTokenFileName);
 
+  /**
+   * @brief signal to perform a whole widely-distributed combination
+   *
+   * based on file-exchange mechanism (w/o third level manager); equivalent to calling
+   * combineThirdLevelFileBasedWrite and combineThirdLevelFileBasedReadReduce in succession
+   */
   inline void combineThirdLevelFileBased(const std::string& filenamePrefixToWrite,
                                          const std::string& writeCompleteTokenFileName,
                                          const std::string& filenamePrefixToRead,
                                          const std::string& startReadingTokenFileName);
 
+  /**
+   * @brief signal to pretend a widely-distributed combination
+   *
+   * based on TCP/socket setup with third level manager; for testing the widely-distributed
+   * combination between the third level manager and the workers in the third level process group
+   *
+   *  like combineThirdLevel, but without involving any process groups -- sending dummy data instead
+   */
   inline size_t pretendCombineThirdLevelForBroker(std::vector<long long> numDofsToCommunicate,
                                                   bool checkValues);
 
+  /**
+   * @brief signal to pretend a widely-distributed combination
+   *
+   * based on TCP/socket setup with third level manager; for testing the widely-distributed
+   * combination between the workers in and outside the third level process group
+   */
   inline void pretendCombineThirdLevelForWorkers();
 
+  /**
+   * @brief signal to reduce the subspace sizes between the systems
+   *
+   * based on TCP/socket setup with third level manager
+   *
+   * Unifies the subspace sizes of all dsgus which are collectively combined
+   * during third level reduce:
+   *
+   * First, the processGroupManager collects the subspace sizes from all workers'
+   * dsgus. This is achieved in a single MPI_Gatherv call. The sizes of the send
+   * buffers are gathered beforehand. Afterwards, the process manager signals
+   * ready to the third level manager who then decides which system sends and
+   * receives first.
+   *
+   * Senders role: The processGroupManager sends and receives data from the third
+   * level manager.
+   *
+   * Receivers role: The ProcessGroupManager receives and sends data to the third
+   * level manager.
+   *
+   * In both roles the manager locally reduces the data and scatters the updated
+   * sizes back to the workers of the third level pg who will then distribute it
+   * to the other pgs.
+   */
   inline size_t unifySubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid);
 
+  /**
+   * @brief signal to pretend a reduction of the subspace sizes between the systems
+   *
+   * based on TCP/socket setup with third level manager; for testing.
+   *
+   * like unifySubspaceSizesThirdLevel, but without sending any data widely. instead, the manager
+   * sends only zeros to the third level group, so it will keep its own sparse grid sizes
+   */
   inline size_t pretendUnifySubspaceSizesThirdLevel();
 
+  /**
+   * @brief signal to perform a widely-distributed Monte-Carlo interpolation of the current
+   * simulation
+   *
+   * based on TCP/socket setup with third level manager
+   */
   void monteCarloThirdLevel(size_t numPoints, std::vector<std::vector<real>>& coordinates,
                             std::vector<CombiDataType>& values);
 
+  /**
+   * @brief signal to perform a system-wide (not widely-distributed) combination
+   */
   inline void combineSystemWide();
 
-  template <typename FG_ELEMENT>
-  inline void combineFG(FullGrid<FG_ELEMENT>& fg);
-
-  /* Generates no_faults random faults from the combischeme */
-  inline void createRandomFaults(std::vector<size_t>& faultIds, int no_faults);
-
+  /**
+   * @brief recompute coefficients for the combination technique
+   *
+   * based on given grid faults using an optimization scheme; used for fault tolerance
+   */
   inline void recomputeOptimumCoefficients(std::string prob_name, std::vector<size_t>& faultsID,
                                            std::vector<size_t>& redistributefaultsID,
                                            std::vector<size_t>& recomputeFaultsID);
 
+  /**
+   * @brief get a pointer to the task with the given ID
+   */
   inline Task* getTask(size_t taskID);
 
+  /**
+   * @brief signal to receive the combination parameters and send new ones
+   */
   void updateCombiParameters();
 
-  void getDSGFromProcessGroup();
-
-  /* Computes group faults in current combi scheme step */
+  /**
+   * @brief Computes group faults in current combi scheme step
+   */
   void getGroupFaultIDs(std::vector<size_t>& faultsID,
                         std::vector<ProcessGroupManagerID>& groupFaults);
 
+  /**
+   * @brief signal one group to interpolate the current solution from the current sparse grid at
+   * resolution level \p leval
+   *
+   * writes the solution to a binary file readable with Paraview
+   */
   void parallelEval(const LevelVector& leval, std::string& filename, size_t groupID);
 
+  /**
+   * @brief signal to perform diagnostics on the task with the given ID
+   *
+   * can only be used with Tasks that implement the doDiagnostics method
+   */
   void doDiagnostics(size_t taskID);
 
+  /**
+   * @brief signal to compute the Lp norm of the current component grids, and gather them
+   *
+   * @param p the p in Lp norm
+   * @return a map from task ID to Lp norm
+   */
   std::map<size_t, double> getLpNorms(int p = 2);
 
+  /**
+   * @brief get the Lp norm of the current combined solution from workers
+   */
   double getLpNorm(int p = 2);
 
+  /**
+   * @brief signal to interpolate the current solution on all component grids at the given \p
+   * interpolationCoords
+   *
+   * requires that the component grids are in nodal representation (not hierarchized).
+   * The results are sent to the manager rank and returned here.
+   */
   std::vector<CombiDataType> interpolateValues(
       const std::vector<std::vector<real>>& interpolationCoords);
 
+  /**
+   * @brief signal to interpolate at the given \p interpolationCoords and write results to file
+   *
+   * like interpolateValues, but the last process group writes the results to a file
+   */
   void writeInterpolatedValuesSingleFile(const std::vector<std::vector<real>>& interpolationCoords,
                                          const std::string& filenamePrefix);
 
+  /**
+   * @brief signal to interpolate at the given \p interpolationCoords at each grid and write results
+   * to one file per grid
+   */
   void writeInterpolatedValuesPerGrid(const std::vector<std::vector<real>>& interpolationCoords,
                                       const std::string& filenamePrefix);
 
+  /**
+   * @brief write the interpolation coordinates to a file
+   */
   void writeInterpolationCoordinates(const std::vector<std::vector<real>>& interpolationCoords,
                                      const std::string& filenamePrefix) const;
 
+  /**
+   * @brief signal the last group to write minimum and maximum subspace coefficients to a file
+   *
+   * @param filename the filename to write to
+   */
   void writeSparseGridMinMaxCoefficients(const std::string& filename);
 
+  /**
+   * @brief assign tasks to available process groups
+   *
+   * used for fault tolerance: if a process group fails, its tasks are redistributed to other groups
+   */
   void redistribute(std::vector<size_t>& taskID);
 
+  /**
+   * @brief signal to reinitialize the group with the given task IDs
+   *
+   * used for fault tolerance
+   */
   void reInitializeGroup(std::vector<ProcessGroupManagerID>& taskID,
                          std::vector<size_t>& tasksToIgnore);
 
+  /**
+   * @brief signal to recompute the given task IDs on some recovered groups
+   *
+   * used for fault tolerance; the tasks will be re-initialized from the current sparse grid
+   * solution
+   */
   void recompute(std::vector<size_t>& taskID, bool failedRecovery,
                  std::vector<ProcessGroupManagerID>& recoveredGroups);
-
-  void recover(int i, int nsteps);
 
   bool recoverCommunicators(std::vector<ProcessGroupManagerID> failedGroups);
   /* After faults have been fixed, we need to return the combischeme
    * to the original combination technique*/
   void restoreCombischeme();
 
+  /**
+   * @brief establish connection to third level manager
+   *
+   * based on TCP/socket setup with third level manager
+   */
   void setupThirdLevel();
 
   /**
-   * Call to perform a rescheduling using the given rescheduler and load model.
+   * @brief perform rescheduling using the given rescheduler and load model.
    *
    * The rescheduling removes tasks from one process group and assigns them to
-   * a different process group. The result of the combination is used to 
+   * a different process group. The result of the combination is used to
    * restore values of the newly assigned task.
-   * Implications: 
+   * Implications:
    * - Should only be called after the combination step and before runnext.
    * - Accuracy of calculated values is lost if leval is not equal to 0.
    */
   void reschedule();
 
+  /**
+   * @brief signal a single group to write the component grids to vtk plot file
+   */
   void writeCombigridsToVTKPlotFile(ProcessGroupManagerID pg);
 
+  /**
+   * @brief signal all groups to write their sparse grid data structures to disk
+   */
   void writeDSGsToDisk(const std::string& filenamePrefix);
 
+  /**
+   * @brief signal all groups to read their sparse grid data structures from disk
+   */
   void readDSGsFromDisk(const std::string& filenamePrefix);
 
  private:
@@ -207,22 +412,15 @@ class ProcessManager {
 
   void sortTasks();
 
-  ProcessGroupManagerID getProcessGroupWithTaskID(size_t taskID){
+  ProcessGroupManagerID getProcessGroupWithTaskID(size_t taskID) {
     for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (pgroups_[i]->hasTask(taskID)){
+      if (pgroups_[i]->hasTask(taskID)) {
         return pgroups_[i];
       }
     }
     return nullptr;
   }
 };
-
-inline void ProcessManager::addTask(Task* t) {
-  tasks_.push_back(t);
-  // wait for available process group
-  ProcessGroupManagerID g = wait();
-  g->addTask(t);
-}
 
 inline ProcessGroupManagerID ProcessManager::wait() {
   while (true) {
@@ -256,12 +454,6 @@ inline ProcessGroupManagerID ProcessManager::waitAvoid(
   }
 }
 
-/* This function performs the so-called recombination. First, the combination
- * solution will be evaluated in the given sparse grid space.
- * Also, the local component grids will be updated with the combination
- * solution. The combination solution will also be available on the manager
- * process.
- */
 void ProcessManager::combine() {
   waitForAllGroupsToWait();
 
@@ -298,28 +490,6 @@ void ProcessManager::combineSystemWide() {
   Stats::stopEvent("manager combine local");
 }
 
-/** Combination with third level parallelism e.g. between two HPC systems
- *
- * The process manager induces a local and global combination first.
- * Then he signals ready to the third level manager who decides which system
- * sends and receives first. All pgs which do not participate in the third level
- * combination directly idle in a broadcast function and wait for their update
- * from the third level pg.
- *
- * Different roles of the manager:
- *
- * Senders role:
- * The processGroupManager transfers the dsgus from the workers of the third
- * level pg to the third level manager, who further forwards them to the remote
- * system. After sending, he receives the remotely reduced data and sends it back
- * to the third level pg.
- *
- * Receivers role:
- * In the role of the receiver, the ProcessGroupManager receives the remote dsgus
- * and reduces it with the local solution.
- * Afterwards, he sends the solution back to the remote system and to the local
- * workers.
- */
 void ProcessManager::combineThirdLevel() {
   // first combine local and global
   combineSystemWide();
@@ -420,11 +590,6 @@ void ProcessManager::pretendCombineThirdLevelForWorkers() {
   Stats::stopEvent("manager exchange no data with remote");
 }
 
-/**
- * @brief like combineThirdLevel, but without involving any process groups
- * -- sending dummy data instead
- *
- */
 size_t ProcessManager::pretendCombineThirdLevelForBroker(
     std::vector<long long> numDofsToCommunicate, bool checkValues) {
   size_t numWrongValues = 0;
@@ -466,31 +631,11 @@ size_t ProcessManager::pretendCombineThirdLevelForBroker(
   return numWrongValues;
 }
 
-/** Unifys the subspace sizes of all dsgus which are collectively combined
- * during third level reduce
- *
- * First, the processGroupManager collects the subspace sizes from all workers
- * dsgus. This is achieved in a single MPI_Gatherv call. The sizes of the send
- * buffers are gathered beforehand. Afterwards, the process manager signals
- * ready to the third level manager who then decides which system sends and
- * receives first.
- *
- * Senders role: The processGroupManager sends and receives data from the third
- * level manager.
- *
- * Receivers role: The ProcessGroupManager receives and sends data to the third
- * level manager.
- *
- * In both roles the manager locally reduces the data and scatters the updated
- * sizes back to the workers of the third level pg who will then distribute it
- * to the other pgs.
- */
- size_t ProcessManager::unifySubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid) {
+size_t ProcessManager::unifySubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid) {
   if (!thirdLevelExtraSparseGrid) {
     // tell other pgroups to idle and wait for update
     for (auto& pg : pgroups_) {
-      if (pg != thirdLevelPGroup_)
-        pg->waitForThirdLevelSizeUpdate();
+      if (pg != thirdLevelPGroup_) pg->waitForThirdLevelSizeUpdate();
     }
   }
 
@@ -529,9 +674,6 @@ size_t ProcessManager::pretendCombineThirdLevelForBroker(
   return dsguDataSize;
 }
 
-// like unifySubspaceSizesThirdLevel, but without sending any data widely
-// instead, the manager sends only zeros to the third level group, so it will keep its own sparse
-// grid sizes
 size_t ProcessManager::pretendUnifySubspaceSizesThirdLevel() {
   // tell other pgroups to idle and wait for update
   for (auto& pg : pgroups_) {
@@ -560,30 +702,6 @@ size_t ProcessManager::pretendUnifySubspaceSizesThirdLevel() {
   return dsguDataSize;
 }
 
-
-/**
- * Create a certain given number of random faults, considering that the faulty processes
- * simply cannot give the evaluation results, but they are still available in the MPI
- * communication scheme (the nodes are not dead)
- */
-inline void ProcessManager::createRandomFaults(std::vector<size_t>& faultIds, int no_faults) {
-  size_t fault_id;
-
-  // create random faults
-  int j = 0;
-  while (j < no_faults) {
-    fault_id = generate_random_fault(static_cast<int>(params_.getNumLevels()));
-    if (j == 0 || std::find(faultIds.begin(), faultIds.end(), fault_id) == faultIds.end()) {
-      faultIds.push_back(fault_id);
-      j++;
-    }
-  }
-}
-
-/**
- * Recompute coefficients for the combination technique based on given grid faults using
- * an optimization scheme
- */
 inline void ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
                                                          std::vector<size_t>& faultsID,
                                                          std::vector<size_t>& redistributeFaultsID,

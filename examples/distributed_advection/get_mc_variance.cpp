@@ -14,7 +14,6 @@
 
 // compulsory includes for basic functionality
 #include "combischeme/CombiMinMaxScheme.hpp"
-#include "combischeme/CombiThirdLevelScheme.hpp"
 #include "fault_tolerance/FaultCriterion.hpp"
 #include "fault_tolerance/StaticFaults.hpp"
 #include "fault_tolerance/WeibullFaults.hpp"

@@ -3,16 +3,28 @@
 
 #include <boost/math/special_functions/binomial.hpp>
 #include <numeric>
+
 #include "io/BroadcastParameters.hpp"
-#include "utils/LevelVector.hpp"
 #include "utils/LevelSetUtils.hpp"
+#include "utils/LevelVector.hpp"
 #include "utils/PowerOfTwo.hpp"
 #include "utils/Types.hpp"
 
 namespace combigrid {
-
+/**
+ * @class CombiMinMaxScheme
+ *
+ * @brief Class to generate combination schemes based on a maximal and minimal level
+ */
 class CombiMinMaxScheme {
  public:
+  /**
+   * @brief Constructor
+   *
+   * @param dim dimensionality of the PDE problem domain
+   * @param lmin minimum level of the combination technique, length dim
+   * @param lmax maximum level of the combination technique, length dim
+   */
   CombiMinMaxScheme(DimType dim, const LevelVector& lmin, const LevelVector& lmax) {
     assert(dim > 0);
 
@@ -38,50 +50,73 @@ class CombiMinMaxScheme {
       if (i == 0) effDim_--;
   }
 
+  /**
+   * @brief Constructor
+   *
+   * for externally-generated combination schemes
+   *
+   * @param levels level for each component grid
+   * @param coefficients coefficient for each component grid
+   */
   CombiMinMaxScheme(const std::vector<LevelVector>& levels, const std::vector<real>& coefficients)
-    : combiSpaces_(levels), coefficients_(coefficients) {
-      assert(levels.size() > 0);
-      assert(levels.size() == coefficients.size());
-      n_ = 0;
-      dim_ = static_cast<combigrid::DimType>(levels.back().size());
-    }
+      : combiSpaces_(levels), coefficients_(coefficients) {
+    assert(levels.size() > 0);
+    assert(levels.size() == coefficients.size());
+    n_ = 0;
+    dim_ = static_cast<combigrid::DimType>(levels.back().size());
+  }
 
   virtual ~CombiMinMaxScheme() = default;
 
-  /* Generate the combischeme corresponding to the classical combination technique.
-   * We need to ensure that lmax = lmin +c*ones(dim), and take special care
-   * of dummy dimensions
-   * */
+  /**
+   * @brief Generate the combischeme corresponding to the classical combination technique.
+   *
+   * This sets the combiSpaces_ and coefficients_ member variables.
+   */
   void createClassicalCombischeme();
 
-  /* Generates the adaptive combination scheme (equivalent to CK's
+  /**
+   * @brief Generates an adaptive combination scheme (equivalent to CK's
    * Python code)
-   * */
+   *
+   * This sets the combiSpaces_ and coefficients_ member variables.
+   */
   void createAdaptiveCombischeme();
 
-  /* Generates the fault tolerant combination technique with extra
-   * grids used in case of faults
-   * */
+  /**
+   * @brief Updates the combination scheme to be fault tolerant
+   *
+   * For fault tolerance, "cheap" grids with an initial coefficient of 0. are added to the scheme.
+   * This extends the combiSpaces_ and coefficients_ member variables.
+   */
   void makeFaultTolerant();
 
+  /**
+   * @brief Get the levels of the component grids
+   */
   inline const std::vector<LevelVector>& getCombiSpaces() const { return combiSpaces_; }
 
+  /**
+   * @brief Get the coefficients of the component grids
+   */
   inline const std::vector<double>& getCoeffs() const { return coefficients_; }
 
-  inline const std::vector<LevelVector>& getDownSet() {
-    return levels_;
-  }
+  /**
+   * @brief Get the downward closed set of the CombiMinMaxScheme
+   * 
+   * i.e. all hierarchical subspaces / mixed resolutions that will be covered by the scheme
+   */
+  inline const std::vector<LevelVector>& getDownSet() { return levels_; }
 
   /**
    * @brief (re-)generate the downward closed set of the CombiScheme
    *
-   * (this function is here because I don't understand the levels_ in the code so far,
-   * so I re-implemented the downward closed set from the definition)
-   *
+   * The downward closed set corresponds to the subspaces in the DistributedSparseGridUniform class.
+   * (Re-)sets the levels_ data member.
    */
   void createDownSet() {
     std::set<LevelVector> subspaces;
-    for (size_t i = 0; i < combiSpaces_.size(); ++ i) {
+    for (size_t i = 0; i < combiSpaces_.size(); ++i) {
       // only check the active front of the scheme -- those grids with coefficient 1
       if (coefficients_[i] == 1.) {
         // insert all subspaces covered by grid i into the set
@@ -170,13 +205,16 @@ class CombiMinMaxSchemeFromFile : public CombiMinMaxScheme {
       }
       // process group numbers should either be always given or never
       assert(coefficients_.size() == combiSpaces_.size());
-      assert(processGroupNumbers_.size() == combiSpaces_.size() || processGroupNumbers_.size() == 0);
+      assert(processGroupNumbers_.size() == combiSpaces_.size() ||
+             processGroupNumbers_.size() == 0);
     }
     assert(coefficients_.size() > 0);
     assert(coefficients_.size() == combiSpaces_.size());
   }
 
-  inline const std::vector<RankType>& getProcessGroupNumbers() const { return processGroupNumbers_; }
+  inline const std::vector<RankType>& getProcessGroupNumbers() const {
+    return processGroupNumbers_;
+  }
 
  private:
   std::vector<RankType> processGroupNumbers_;
@@ -320,7 +358,7 @@ inline std::vector<long long int> getPartitionedNumDOFSG(
         if (highestIndexOfSubspaceInThisDimensionInThisProcess != -1) {
           subspaceExtentsPerProcessPerDimension[d][k] =
               static_cast<IndexType>(highestIndexOfSubspaceInThisDimensionInThisProcess -
-              numIndicesProcessedOnPoleMinusOne);
+                                     numIndicesProcessedOnPoleMinusOne);
           numIndicesProcessedOnPoleMinusOne = highestIndexOfSubspaceInThisDimensionInThisProcess;
         } else {
           subspaceExtentsPerProcessPerDimension[d][k] = 0;
@@ -332,7 +370,8 @@ inline std::vector<long long int> getPartitionedNumDOFSG(
           powerOfTwo[level_d - 1] - static_cast<IndexType>(numIndicesProcessedOnPoleMinusOne) - 1;
       if (level_d == 1) {
         subspaceExtentsPerProcessPerDimension[d][subspaceExtentsPerProcessPerDimension[d].size() -
-                                                 1] = static_cast<IndexType>(3 - numIndicesProcessedOnPoleMinusOne - 1);
+                                                 1] =
+            static_cast<IndexType>(3 - numIndicesProcessedOnPoleMinusOne - 1);
         assert(std::accumulate(subspaceExtentsPerProcessPerDimension[d].begin(),
                                subspaceExtentsPerProcessPerDimension[d].end(), 0) == 3);
       } else {
@@ -389,7 +428,7 @@ inline std::vector<long long int> getPartitionedNumDOFSGAdaptive(
 }
 
 inline std::vector<LevelVector> getConjointSet(const CombiMinMaxScheme& combischeme,
-                                                      const LevelVector& lmin) {
+                                               const LevelVector& lmin) {
   // we follow the idea in CombiMinMaxSchemeFromFile::createDownSet
   // but this time we count the occurrences of each grid in the individual downPoleSets
   // if a hierarchical level occurs d times, this means that this space is not required on the other
@@ -435,8 +474,8 @@ inline std::vector<LevelVector> getConjointSet(const CombiMinMaxScheme& combisch
 
 // for widely-distributed simulations, get the number of DOF that absolutely needs
 // to be exchanged with the other system
-inline long long int getNumDOFSGConjoint(
-    const CombiMinMaxScheme& combischeme, const LevelVector& lmin) {
+inline long long int getNumDOFSGConjoint(const CombiMinMaxScheme& combischeme,
+                                         const LevelVector& lmin) {
   auto conjointSet = getConjointSet(combischeme, lmin);
   return getSGDegreesOfFreedomFromDownSet(conjointSet);
 }
@@ -468,7 +507,8 @@ inline size_t getAssignedLevels(const CombiMinMaxSchemeFromFile& combischeme,
     throw std::runtime_error(
         "CombiSchemeFromFile::getAssignedLevels : inconsistent scheme from file");
   }
-  [[maybe_unused]] const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());
+  [[maybe_unused]] const auto [itMin, itMax] =
+      std::minmax_element(pgNumbers.begin(), pgNumbers.end());
   assert(*itMin == 0);  // make sure it starts with 0
   // filter out only those tasks that belong to "our" process group
   for (size_t taskNo = 0; taskNo < pgNumbers.size(); ++taskNo) {

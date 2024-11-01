@@ -135,8 +135,6 @@ ProcessGroupWorker::ProcessGroupWorker()
       combiParametersSet_(false),
       currentCombi_(0) {}
 
-ProcessGroupWorker::~ProcessGroupWorker() {}
-
 SignalType ProcessGroupWorker::wait() {
   if (status_ == PROCESS_GROUP_FAIL) {  // in this case worker got reused
     status_ = PROCESS_GROUP_WAIT;
