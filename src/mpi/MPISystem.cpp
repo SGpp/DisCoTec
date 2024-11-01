@@ -24,17 +24,10 @@ MpiOnOff::MpiOnOff(int* argc, char*** argv) {
     }
   }
 }
-MpiOnOff::~MpiOnOff() { MPI_Finalize(); }
+MpiOnOff::~MpiOnOff() {
+  MPI_Finalize();
+}
 
-/*!\brief Constructor for the MPISystem class.
- //
- // \exception std::runtime_error MPI was not initialized
- //
- // Constructor for the MPI System. The default global communicator and local communicator is
- MPI_COMM_WORLD.
- // The total number of MPI processes and the rank of the MPI process in is determined from
- // the communicator.
- */
 MPISystem::MPISystem()
     : initialized_(false),
       worldComm_(MPI_COMM_NULL),
@@ -66,8 +59,6 @@ MPISystem::MPISystem()
   assert(mpiInitialized && "MPI is not initialized! Call MPI_Init first.");
 }
 
-/*!\brief Destructor for the MPISystem class.
- */
 MPISystem::~MPISystem() {
   // todo: the fault tolerant communicator are initialized with new -> delete
 }
@@ -381,11 +372,11 @@ void MPISystem::initGlobalComm(bool withWorldManager) {
  * The communicators are used so far for communication between the process
  * manager and the workers during third level combine.
  */
-void MPISystem::initThirdLevelComms(){
-  thirdLevelComms_.clear(); // for reusable initialization
+void MPISystem::initThirdLevelComms() {
+  thirdLevelComms_.clear();  // for reusable initialization
 
   MPI_Group worldGroup;
-  MPI_Comm_group( worldComm_, &worldGroup);
+  MPI_Comm_group(worldComm_, &worldGroup);
 
   for (size_t g = 0; g < ngroup_; g++) {
     std::vector<int> ranks;
@@ -403,7 +394,7 @@ void MPISystem::initThirdLevelComms(){
       thirdLevelComms_.push_back(newComm);
       MPI_Comm_rank(newComm, &thirdLevelRank_);
     }
-  MPI_Group_free(&newGroup);
+    MPI_Group_free(&newGroup);
   }
   MPI_Group_free(&worldGroup);
   // last member of group is tl manager rank == world manager
@@ -704,7 +695,7 @@ void MPISystem::deleteCommFT(simft::Sim_FT_MPI_Comm* commFT) {  // does not dele
                                                                 // important if c_comm is used in
                                                                 // other FT comm (e.g. through
                                                                 // creatCommFT)
-  if (commFT != NULL && *commFT != NULL) {  // delete old communicator of exists
+  if (commFT != NULL && *commFT != NULL) {                      // delete old communicator of exists
     if ((*commFT)->c_comm != MPI_COMM_WORLD && (*commFT)->c_comm != MPI_COMM_NULL) {
       simft::Sim_FT_MPI_Comm_free2(commFT);  // do not delete c_comm
     }
@@ -755,7 +746,7 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
   deleteCommFT(&newSpareCommFT);
 
   // adjust manger rank in spareComm as it has changed durin shrink
-  int ftCommSize = getCommSize( spareCommFT_->c_comm);
+  int ftCommSize = getCommSize(spareCommFT_->c_comm);
   managerRankFT_ = ftCommSize - 1;
   std::vector<RankType> newReusableRanks;
 
@@ -763,12 +754,12 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
                   &newWorldCommFT);  // remove dead processors from current worldComm
 
   bool failedRecovery = true;
-  int sizeNew = getCommSize( newWorldCommFT->c_comm);
+  int sizeNew = getCommSize(newWorldCommFT->c_comm);
   // deleteing tompary world comm
   deleteCommFTAndCcomm(&newWorldCommFT);
   WORLD_MANAGER_EXCLUSIVE_SECTION {  // get failed ranks
     int sizeOld = getWorldSize();
-    int sizeSpare = getCommSize( spareCommFT_->c_comm);
+    int sizeSpare = getCommSize(spareCommFT_->c_comm);
     std::cout << "size old = " << sizeOld << "\n";
     std::cout << "size new = " << sizeNew << "\n";
     std::cout << "size spare = " << sizeSpare << "\n";
@@ -777,7 +768,8 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
     std::vector<RankType> failedRanks =
         getFailedRanks(numFailedRanks);  // has to be solved differently with ULFM
     std::cout << "nprocs - numFailed " << failedGroups.size() * nprocs_ - numFailedRanks << "\n";
-    newReusableRanks = getReusableRanks(static_cast<int>(failedGroups.size() * nprocs_ - numFailedRanks));
+    newReusableRanks =
+        getReusableRanks(static_cast<int>(failedGroups.size() * nprocs_ - numFailedRanks));
     getReusableRanksSpare(reusableRanks_);  // update ranks of reusable ranks
     // toDO reusableRanks might be outdated due to new failures there
     bool enoughSpareProcs = sizeSpare - sizeNew >= numFailedRanks;
@@ -853,11 +845,11 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
   std::cout << "performing MPI split \n";
 
   MPI_Comm_split(spareCommFT_->c_comm, color, key, &worldComm_);
-  
+
   int worldSize = getWorldSize();
   assert((worldSize - 1) % nprocs_ == 0);
   ngroup_ = (worldSize - 1) / nprocs_;
-  MPI_Comm_rank(worldComm_, &worldRank_); 
+  MPI_Comm_rank(worldComm_, &worldRank_);
   managerRankWorld_ = worldSize - 1;
 
   if (worldComm_ != MPI_COMM_NULL) {

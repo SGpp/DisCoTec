@@ -61,7 +61,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
     BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getOutputGroupComm()), nprocs);
   }
   if (nprocs == 1) {
-    BOOST_CHECK(theMPISystem()->isMaster());
+    BOOST_CHECK(theMPISystem()->isProcessGroupMaster());
   }
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {

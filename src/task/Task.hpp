@@ -26,6 +26,10 @@ namespace combigrid {
  *
  * The task's domain is assumed to be the unit hypercube ((0,1)^d or [0,1)^d [0,1]^d , depending on
  * the boundary conditions)
+ *
+ * If the Task uses MPI, it MUST NEVER use MPI_COMM_WORLD, even in calls to linked or included
+ * functions. It should instead use the local communicator of the process group: lcomm or
+ * theMPISystem()->getLocalComm() .
  */
 class Task {
  protected:
