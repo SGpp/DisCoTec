@@ -12,108 +12,320 @@
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 namespace combigrid {
 
-// template <typename CombiDataType, DimType NumDimensions>
+/**
+ * @class SparseGridWorker
+ *
+ * @brief The SparseGridWorker class is responsible for managing the distributed sparse grids
+ */
 class SparseGridWorker {
+  // template <typename CombiDataType, DimType NumDimensions>
  public:
+  /**
+   * @brief Constructor
+   *
+   * @param taskWorkerToReference the task worker that this sparse grid worker should reference
+   */
   explicit SparseGridWorker(TaskWorker& taskWorkerToReference);
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
   SparseGridWorker(SparseGridWorker const&) = delete;
   SparseGridWorker& operator=(SparseGridWorker const&) = delete;
 
   ~SparseGridWorker() = default;
+#endif  // DOXYGEN_SHOULD_SKIP_THIS
 
+  /**
+   * @brief collect, reduce, and distribute the sparse grid data
+   *
+   * @tparam keepValuesInExtraSparseGrid if true, the values that would be useful to the extra
+   * sparse grid are also gathered there (necessary for widely-distributed chunked reduction)
+   * @param combinationVariant the combination variant to use
+   * @param maxMiBToSendPerThread the maximum amount of data to send per OpenMP thread at once
+   * @param collectMinMaxCoefficients if true, the min and max hierarchical coefficients are
+   * collected
+   */
   template <bool keepValuesInExtraSparseGrid = false>
   inline void collectReduceDistribute(CombinationVariant combinationVariant,
                                       uint32_t maxMiBToSendPerThread,
                                       bool collectMinMaxCoefficients = false);
 
+  /**
+   * @brief copy data from the extra sparse grid to the partially allocated combined sparse grid
+   *
+   * necessary for widely-distributed chunked reduction; copies only the subspaces allocated in both
+   */
   inline void copyFromExtraDsgToPartialDSG(size_t gridNumber = 0);
 
+  /**
+   * @brief copy data from the partially allocated combined sparse grid to the extra sparse grid
+   *
+   * copies only the subspaces allocated in both.
+   *
+   * necessary for widely-distributed chunked reduction; ; only implemented for file-based setup
+   */
   inline void copyFromPartialDsgToExtraDSG(size_t gridNumber = 0);
 
-  /* free DSG memory as intermediate step */
+  /**
+   * @brief free sparse grid data memory
+   */
   inline void deleteDsgsData();
 
+  /**
+   * @brief chunked broadcast of the sparse grid data
+   *
+   * necessary for widely-distributed chunked reduction; only implemented for file-based setup
+   *
+   * @param maxMiBToSendPerThread the maximum amount of data to send per OpenMP thread at once
+   */
   inline void distributeChunkedBroadcasts(uint32_t maxMiBToSendPerThread);
 
+  /**
+   * @brief update the tasks' full grids from the hierarchical sparse grid data
+   */
   inline void distributeCombinedSolutionToTasks();
 
+  /**
+   * @brief fill a task's full grid from the distributed sparse grid and dehierarchize
+   *
+   * can only be used for non-chunked reductions
+   *
+   * @param dfg the distributed full grid to fill
+   * @param boundary the boundary conditions used for hierarchization
+   * @param hierarchizationDims the hierarchized dimensions
+   * @param hierarchicalBases the hierarchical bases used for hierarchization
+   * @param lmin the minimum level vector the grids are hierarchized to
+   */
   inline void fillDFGFromDSGU(Task& t, const std::vector<bool>& hierarchizationDims,
                               const std::vector<BasisFunctionBasis*>& hierarchicalBases,
                               const LevelVector& lmin) const;
 
+  /**
+   * @brief get a reference to the combined distributed sparse grids
+   */
   inline std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>&
   getCombinedUniDSGVector();
-
   inline const std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>&
   getCombinedUniDSGVector() const;
 
+  /**
+   * @brief get a reference to the extra distributed sparse grids
+   */
   inline std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>&
   getExtraUniDSGVector();
-
   inline const std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>&
   getExtraUniDSGVector() const;
 
+  /**
+   * @brief get the number of grids (in the tasks and combined sparse grids)
+   *
+   * @return the number of grids, may be more than one e.g. for multiple ion species
+   */
   inline size_t getNumberOfGrids() const;
 
+  /**
+   * @brief get a reference to the sparse grid to use for the widely-distributed reduction
+   *
+   * @param thirdLevelExtraSparseGrid if true, the third level extra sparse grid is set and
+   * returned, otherwise the "normal" sparse grid is returned
+   */
   inline std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>&
   getSparseGridToUseForThirdLevel(bool thirdLevelExtraSparseGrid);
 
+  /**
+   * @brief initialize the combined distributed sparse grids
+   *
+   * to be called after the tasks have been initialized, such that the necessary sizes can be set
+   * from the tasks
+   *
+   * @param lmin the minimum level vector to use for sparse grid construction
+   * @param lmax the maximum level vector to use for sparse grid construction
+   * @param reduceLmaxByVector the vector to reduce the maximum level vector by
+   * @param numGrids the number of grids to initialize
+   * @param combinationVariant the combination variant to use
+   * @param clearLevels if true, the subspace levels are cleared before initialization
+   */
   inline void initCombinedUniDSGVector(const LevelVector& lmin, LevelVector lmax,
                                        const LevelVector& reduceLmaxByVector, size_t numGrids,
                                        CombinationVariant combinationVariant,
                                        bool clearLevels = false);
 
+  /**
+   * @brief interpolate the current combined sparse grid solution at the given \p levelToEvaluate,
+   * get the results at the given \p interpolationCoords, and write them to a file
+   *
+   * @param interpolationCoords the coordinates to interpolate at
+   * @return the interpolated values
+   */
   inline void interpolateAndPlotOnLevel(
       const std::string& filename, const LevelVector& levelToEvaluate,
       const std::vector<BoundaryType>& boundary, const std::vector<bool>& hierarchizationDims,
       const std::vector<BasisFunctionBasis*>& hierarchicalBases, const LevelVector& lmin,
       const std::vector<int>& parallelization, const std::vector<LevelVector>& decomposition) const;
 
+  /**
+   * @brief have the output group resize their subspace sizes according to the maximum between the
+   * groups
+   *
+   * necessary for widely-distributed chunked reduction; only implemented for file-based setup
+   */
   inline void maxReduceSubspaceSizesInOutputGroup();
 
+  /**
+   * @brief read the sparse grid data from disk into the getSparseGridToUseForThirdLevel() grids
+   *
+   * necessary for file-based widely-distributed combination
+   *
+   * reads either a single file across the output communicator or multiple files in case of
+   * partitioned sparse grid output
+   *
+   * @param filenamePrefixToRead the prefix of the file to read
+   * @param addSpeciesNumberToFileName whether to add the species number to the filename
+   * @param alwaysReadFullDSG whether to always read the full DSG
+   * @return the number of values read in total
+   */
   inline int readDSGsFromDisk(const std::string& filenamePrefixToRead,
                               bool addSpeciesNumberToFileName, bool alwaysReadFullDSG = false);
 
+  /**
+   * @brief read the sparse grid data from disk and sum-reduce it into the
+   * getSparseGridToUseForThirdLevel() grids
+   *
+   * necessary for file-based widely-distributed combination
+   *
+   * reads either a single file across the output communicator or multiple files in case of
+   * partitioned sparse grid output
+   *
+   * @param filenamePrefixToRead the prefix of the file to read
+   * @param maxMiBToReadPerThread the maximum amount of data to read per OpenMP thread at once
+   * @param addSpeciesNumberToFileName whether to add the species number to the filename
+   * @param alwaysReadFullDSG whether to always read the full DSG
+   * @return the number of values read in total
+   */
   inline int readDSGsFromDiskAndReduce(const std::string& filenamePrefixToRead,
                                        uint32_t maxMiBToReadPerThread,
                                        bool addSpeciesNumberToFileName,
                                        bool alwaysReadFullDSG = false);
-
+  /**
+   * @brief read the sparse grid data from disk and reduce it with the local solution
+   *
+   * waits for a token file to appear, and when it is there calls readDSGsFromDiskAndReduce or
+   * readDSGsFromDisk, depending on \p overwrite
+   *
+   * necessary for file-based widely-distributed combination
+   *
+   * @param filenamePrefixesToRead the prefixes of the files to read
+   * @param startReadingTokenFileNames the names of the token files to wait for
+   * @param maxMiBToReadPerThread the maximum amount of data to read per OpenMP thread at once
+   * @param overwrite whether to overwrite the values in the extra sparse grid (only true for
+   * testing)
+   * @return the number of values read in total
+   */
   inline int readReduce(const std::vector<std::string>& filenamePrefixesToRead,
                         const std::vector<std::string>& startReadingTokenFileNames,
                         uint32_t maxMiBToReadPerThread, bool overwrite);
 
+  /**
+   * @brief reduce the subspace sizes in the extra sparse grid from the sizes given in other files
+   *
+   * necessary for file-based widely-distributed combination; should be called from all ranks
+   */
   inline int reduceExtraSubspaceSizes(const std::vector<std::string>& filenamesToRead,
                                       CombinationVariant combinationVariant, bool overwrite);
 
-  /* reduction within and between process groups */
+  /**
+   * @brief reduction within and between process groups
+   *
+   * @param combinationVariant the combination variant to use
+   * @param maxMiBToSendPerThread the maximum amount of data to send per OpenMP thread at once
+   * @param globalReduceRankThatCollects the rank that collects the global reduction, or
+   * MPI_PROC_NULL for allreduce
+   */
   inline void reduceLocalAndGlobal(CombinationVariant combinationVariant,
                                    uint32_t maxMiBToSendPerThread,
                                    RankType globalReduceRankThatCollects = MPI_PROC_NULL);
 
+  /**
+   * @brief reduce the subspace sizes between the groups
+   *
+   * necessary for all combination variants
+   */
   inline void reduceSubspaceSizesBetweenGroups(CombinationVariant combinationVariant);
 
+  /**
+   * @brief remove the read sparse grid files
+   *
+   * removes exactly the files that were read in readDSGsFromDisk(AndReduce)
+   */
   inline void removeReadingFiles(const std::vector<std::string>& filenamePrefixToRead,
                                  const std::vector<std::string>& startReadingTokenFileName,
                                  bool keepSparseGridFiles) const;
 
+  /**
+   * @brief creates an extra sparse grid on the ranks that call it
+   *
+   * necessary for widely-distributed combination if the extra sparse grid should be used
+   */
   inline void setExtraSparseGrid(bool initializeSizes = true);
 
+  /**
+   * @brief starts an asynchronous broadcast of the sparse grid data from broadcastSender to the
+   * other ranks in the global reduce communicator
+   *
+   * necessary for all types of widely-distributed combination
+   */
   inline void startSingleBroadcastDSGs(CombinationVariant combinationVariant,
                                        RankType broadcastSender, MPI_Request* request);
 
+  /**
+   * @brief write the sparse grid data to disk
+   *
+   * writes a single file across the output communicator, or multiple files in case of partitioned
+   * output.
+   *
+   * should only be called from the ranks in the output group
+   *
+   * @param filenamePrefix the prefix of the file to write
+   * @param combinationVariant the combination variant to use
+   * @return the number of values written in total
+   */
   inline int writeDSGsToDisk(const std::string& filenamePrefix,
                              CombinationVariant combinationVariant);
 
+  /**
+   * @brief write the subspace sizes of the extra sparse grid to a file
+   *
+   * should only be called from the ranks in the output group
+   *
+   * needed for file-based widely-distributed combination
+   */
   inline int writeExtraSubspaceSizesToFile(const std::string& filenamePrefixToWrite) const;
 
+  /**
+   * @brief write the minimum and maximum hierarchical coefficients to a file
+   *
+   * this requires that they were collected during the reduction, see collectReduceDistribute
+   */
   inline void writeMinMaxCoefficients(const std::string& fileNamePrefix) const;
 
+  /**
+   * @brief write the token file(s) to signal that the sparse grid file(s) are written
+   *
+   * should only be called from the ranks in the output group, see writeDSGsToDisk
+   */
   inline void writeTokenFiles(const std::string& writeCompleteTokenFileName) const;
 
+  /**
+   * @brief write the subspace sizes of the combined sparse grid to a file
+   *
+   * should only be called from the ranks in the output group
+   *
+   * needed for file-based widely-distributed combination
+   */
   inline int writeSubspaceSizesToFile(const std::string& filenamePrefixToWrite) const;
 
+  /**
+   * @brief zero-initialize or zero-overwrite the sparse grid data
+   */
   inline void zeroDsgsData(CombinationVariant combinationVariant);
 
  private:
