@@ -511,7 +511,7 @@ class CombiParameters {
 
   std::vector<IndexVector> decomposition_;
 
-  bool forwardDecomposition_;
+  bool forwardDecomposition_ = false;
 
   friend class boost::serialization::access;
   size_t numberOfCombinations_;  // total number of combinations
