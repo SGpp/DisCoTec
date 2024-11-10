@@ -15,7 +15,7 @@ While it originates from the excellent
 very different code, such that it has become its own project.
 
 DisCoTec is designed as a framework that can run multiple instances of a
-(black-box) grid-based solver implementation.
+(black-box) grid-based PDE solver implementation.
 The most basic example we use is a [mass-conserving FDM/FVM constant advection
 upwinding solver](/examples/distributed_advection/).
 An example of a separate, coupled solver is [SeLaLib](/examples/selalib_distributed/).
@@ -28,7 +28,7 @@ Garcke [2013](https://link.springer.com/chapter/10.1007/978-3-642-31703-3_3),
 Harding [2016](https://link.springer.com/chapter/10.1007/978-3-319-28262-6_4))
 can be used to alleviate the curse of dimensionality encountered in
 high-dimensional simulations.
-Instead of using your solver on a single structured full grid (where every
+Instead of using your PDE solver on a single structured full grid (where every
 dimension is finely resolved), you would use it on many different structured
 full grids (each of them differently resolved).
 We call these coarsely-resolved grids component grids.
@@ -50,9 +50,9 @@ reductions in compute and memory requirements.
 
 ### Parallelism in DisCoTec
 
-The DisCoTec framework can work with existing MPI parallelized solver codes
+The DisCoTec framework can work with existing MPI parallelized PDE solver codes
 operating on structured grids.
-In addition to the parallelism provided by the solver, it adds the combination
+In addition to the parallelism provided by the PDE solver, it adds the combination
 technique's parallelism.
 This is achieved through *process groups* (pgs):
 `MPI_COMM_WORLD` is subdivided into equal-sized process groups
@@ -85,7 +85,7 @@ a size that uses most of the available main memory of the entire system.
 
 ## When to Use DisCoTec?
 
-If you are using a structured grid solver and want to increase its
+If you are using a structured grid PDE solver and want to increase its
 accuracy while not spending additional compute or memory resources on it,
 DisCoTec may be a viable option.
 The codes most likely in this situation are the ones that solve
@@ -97,13 +97,13 @@ resource constrained, DisCoTec could be for you, too!
 Use its multiscale benefits without worrying about any
 multiscale yourself 😊
 
-Why not try it [with your own solver](https://discotec.readthedocs.io/en/latest/simple_tutorial.html)?
+Why not try it [with your own PDE solver](https://discotec.readthedocs.io/en/latest/simple_tutorial.html)?
 
 ### What Numerical Advantage Can I Expect?
 
 Depends on your problem!
 [Figure 3.6 here](http://elib.uni-stuttgart.de/handle/11682/14229)
-shows a first-order accurate 2D solver achieving
+shows a first-order accurate 2D PDE solver achieving
 approximately second-order accuracy with the Combination Technique considering
 the total number of DOF.
 (Figure omitted due to licensing, first published
@@ -113,7 +113,8 @@ the total number of DOF.
 
 1. If memory and/or time constraints are not your limiting factor; you can easily
    achieve the numerical accuracy you need with your resources.
-2. If your solver just does not fit the discretization constraints imposed by DisCoTec:
+2. If your PDE solver just does not fit the discretization constraints
+   imposed by DisCoTec:
    - a rectilinear (or mapped to rectilinear) domain
    - structured rectilinear grids in your main data structure (=typically the
      unknown function), stored as a linearized array

@@ -5,8 +5,10 @@ The sparse grid combination technique (Griebel et al.
 Garcke [2013](https://link.springer.com/chapter/10.1007/978-3-642-31703-3_3),
 Harding [2016](https://link.springer.com/chapter/10.1007/978-3-319-28262-6_4))
 can be used to alleviate the curse of dimensionality encountered in
-high-dimensional simulations.
-Instead of using your solver on a single structured full grid (where every
+high-dimensional problems.
+Such problems are encountered as partial differential equations (PDEs)
+in many fields of science and engineering.
+Instead of using your PDE solver on a single structured full grid (where every
 dimension is finely resolved), you would use it on many different structured
 full grids (each of them differently resolved).
 We call these coarsely-resolved grids component grids.

@@ -151,7 +151,7 @@ Make sure that it exists and describes the parameters you want to run.
 As with the tests, make sure the correct MPI is loaded to your path.
 
 The exact format and naming in `ctparam` is not (yet) standardized, to allow
-adaptation for different solver applications.
+adaptation for different PDE solver applications.
 Please refer to existing parameter files and example implementations.
 
 (pinning-with-various-mpi-implementations)=

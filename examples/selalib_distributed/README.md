@@ -20,7 +20,7 @@ make install
 ```
 
 where `test_cpp_interface` can be used to test the gerenal C/Fortran interface,
-`sim_bsl_vp_3d3v_cart_dd_slim` is the mononlithic solver for our test case, and
+`sim_bsl_vp_3d3v_cart_dd_slim` is the mononlithic PDE solver for our test case, and
 `sll_m_sim_bsl_vp_3d3v_cart_dd_slim_interface` builds the libraries needed for
 this `selalib_distributed` example.
 (This may take some time and usually fails if tried in parallel with `make -j`).

@@ -1,13 +1,14 @@
 # Tutorial: Using Your Code With DisCoTec
 
-So you want to use your timestepped simulation with the DisCoTec framework.
+So you want to solve your timestepped PDE problem with the DisCoTec framework.
+You already have a PDE solver that can do it on a regular structured grid.
 This Tutorial gives you an outline of the steps required.
 
 ## Your Code Interface: Init, Timestep, Get/Set Full Grid, Finish
 
 The first step is to prepare your code in a way that it can be called by
 DisCoTec.
-Typically, your simulation code will look similar to this (in pseudocode):
+Typically, your PDE solver code will look similar to this (in pseudocode):
 
 ```python
 int num_points_x = ...
@@ -45,10 +46,10 @@ conditions and all `num_points_` are chosen as powers of two.
 
 You need to transform your current solver code into stateful functions, or a
 stateful data structure.
-Let's say you introduce a class `YourSimulation`: computations before the time
+Let's say you introduce a class `YourSolver`: computations before the time
 loop go into its constructor
 or an `init()` function (if your code uses MPI, this is also where a
-sub-communicator should be passed for `YourSimulation` to use).
+sub-communicator should be passed for `YourSolver` to use).
 Computation in the time loop goes into its `run()` function.
 Anything after the time loop goes into the destructor or a function
 `finalize()`.
@@ -71,7 +72,7 @@ int num_points_vx = ...
 -                 ... 
 -                )
 - helper_data_structures.initialize(...)
-+ my_simulation = YourSimulation(
++ my_solver = YourSolver(
 +                                num_points_x, 
 +                                num_points_y,
 +                                num_points_z,
@@ -84,13 +85,13 @@ float time_now = 0.0;
 
 while(time_now < end_time) { # time loop
 -    do_timestep(grid, time_step)
-+    my_simulation.run(time_step)
++    my_solver.run(time_step)
     time_now += time_step
 }
 
 - properties = compute_properties(grid)
 - write_output(properties, grid)
-+ my_simulation.finalize()
++ my_solver.finalize()
 ```
 
 This setup assumes that we can pass the number of grid points per dimension in
@@ -101,17 +102,17 @@ The most portable and memory-efficient way of doing so is to provide a pointer
 to the beginning of the contiguous array.
 Let's call this getter `get_tensor_pointer`.
 
-## Make Your Simulation a DisCoTec Task and Your Grid a DisCoTec DistributedFullGrid
+## Make Your PDE Solver a DisCoTec Task and Your Grid a DisCoTec DistributedFullGrid
 
-From now on, we assume that the interface to `YourSimulation` is wrapped in a
-C++ header `YourSimulation.h`, roughly like this:
+From now on, we assume that the interface to `YourSolver` is wrapped in a
+C++ header `YourSolver.h`, roughly like this:
 
 ```cpp
 #include <vector>
 
-class YourSimulation {
+class YourSolver {
  public:
-  YourSimulation(int num_points_x, int num_points_y, int num_points_vx, int num_points_vy, ...);
+  YourSolver(int num_points_x, int num_points_y, int num_points_vx, int num_points_vy, ...);
   //...rule of 5...
 
   void run(double time_step);
@@ -123,11 +124,11 @@ class YourSimulation {
 ```
 
 Now, DisCoTec comes into play. Create a new folder or project that can access
-both `YourSimulation` and DisCoTec.
-For the combination technique, multiple instances of `YourSimulation` will be
+both `YourSolver` and DisCoTec.
+For the combination technique, multiple instances of `YourSolver` will be
 instantiated, each at different resolutions.
 The `Task` class is the interface you will need to implement.
-With `YourSimulation`, that will be as simple as:
+With `YourSolver`, that will be as simple as:
 
 ```cpp
 #include <memory>
@@ -138,7 +139,7 @@ With `YourSimulation`, that will be as simple as:
 #include "utils/PowerOfTwo.hpp"
 #include "utils/Types.hpp"
 
-#include "YourSimulation.h"
+#include "YourSolver.h"
 
 class YourTask : public combigrid::Task {
  public:
@@ -168,9 +169,10 @@ class YourTask : public combigrid::Task {
     // if all are 1, we are only using the parallelism between grids
     std::vector<int> p = {1, 1, 1, 1};
 
-    // if using MPI within your simulation, pass p and the lcomm communicator to sim_, too
+    // if using MPI within your solver, 
+    // pass p and the lcomm communicator to sim_, too
     sim_ =
-        std::make_unique<YourSimulation>(num_points_x, num_points_y, num_points_vx, num_points_vy);
+        std::make_unique<YourSolver>(num_points_x, num_points_y, num_points_vx, num_points_vy);
     // wrap tensor in a DistributedFullGrid
     dfg_ = std::make_unique<combigrid::DistributedFullGrid<combigrid::CombiDataType>>(
         this->getDim(), this->getLevelVector(), lcomm, this->getBoundary(),
@@ -186,7 +188,7 @@ class YourTask : public combigrid::Task {
 
   void setZero() override { dfg_->setZero(); }
 
-  std::unique_ptr<YourSimulation> sim_;
+  std::unique_ptr<YourSolver> sim_;
   std::unique_ptr<combigrid::DistributedFullGrid<combigrid::CombiDataType>> dfg_;
   double dt_;
 };
@@ -198,14 +200,14 @@ DisCoTec just assumes that you pass it a pointer to a correctly-sized
 contiguous array.
 The size of the whole "global" grid is $2^{l_d}$, with $l_d$ the level vector
 for each dimension $d$.
-Every MPI process in your simulation should then have $2^{l_d} / p_d$ grid
-points, where $p$ is the cartesian process vector.
+Every MPI process in your solver should then have $2^{l_d} / p_d$ grid
+points, where $p$ is the Cartesian process vector.
 
 ## Make Your MPI Processes Workers
 
 Now, you can use the `YourTask` class to instantiate many tasks as part of a
 combination scheme.
-There are a lot of choices to make regarding the combined simulation,
+There are a lot of choices to make regarding the combined simulation run,
 which is why more than half of the example code is dedicated to defining
 parameters and generating input data structures:
 
@@ -277,7 +279,7 @@ int main(int argc, char** argv) {
 
 These parameter values shold be suitable for a very small-scale
 proof-of-concept.
-The last scope assigns tasks (i.e. your simulation instances) to process groups
+The last scope assigns tasks (i.e. your PDE solver instances) to process groups
 statically.
 
 The remaining part of the code looks a lot like your initial time loop again:

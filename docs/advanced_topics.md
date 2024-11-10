@@ -149,9 +149,9 @@ The last reference below shows how conservation of mass and L2 stability is only
 provided by the latter two.
 In practice, we have observed that using hierarchical hat functions and long
 combination intervals (many time steps per combination) is fine with relatively
-laminar simulations.
+laminar PDE solutions.
 But in the turbulent regime, it becomes necessary to use the CDF wavelets and to
-combine after every solver time step to avoid numerical instability.
+combine after every PDE solver time step to avoid numerical instability.
 
 If you find yourself in need of higher orders of accuracy or conservation, you
 could add higher-order CDF wavelets to `DistributedHierarchization.hpp`.
@@ -208,7 +208,7 @@ widely-distributed simulations and are discussed below.
 
 The GENE and SeLaLib examples use a separate folder for each component grid, and
 generate the input parameter files at the beginning of the main program.
-The task then changes the directory at initialization and for the solver update,
+The task then changes the directory at initialization and for the PDE solver update,
 so that outputs will be placed there.
 The derived quantities like energy can then be [combined as a postprocessing step](https://github.com/SGpp/DisCoTec/blob/main/examples/selalib_distributed/postprocessing/combine_selalib_diagnostics.cpp#L38).
 
@@ -243,7 +243,7 @@ with LZ4.
   with the Widely-Distributed Sparse Grid Combination Technique’. In: SC ’23.
   Association for Computing Machinery, Nov. 11, 2023. url: <https://dl.acm.org/doi/10.1145/3581784.3607036>.
   
-### Using Solvers Written In Other Programming Languages
+### Using PDE Solvers Written In Other Programming Languages
 
 Your functions need the same described interface and need to somehow expose it
 to the C++ compiler.

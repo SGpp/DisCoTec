@@ -1,8 +1,8 @@
 # Parallelism in DisCoTec
 
-The DisCoTec framework can work with existing MPI parallelized solver codes
+The DisCoTec framework can work with existing MPI-parallelized PDE solver codes
 operating on structured grids.
-In addition to the parallelism provided by the solver, it adds the combination
+In addition to the parallelism provided by the PDE solver, it adds the combination
 technique's parallelism.
 This is achieved mainly through *process groups* (pgs):
 `MPI_COMM_WORLD` is subdivided into equal-sized process groups
@@ -16,8 +16,8 @@ Figure originally published in (Pollinger [2024](https://elib.uni-stuttgart.de/h
 
 All component grids are distributed to process groups (either statically, or
 dynamically through the manager rank).
-During the solver time step and most of the combination, MPI communication only
-happens within the process groups.
+During the PDE solver time step and most of the combination step, MPI communication
+only happens within the process groups.
 Conversely, for the sparse grid reduction using the combination coefficients,
 MPI communication only happens between a rank and its colleagues in the other
 process groups, e.g., rank 0 in group 0 will only talk to rank 0 in all other groups.
@@ -56,8 +56,8 @@ If the process groups become too large, the MPI communication of the multiscale
 transform starts to dominate the combination time.
 If there are too many pgs, the combination reduction will dominate the
 combination time.
-However, the times required for the solver stay relatively constant;
-they are determined by the solver's own scaling and the load balancing quality.
+However, the times required for the PDE solver stay relatively constant;
+they are determined by the PDE solver's own scaling and the load balancing quality.
 
 There are only few codes that allow weak scaling up to this problem size:
 a size that uses most of the available main memory of the entire system.
