@@ -26,7 +26,7 @@ During a time step, the PDE solver step applies one or multiple time step update
 to the values in each component grid.
 During the PDE solver time step and most of the combination step, MPI communication
 only happens within the process groups.
-Conversely, for the sparse grid reduction using the combination coefficients $c_\vec{\ell}^c$,
+Conversely, for the sparse grid reduction using the combination coefficients $c_{\vec{ell}}^c$,
 MPI communication only happens between a rank and its colleagues in the other
 process groups, e.g., rank 0 in group 0 will only talk to rank 0 in all other groups.
 Thus, major bottlenecks arising from global communication can be avoided altogether.
