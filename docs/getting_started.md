@@ -117,6 +117,11 @@ source folder.
 
 ## Run the tests
 
+Beware: Most of the tests in DisCoTec need significant resources
+(eight to nine MPI processes,
+file I/O, some performance tests when built in Release mode).
+Make sure you run them on appropriate hardware.
+
 To run the compiled tests, go to folder `tests` and make sure the correct MPI runtime
 is loaded to your path, e.g. with
 
@@ -153,6 +158,32 @@ As with the tests, make sure the correct MPI is loaded to your path.
 The exact format and naming in `ctparam` is not (yet) standardized, to allow
 adaptation for different PDE solver applications.
 Please refer to existing parameter files and example implementations.
+
+The different examples intend to illustrate various aspects of DisCoTec:
+
+- [`combi_example`](https://github.com/SGpp/DisCoTec/blob/main/examples/combi_example/):
+  manager-worker setup with a generic `TaskExample`
+  that interpolates a cosine function on the component grids
+- [`combi_example_faults`](https://github.com/SGpp/DisCoTec/blob/main/examples/combi_example_faults/):
+  like `combi_example`, but with fault tolerance functionality
+  (requires that DisCoTec is built with the `DISCOTEC_ENABLEFT` flag)
+- [`distributed_advection`](https://github.com/SGpp/DisCoTec/blob/main/examples/distributed_advection/):
+  manager-worker setup using a first-order upwinding advection solver,
+  illustrates how to evaluate the Monte-Carlo norms
+  (and error norms, as an analytical solution is given for this PDE problem)
+- [`combi_workers_only`](https://github.com/SGpp/DisCoTec/blob/main/examples/combi_workers_only/):
+  like `distributed_advection`, but with worker-only setup;
+  illustrates the static task assignment required for worker-only scenarios
+- [`distributed_third_level`](https://github.com/SGpp/DisCoTec/blob/main/examples/distributed_third_level/):
+  like `distributed_advection` and `combi_workers_only`;
+  adds logic for widely-distributed simulations
+- GENE examples, starting with `gene_`: show the interaction with
+  the GENE gyrokinetic solver (using a complicated build/link setup
+  that we don't recommend to use any more, see next example instead)
+- [`selalib_distributed`](https://github.com/SGpp/DisCoTec/blob/main/examples/selalib_distributed/):
+  shows the interaction with a Semi-Lagrangian Vlasov solver in SeLaLib:
+  a static library is built as part of SeLaLib, and linked through DisCoTec's
+  `Task` interface in `SelalibTask`.
 
 (pinning-with-various-mpi-implementations)=
 ### Pinning With Various MPI Implementations
