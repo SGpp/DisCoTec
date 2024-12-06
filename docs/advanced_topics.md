@@ -9,6 +9,7 @@
 - J. Garcke. ‘Sparse Grids in a Nutshell’. In: Sparse Grids and Applications.
   Ed. by J. Garcke, M. Griebel. Lecture Notes in Computational Science and Engineering.
   Berlin, Heidelberg: Springer, 2013, pp. 57–80.
+  url: <https://ins.uni-bonn.de/media/public/publication-media/sparse_grids_nutshell_code.pdf>
 - D. Pflüger. Spatially Adaptive Sparse Grids for High-Dimensional Problems.
   Verlag Dr. Hut, 2010.
 - W. Guo, Y. Cheng. ‘A Sparse Grid Discontinuous Galerkin Method for High-Dimensional
@@ -29,22 +30,18 @@
   of sparse grid problems’. In: Proceedings of the IMACS International Symposium
   on Iterative Methods in Linear Algebra: Brussels, Belgium, 2 - 4 April, 1991.
   Ed. by P. de Groen, R. Beauwens. North Holland, 1992.
+  url: <https://ins.uni-bonn.de/media/public/publication-media/griesiam.ps.gz>
 - M. Heene. ‘A Massively Parallel Combination Technique for the Solution of
   High-Dimensional PDEs’. PhD thesis.
   Institut für Parallele und Verteilte Systeme der Universität Stuttgart, 2018.
+  url: <http://dx.doi.org/10.18419/opus-9893>
 
 ## Variants of the Combination Technique in DisCoTec
 
-### Truncated Combination Technique
+### Adaptivity
 
 DisCoTec by default uses the *truncated combination technique*, which sets a
 minimum level for all component grids used.
-
-- J. Benk, D. Pflüger. ‘Hybrid parallel solutions of the Black-Scholes PDE with
-  the truncated combination technique’. In: 2012 International Conference on
-  High Performance Computing Simulation (HPCS). July 2012.
-
-### Adaptivity
 
 Of the two ways of bringing adaptivity into the combination technique, DisCoTec
 currently supports only one:
@@ -58,6 +55,10 @@ If your application needs dynamic (= during runtime) or spatial adaptivity
 
 - T. Gerstner, M. Griebel. ‘Dimension–adaptive tensor–product quadrature’.
   In: Computing 71.1 (2003), pp. 65–87.
+  url: <https://ins.uni-bonn.de/media/public/publication-media/dimadapt.pdf>
+- J. Benk, D. Pflüger. ‘Hybrid parallel solutions of the Black-Scholes PDE with
+  the truncated combination technique’. In: 2012 International Conference on
+  High Performance Computing Simulation (HPCS). July 2012.
 - C. Kowitz. ‘Applying the Sparse Grid Combination Technique in Linear Gyrokinetics’.
   Dissertation. München: Technische Universität München, 2016.
 - M. Obersteiner. ‘A spatially adaptive and massively parallel implementation of
@@ -149,9 +150,10 @@ The last reference below shows how conservation of mass and L2 stability is only
 provided by the latter two.
 In practice, we have observed that using hierarchical hat functions and long
 combination intervals (many time steps per combination) is fine with relatively
-laminar PDE solutions.
-But in the turbulent regime, it becomes necessary to use the CDF wavelets and to
-combine after every PDE solver time step to avoid numerical instability.
+laminar PDE solutions
+(both in fluid dynamics and plasma turbulence simulations).
+However, in the turbulent regime, it becomes necessary to use the CDF wavelets
+and to combine after every PDE solver time step to avoid numerical instability.
 
 If you find yourself in need of higher orders of accuracy or conservation, you
 could add higher-order CDF wavelets to `DistributedHierarchization.hpp`.

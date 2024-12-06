@@ -221,7 +221,8 @@ contiguous array.
 The size of the whole "global" grid is $2^{l_d}$, with $l_d$ the level vector
 for each dimension $d$.
 Every MPI process in your solver should then have $2^{l_d} / p_d$ grid
-points, where $p$ is the Cartesian process vector.
+points, where $p$ is the Cartesian process vector
+containing the number of processes per dimension in each [process group](./parallelism.md).
 
 ## Make Your MPI Processes Workers
 
