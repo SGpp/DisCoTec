@@ -59,6 +59,7 @@ If your application needs dynamic (= during runtime) or spatial adaptivity
 - J. Benk, D. Pflüger. ‘Hybrid parallel solutions of the Black-Scholes PDE with
   the truncated combination technique’. In: 2012 International Conference on
   High Performance Computing Simulation (HPCS). July 2012.
+  url: <https://ieeexplore.ieee.org/abstract/document/6266992>
 - C. Kowitz. ‘Applying the Sparse Grid Combination Technique in Linear Gyrokinetics’.
   Dissertation. München: Technische Universität München, 2016.
 - M. Obersteiner. ‘A spatially adaptive and massively parallel implementation of
@@ -247,7 +248,7 @@ with LZ4.
   
 ### Using PDE Solvers Written In Other Programming Languages
 
-Your functions need the same described interface and need to somehow expose it
+Your functions need the same described interface and need to expose it
 to the C++ compiler.
 For Fortran, the SelalibTask shows how the [relevant functions](https://github.com/selalib/selalib/blob/main/simulations/parallel/bsl_vp_3d3v_cart_dd/sll_m_sim_bsl_vp_3d3v_cart_dd_slim_interface.F90)
 can be [made accessible with `extern "C"`](https://github.com/SGpp/DisCoTec/blob/main/examples/selalib_distributed/src/SelalibTask.hpp).
