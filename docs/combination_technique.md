@@ -34,14 +34,14 @@ points in dimension $x$, like illustrated by the rightmost component grid in the
 above figure.
 
 Here, we use the truncated combination technique, which sets a minimum and maximum
-level to select the component grids, $\vec{\ell^\text{min}}$ and $\vec{\ell^\text{max}}$,
-respectively.
+level, $\vec{\ell^\text{min}}$ and $\vec{\ell^\text{max}}$, to select the
+component grids $\vec{\ell} \in \mathcal{I}$.
 For regularity, we assume a constant difference between $\vec{\ell^\text{min}}$
 and $\vec{\ell^\text{max}}$ in each dimension, but [other schemes can be useful](./advanced_topics).
 <!-- The resulting component grids will be $d$ simplex "layers" in the space of 
 level vectors $\vec{\ell}$. -->
 
-One can then compute suitable combination coefficients $c^c$ that can be used to
+One can then compute suitable combination coefficients $c^c$ that are used to
 obtain a sparse grid function $f_\text{SG}$ by way of a linear superposition of
 functions $f_{\vec{\ell}}$ defined on the component grid:
 
