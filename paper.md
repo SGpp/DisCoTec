@@ -88,13 +88,8 @@ considering only those resolutions where the highest amount of information is ex
 While some implementations of the CT are
 available, there is currently no other implementation for
 parallel simulations that require distributed computing.
-
-`DisCoTec` is a C++ framework for the sparse grid combination technique.
-Targeted at HPC systems, it is used for parallel simulations [@heeneMassivelyParallelCombination2018],
-drawing on distributed-memory parallelism via MPI and shared-memory parallelism
-via OpenMP.
-It is designed to be used in combination with existing simulation codes,
-which can be used with `DisCoTec` in a black-box fashion.
+`DisCoTec` is a C++ framework for massively-parallel time-dependent problems
+with the CT, which fills this gap.
 
 
 # Methods: Sparse grid combination technique and implementation
