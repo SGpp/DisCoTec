@@ -37,17 +37,18 @@ bibliography: paper.bib
 
 # Summary
 
-`DisCoTec` is a C++ framework for the sparse grid combination technique,
+`DisCoTec` is a C++ framework for the sparse grid combination technique [@griebelCombinationTechniqueSolution1992],
 designed for massively parallel settings.
 It is implemented with shared-memory parallelism via OpenMP and
 distributed-memory parallelism via MPI, and is intended to be used in
 conjunction with existing simulation codes.
 For simulation codes that can handle nested structured grids, little to no
 adaptation work is needed for use with the `DisCoTec` framework.
-`DisCoTec` demonstrates its superiority in higher-dimensional time-dependent
-simulations, such as high-fidelity plasma simulations in 4- to 6-dimensions
-[@pollingerStableMassconservingSparse2023] and even for simulations in two
-dimensions, improvements may be observed.
+The combination technique with `DisCoTec` demonstrates its superiority in
+memory-per-precision for higher-dimensional time-dependent simulations, such
+as high-fidelity plasma turbulence simulations
+in four to six dimensions
+and even for simulations in two dimensions, improvements can be observed [@pollingerStableMassconservingSparse2023].
 
 A central part of the combination technique at scale is the transformation of
 grid coefficients into a multi-scale basis.
@@ -58,7 +59,8 @@ from the model order reduction provided by the underlying sparse grid approach
 used by `DisCoTec`, without requiring any multi-scale operations.
 An additional feature of `DisCoTec` is the possibility of performing
 widely-distributed simulations of higher-dimensional problems, where multiple
-HPC systems collaborate to solve a joint simulation, as demonstrated in [@pollingerLeveragingComputePower2023].
+High-Performance Computing (HPC) systems collaborate to solve a joint simulation,
+as demonstrated in [@pollingerRealizingJointExtremeScale2024].
 Thus, `DisCoTec` can leverage the compute power and main memory of multiple HPC
 systems, with comparatively low and manageable transfer costs due to the
 combination technique.
@@ -68,21 +70,28 @@ combination technique.
 Higher-dimensional problems (by which we mean more than three space
 dimensions and one time dimension) quickly require infeasible amounts of
 computational resources such as memory and core-hours as the problem size
-increases---they are haunted by the
-so-called 'curse of dimensionality'.
-An example of this are high-fidelity plasma simulations in the field of confined
-fusion research.
-Current approaches to this problem include dimensionally-reduced models
-(which may not always be applicable), and restricting computations to a very limited resolution.
+increases---they are haunted by the so-called 'curse of dimensionality'.
+An example of this are high-fidelity plasma turbulence simulations in the field
+of confined fusion research.
+Currently employed approaches to this problem include dimensionally-reduced models,
+such as gyrokinetics [@brizardFoundationsNonlinearGyrokinetic2007]
+(which may not always be applicable),
+particle-in-cell methods (which suffer from inherent noise [@verboncoeurParticleSimulationPlasmas2005]),
+and restricting computations to a very limited resolution.
+A further---still developing but very promising---approach to the problem are
+low-rank methods [@einkemmerMassMomentumEnergy2021].
 Multi-scale (hierarchical) methods, such as the sparse grid combination
-technique that `DisCoTec` employs, provide an alternative approach to addressing the curse of dimensionality.
-While some implementations of the sparse grid combination technique are
-available in the context of UQ, there is currently no other implementation for
+technique (CT) that `DisCoTec` employs,
+provide an alternative approach to addressing the curse of dimensionality by
+considering only those resolutions where the highest amount of information is expected
+[@bungartzSparseGrids2004].
+While some implementations of the CT are
+available, there is currently no other implementation for
 parallel simulations that require distributed computing.
 
 `DisCoTec` is a C++ framework for the sparse grid combination technique.
 Targeted at HPC systems, it is used for parallel simulations [@heeneMassivelyParallelCombination2018],
-drawing on distributed-memory parallelism via MPI and shared-memory parallelism 
+drawing on distributed-memory parallelism via MPI and shared-memory parallelism
 via OpenMP.
 It is designed to be used in combination with existing simulation codes,
 which can be used with `DisCoTec` in a black-box fashion.
@@ -104,12 +113,13 @@ By updating each other's information throughout the simulation, the component gr
 still obtain an accurate solution of the overall problem [@griebelCombinationTechniqueSolution1992].
 This is enabled by an intermedate transformation into a multi-scale (hierarchical)
 basis, and application of the combination formula
-$$ f^{(\text{s})} = \sum_{\vec{l} \in \mathcal{I} } c_{\vec{l}} f_{\vec{l}} $$
-where $f^{(\text{s})}$ is the sparse grid approximation, and $f_{\vec{l}}$ are
+$$ f^{(\text{s})} = \sum_{\vec{\ell} \in \mathcal{I} } c_{\vec{\ell}} f_{\vec{\ell}} $$
+where $f^{(\text{s})}$ is the sparse grid approximation, and $f_{\vec{\ell}}$ are
 the component grid functions.
-In \autoref{fig:combischeme-2d}, the coefficients $c_{\vec{l}}$ are $-1$ for the coarser
-component grids (red background) and $1$ for the finer component grids (orange
-background).
+The set of all used levels $\vec{\ell}$ is often called a combination scheme $\mathcal{I}$.
+In \autoref{fig:combischeme-2d}, the coefficients $c_{\vec{\ell}}$ are $-1$ for
+the coarser component grids (red background) and $1$ for the finer component grids
+(orange background).
 In summary, each of the grids will run (one or more) time steps of the simulation,
 then exchange information with the other grids, and repeat this process until
 the simulation is finished.
@@ -133,19 +143,22 @@ Using `DisCoTec`, kinetic simulations were demonstrated to scale up to hundreds
 of thousands of CPU cores [@pollingerStableMassconservingHighdimensional2024].
 By putting a special focus on saving memory, most of the memory is available for
 use by the black-box solver, even at high core counts.
-In addition, OpenMP parallelism can be used to further increase parallelism and
-to decrease main memory usage.
+In addition, OpenMP parallelism can be used to further increase parallelism while
+being more lightweight than MPI in terms of memory.
 
 Through highly parallel I/O operations, `DisCoTec` can be used to perform
-simulations on multiple HPC systems simultaneously, if there exists a tool for
-sufficiently fast file transfer between the systems [@pollingerLeveragingComputePower2023].
+simulations on multiple High Performance Computing (HPC) systems simultaneously,
+if there exists a tool for
+sufficiently fast file transfer between the systems [@pollingerStableMassconservingHighdimensional2024].
 The `DisCoTec` repository contains example scripts and documentation for
 utilizing UFTP as an example of a transfer tool, but the approach is not limited
 to UFTP.
 
-`DisCoTec` provides a conveniently automated way of installing using a
+`DisCoTec` provides a conveniently automated way of installation using a
 [`spack` package](https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/discotec/package.py)
-[@gamblinSpackPackageManager2015].
+[@gamblinSpackPackageManager2015],
+which can be used to install `DisCoTec` and its whole dependency tree
+in an automated manner optimized for HPC hardware.
 
 # State of the field
 
@@ -154,17 +167,17 @@ sparse grids and the combination technique.
 We will give a brief overview and outline the differences and
 application areas of the codes.
 
-The C++ code [`SG++`](https://github.com/SGpp/SGpp) allows to directly utilize
-sparse grids and apply them to a variety of different tasks such as interpolation,
+The C++ code `SG++`[@SGppSGpp2024] provides a direct interface to
+sparse grids and applying them to a variety of different tasks such as interpolation,
 quadrature, optimization, PDEs,  regression, and classification.
 With the help of wrappers, the framework can be used from various other programming
 languages such as Python and Matlab.
 The code targets direct implementations within sparse grids and provides a basic
 implementation of the combination technique.
-Although offering parallelization for some of the tasks, the code mainly targets
-single-node computations.
+Although offering parallelization for some of the tasks, the code
+mainly targets single-node computations.
 
-The [`Sparse Grids Matlab Kit`](https://github.com/lorenzo-tamellini/sparse-grids-matlab-kit)
+The `Sparse Grids Matlab Kit`[@tamelliniLorenzotamelliniSparsegridsmatlabkit2024]
 by Piazzola and Tamellini was originally designed for teaching purposes and
 uncertainty quantification with the combination technique [@piazzolaSparseGridsMatlab2022].
 It offers a user friendly MATLAB interface for the combination technique.
@@ -173,7 +186,7 @@ of component grid collocation points.
 The code is designed for usage on a single node which limits the parallelism
 to shared memory.
 
-The [`sparseSpACE`](https://github.com/obersteiner/sparseSpACE) project offers
+The `sparseSpACE` [@obersteinerSparseSpACESparseGrid2023] project offers
 different variants of the combination technique including a spatially adaptive
 combination technique.
 It provides implementations for various applications such as numerical integration,

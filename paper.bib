@@ -6,6 +6,16 @@
   date = {1992},
   pages = {263--281},
   publisher = {IMACS, Elsevier, North Holland},
+  url = {https://ins.uni-bonn.de/media/public/publication-media/griesiam.ps.gz},
+}
+
+@article{bungartzSparseGrids2004,
+  title = {Sparse {{Grids}}},
+  author = {Bungartz, Hans-Joachim and Griebel, Michael},
+  date = {2004},
+  journaltitle = {Acta Numerica},
+  volume = {13},
+  pages = {147--269},
 }
 
 @phdthesis{heeneMassivelyParallelCombination2018,
@@ -27,18 +37,19 @@
   date        = {2021}
 }
 
-@inproceedings{pollingerLeveragingComputePower2023,
-  title = {Leveraging the {{Compute Power}} of {{Two HPC Systems}} for {{Higher-Dimensional Grid-Based Simulations}} with the {{Widely-Distributed Sparse Grid Combination Technique}}},
-  booktitle = {Proceedings of the {{International Conference}} for {{High Performance Computing}}, {{Networking}}, {{Storage}} and {{Analysis}}},
-  author = {Pollinger, Theresa and Van Craen, Alexander and Niethammer, Christoph and Breyer, Marcel and Pflüger, Dirk},
-  date = {2023-11-11},
-  series = {{{SC}} '23},
-  publisher = {{Association for Computing Machinery}},
-  location = {{New York, NY, USA}},
-  doi = {10.1145/3581784.3607036},
-  url = {https://dl.acm.org/doi/10.1145/3581784.3607036},
-  abstract = {Grid-based simulations of hot fusion plasmas are often severely limited by computational and memory resources; the grids live in four- to six-dimensional space and thus suffer the curse of dimensionality. However, high resolutions are required to fully capture the physics of interest. The sparse grid combination technique is a multi-scale method in which many anisotropically coarse resolved grids are used to approximate a fine-scale solution---and it alleviates the curse of dimensionality. This paper presents the core concepts of the widely-distributed combination technique, which allows us to use the compute power and memory of more than one HPC system for the same simulation. We apply the sparse grid combination technique to a six-dimensional advection problem serving as a proxy for plasma simulations. The full-grid solution approximated by the combination technique would contain ≈ 5 ZB if computed with conventional grid-based methods. Even the combination technique simulation operates on ≈ 1 × 1011 double-precision degrees of freedom, or 988 GB, plus the supporting sparse grid data structures. We propose a new approach to divide the compute load between the two HPC systems, requiring only 76 GB to be exchanged. Based on this, we have realized the first synchronous combination technique simulation using two HPC systems, in our case the two German Tier-0 supercomputers HAWK and SuperMUC-NG. On two systems, the simulation can be computed at an average overhead of ≈ 35 \% (108 s per combination step) for file I/O and transfer. The presented concepts apply to any pair of HPC systems if high-speed data transfer is possible.},
-  keywords = {combination technique,coupling HPC systems,higher-dimensional simulation,multi-level methods,plasma turbulence,UFTP},
+@inproceedings{pollingerRealizingJointExtremeScale2024,
+  title = {Realizing {{Joint Extreme-Scale Simulations}} on {{Multiple Supercomputers}}—{{Two Superfacility Case Studies}}},
+  author = {Pollinger, Theresa and Craen, Alexander Van and Offenhäuser, Philipp and Pflüger, Dirk},
+  date = {2024-11-09},
+  pages = {1568--1584},
+  publisher = {IEEE Computer Society},
+  doi = {10.1109/SC41406.2024.00104},
+  url = {https://www.computer.org/csdl/proceedings-article/sc/2024/529100b568/21HUWDIjYlO},
+  urldate = {2024-11-17},
+  abstract = {High-dimensional grid-based simulations serve as both a tool and a challenge in researching various domains. The main challenge of these approaches is the well-known curse of dimensionality, amplified by the need for fine resolutions in highfidelity applications. The combination technique (CT) provides a straightforward way of performing such simulations while alleviating the curse of dimensionality. Recent work demonstrated the potential of the CT to join multiple systems simultaneously to perform a single high-dimensional simulation. This paper shows how to extend this to three or more systems and addresses some remaining challenges: load balancing on heterogeneous hardware; utilizing compression to maximize the communication bandwidth; efficient I/O management through hardware mapping; and improving memory utilization through algorithmic optimizations. Combining these contributions, we demonstrate the feasibility of the CT for extreme-scale Superfacility scenarios of 46 trillion DOF on two systems and 35 trillion DOF on three systems. Scenarios at these resolutions would be intractable with full-grid solvers ({$>$} 1,000 nonillion DOF each).},
+  eventtitle = {2024 {{SC24}}: {{International Conference}} for {{High Performance Computing}}, {{Networking}}, {{Storage}} and {{Analysis SC}}},
+  isbn = {9798350352917},
+  langid = {english},
 }
 
 @article{pollingerStableMassconservingSparse2023,
@@ -97,4 +108,85 @@
   urldate = {2023-03-15},
   abstract = {The Sparse Grids Matlab kit is a collection of Matlab functions for high-dimensional interpolation and quadrature, based on the combination technique form of sparse grids. It is lightweight, high-level and easy to use, good for quick prototyping and teaching. It is somehow geared towards Uncertainty Quantification (UQ), but it is flexible enough for other purposes. The goal of this paper is to give an overview of the implementation structure of the Sparse Grids Matlab kit and to showcase its potentialities, guided by some illustrative tests and a final comprehensive example on forward and inverse UQ analysis.},
   keywords = {Computer Science - Mathematical Software,Mathematics - Numerical Analysis},
+}
+
+@article{brizardFoundationsNonlinearGyrokinetic2007,
+  title = {Foundations of Nonlinear Gyrokinetic Theory},
+  author = {Brizard, Alain J. and Hahm, Taik Soo},
+  date = {2007},
+  journaltitle = {Reviews of modern physics},
+  volume = {79},
+  number = {2},
+  pages = {421},
+  publisher = {APS},
+}
+
+@article{einkemmerMassMomentumEnergy2021,
+  title = {A Mass, Momentum, and Energy Conservative Dynamical Low-Rank Scheme for the {{Vlasov}} Equation},
+  author = {Einkemmer, Lukas and Joseph, Ilon},
+  date = {2021-10-15},
+  journaltitle = {Journal of Computational Physics},
+  shortjournal = {Journal of Computational Physics},
+  volume = {443},
+  pages = {110495},
+  issn = {0021-9991},
+  doi = {10.1016/j.jcp.2021.110495},
+  url = {https://www.sciencedirect.com/science/article/pii/S0021999121003909},
+  urldate = {2023-09-25},
+  abstract = {The primary challenge in solving kinetic equations, such as the Vlasov equation, is the high-dimensional phase space. In this context, dynamical low-rank approximations have emerged as a promising way to reduce the high computational cost imposed by such problems. However, a major disadvantage of this approach is that the physical structure of the underlying problem is not preserved. In this paper, we propose a dynamical low-rank algorithm that conserves mass, momentum, and energy as well as the corresponding continuity equations. We also show how this approach can be combined with a conservative time and space discretization.},
+  keywords = {Complexity reduction,Conservative numerical methods,Dynamical low-rank approximation,Kinetic equation,Vlasov equation},
+}
+
+@software{tamelliniLorenzotamelliniSparsegridsmatlabkit2024,
+  title = {Lorenzo-Tamellini/Sparse-Grids-Matlab-Kit},
+  author = {family=tamellini, prefix=lorenzo-, useprefix=true},
+  date = {2024-12-05T13:17:27Z},
+  origdate = {2023-05-06T12:13:51Z},
+  url = {https://github.com/lorenzo-tamellini/sparse-grids-matlab-kit},
+  urldate = {2024-12-10},
+  abstract = {repository for the Sparse Grids Matlab Kit source code. Full info on https://sites.google.com/view/sparse-grids-kit}
+}
+
+@software{DisCoTeccombischemeutilities2022,
+  title = {{{DisCoTec-combischeme-utilities}}},
+  date = {2022-10-18T05:44:12Z},
+  origdate = {2022-10-07T08:29:19Z},
+  url = {https://github.com/SGpp/DisCoTec-combischeme-utilities},
+  urldate = {2023-03-21},
+  abstract = {Python utilities to create (combination technique schemes) input files for the DisCoTec code},
+  organization = {SG++ development team}
+}
+
+@article{verboncoeurParticleSimulationPlasmas2005,
+  title = {Particle Simulation of Plasmas: Review and Advances},
+  shorttitle = {Particle Simulation of Plasmas},
+  author = {Verboncoeur, John P.},
+  date = {2005},
+  journaltitle = {Plasma Physics and Controlled Fusion},
+  volume = {47},
+  pages = {A231},
+  publisher = {IOP Publishing},
+  url = {https://iopscience.iop.org/article/10.1088/0741-3335/47/5A/017/meta?casa_token=aElJiSgwIgcAAAAA:xrmEQjmliSWfz_8HcmH7scqGnsFqepsQEqxMBxI-q8uEAvsFo6MSKB46NsoEgCI-oC1k3A3K9z8tyHKEtLsYUptMhe8gWQ},
+  urldate = {2024-12-04},
+  issue = {5A},
+}
+@software{SGppSGpp2024,
+  title = {{{SGpp}}/{{SGpp}}},
+  date = {2024-12-05T10:19:33Z},
+  origdate = {2018-03-05T12:33:52Z},
+  url = {https://github.com/SGpp/SGpp},
+  urldate = {2024-12-10},
+  abstract = {SG⁺⁺ – the numerical library for Sparse Grids in all their variants.},
+  organization = {SG++ development team},
+  keywords = {adaptive-sparse-grids,b-splines,cpp,interpolation,java,machine-learning,matlab,numerics,optimization,pde,python,quadrature,regression,sparse-grids}
+}
+
+@software{obersteinerSparseSpACESparseGrid2023,
+  title = {{{sparseSpACE}} - {{The Sparse Grid Spatially Adaptive Combination Environment}}},
+  author = {Obersteiner, Michael},
+  date = {2023-05-09T06:55:23Z},
+  origdate = {2019-09-02T09:22:49Z},
+  url = {https://github.com/obersteiner/sparseSpACE},
+  urldate = {2023-08-07},
+  abstract = {sparseSpACE - the Sparse Grid Spatially Adaptive Combination Environment implements different variants of the spatially adaptive combination technique.}
 }
