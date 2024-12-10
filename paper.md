@@ -45,7 +45,7 @@ conjunction with existing simulation codes.
 For simulation codes that can handle nested structured grids, little to no
 adaptation work is needed for use with the `DisCoTec` framework.
 The combination technique with `DisCoTec` demonstrates its superiority in
-memory-per-precision for higher-dimensional time-dependent simulations, such
+precision-per-memory for higher-dimensional time-dependent simulations, such
 as high-fidelity plasma turbulence simulations
 in four to six dimensions
 and even for simulations in two dimensions, improvements can be observed [@pollingerStableMassconservingSparse2023].
