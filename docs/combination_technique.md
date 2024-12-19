@@ -36,23 +36,26 @@ above figure.
 Here, we use the truncated combination technique, which sets a minimum and maximum
 level, $\vec{\ell^\text{min}}$ and $\vec{\ell^\text{max}}$, to select the
 component grids $\vec{\ell} \in \mathcal{I}$.
+The set of all selected component grids $\mathcal{I}$ is referred to as the
+"combination scheme".
 For regularity, we assume a constant difference between $\vec{\ell^\text{min}}$
 and $\vec{\ell^\text{max}}$ in each dimension, but [other schemes can be useful](./advanced_topics).
 <!-- The resulting component grids will be $d$ simplex "layers" in the space of 
 level vectors $\vec{\ell}$. -->
 
-One can then compute suitable combination coefficients $c^c$ that are used to
-obtain a sparse grid function $f_\text{SG}$ by way of a linear superposition of
+One can then compute suitable combination coefficients $c_{\vec{\ell}}^c$
+that are used to obtain a sparse grid function
+$f_\text{SG}$ by way of a linear superposition of
 functions $f_{\vec{\ell}}$ defined on the component grid:
 
-$f_\text{SG} = \sum_{\vec{\ell}} c_{\vec{ell}}^c\cdot f_{\vec{\ell}}$
+$f_\text{SG} = \sum_{\vec{\ell} \in  \mathcal{I}} c_{\vec{\ell}}^c\cdot f_{\vec{\ell}}$
 
 In the two-dimensional combination scheme in the above figure, all combination
 coefficients are 1 and -1, respectively.
 The sparse grid is illustrated on the upper right.
 
 This sparse grid function can be expected to be accurate in
-$\mathcal{O}(h^2 \cdot log(h^{d-1}))$, given some assumptions on the bounds of
+$\mathcal{O}(h^2 \cdot \log(h^{d-1}))$, given some assumptions on the bounds of
 mixed-dimension partial derivatives, where $N$ is the number of points corresponding
 to the finest resolution occurring in the scheme.
 At the same time, the number of points is only $\mathcal{O}(d\cdot N(\log N)^{d-1})$,
