@@ -162,7 +162,7 @@ sparse grids and the combination technique.
 We will give a brief overview and outline the differences and
 application areas of the codes.
 
-The C++ code @SGpp provides a direct interface to
+The C++ code `SG++` [@SGpp] provides a direct interface to
 sparse grids and applying them to a variety of different tasks such as interpolation,
 quadrature, optimization, PDEs,  regression, and classification.
 With the help of wrappers, the framework can be used from various other programming
@@ -172,7 +172,7 @@ implementation of the combination technique.
 Although offering parallelization for some of the tasks, the code
 mainly targets single-node computations.
 
-@TheSparseGridsMatlabKit
+The `Sparse Grids Matlab Kit` [@TheSparseGridsMatlabKit]
 by Piazzola and Tamellini was originally designed for teaching purposes and
 uncertainty quantification with the combination technique [@piazzolaSparseGridsMatlab2024].
 It offers a user friendly MATLAB interface for the combination technique.
@@ -181,7 +181,7 @@ of component grid collocation points.
 The code is designed for usage on a single node which limits the parallelism
 to shared memory.
 
-The @sparseSpACE project offers
+The `sparseSpACE` [@sparseSpACE] project offers
 different variants of the combination technique including a spatially adaptive
 combination technique.
 It provides implementations for various applications such as numerical integration,
