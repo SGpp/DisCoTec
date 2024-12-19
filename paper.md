@@ -102,7 +102,7 @@ coarsely resolved---each of them differently in the different dimensions.
 For instance, the following schematic shows a two-dimensional combination scheme, 
 consisting of seven component grids.
 
-![Combination scheme in two dimensions with $\vec{l}_{min} = (2,1)$ and $\vec{l}_{max} = (5,4)$, periodic boundary conditions. Figure first published in  [@pollingerStableMassconservingHighdimensional2024]. \label{fig:combischeme-2d}](gfx/combischeme-2d.pdf)
+![Combination scheme in two dimensions with $\vec{\ell}^{\text{min}} = (2,1)$ and $\vec{\ell}^{\text{max}} = (5,4)$, periodic boundary conditions. Figure first published in  [@pollingerStableMassconservingHighdimensional2024]. \label{fig:combischeme-2d}](gfx/combischeme-2d.pdf)
 
 By updating each other's information throughout the simulation, the component grids
 still obtain an accurate solution of the overall problem [@griebelCombinationTechniqueSolution1992].
@@ -131,7 +131,7 @@ The process groups are displayed as $pg_i$ in \autoref{fig:discotec-ranks}.
 
 In addition, the number of process groups can be increased to leverage the
 combination technique's embarrassing parallelism in the solver time steps.
-In \autoref{fig:discotec-ranks}, this would be equivalent to adding more and more 
+In \autoref{fig:discotec-ranks}, this would be equivalent to adding more and more
 process groups to the right.
 
 Using `DisCoTec`, kinetic simulations were demonstrated to scale up to hundreds
@@ -142,7 +142,7 @@ In addition, OpenMP parallelism can be used to further increase parallelism whil
 being more lightweight than MPI in terms of memory.
 
 Through highly parallel I/O operations, `DisCoTec` can be used to perform
-simulations on multiple High Performance Computing (HPC) systems simultaneously,
+simulations on multiple High Performance Computing systems simultaneously,
 if there exists a tool for
 sufficiently fast file transfer between the systems [@pollingerStableMassconservingHighdimensional2024].
 The `DisCoTec` repository contains example scripts and documentation for
@@ -162,7 +162,7 @@ sparse grids and the combination technique.
 We will give a brief overview and outline the differences and
 application areas of the codes.
 
-The C++ code `SG++`[@SGppSGpp2024] provides a direct interface to
+The C++ code `SG++` [@SGppSGpp2024] provides a direct interface to
 sparse grids and applying them to a variety of different tasks such as interpolation,
 quadrature, optimization, PDEs,  regression, and classification.
 With the help of wrappers, the framework can be used from various other programming
@@ -172,9 +172,9 @@ implementation of the combination technique.
 Although offering parallelization for some of the tasks, the code
 mainly targets single-node computations.
 
-The `Sparse Grids Matlab Kit`[@tamelliniLorenzotamelliniSparsegridsmatlabkit2024]
+The `Sparse Grids Matlab Kit` [@TheSparseGridsMatlabKit]
 by Piazzola and Tamellini was originally designed for teaching purposes and
-uncertainty quantification with the combination technique [@piazzolaSparseGridsMatlab2022].
+uncertainty quantification with the combination technique [@piazzolaSparseGridsMatlab2024].
 It offers a user friendly MATLAB interface for the combination technique.
 In addition, dimensional adaptivity is available for nested and non-nested sequences
 of component grid collocation points.
