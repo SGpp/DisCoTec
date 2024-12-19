@@ -26,7 +26,7 @@ During a time step, the PDE solver step applies one or multiple time step update
 to the values in each component grid.
 During the PDE solver time step and most of the combination step, MPI communication
 only happens within the process groups.
-Conversely, for the sparse grid reduction using the combination coefficients $c_{\vec{ell}}^c$,
+Conversely, for the sparse grid reduction using the combination coefficients $c_{\vec{\ell}}^c$,
 MPI communication only happens between a rank and its colleagues in the other
 process groups, e.g., rank 0 in group 0 will only talk to rank 0 in all other groups.
 Thus, major bottlenecks arising from global communication can be avoided altogether.
@@ -47,13 +47,13 @@ If needed, the exact distribution of coordinates to ranks is set in the
 Combining the two ways of scaling up, DisCoTec's scalability was demonstrated on
 several machines, with the experiments comprising up to 524288 cores:
 
-![timings for advection solver step on HAWK at various
+![timings for 6-d advection solver step on HAWK at various
 parallelizations](../gfx/times-solver-on-hawk.svg)
 ![timings for combination step on
 HAWK at various parallelizations](../gfx/times-combination-on-hawk.svg)
 
-We see the timings (in seconds) for the advection PDE solver step and the
-combination step, respectively.
+We see the timings (in seconds) for the solver and combination steps respectively,
+for an illustrative (6-D) PDE problem.
 This weak scaling experiment used four OpenMP threads per rank, and starts with
 one pg of four processes in the upper left corner.
 The largest parallelization is 64 pgs of 2048 processes each.
