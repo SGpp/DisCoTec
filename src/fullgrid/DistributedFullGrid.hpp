@@ -1760,7 +1760,9 @@ void DistributedFullGrid<FG_ELEMENT>::InitMPI(MPI_Comm comm, const std::vector<i
     throw std::runtime_error(
         "Currently testing to not duplicate communicator (to save memory), \
                           if you do want to use this code please take care that \
-                          MPI_Comm_free(&communicator_) will be called at some point");
+                          MPI_Comm_free(&communicator_) will be called at some point. \
+        If you want this error to go away easily, pass a cartesian communicator to \
+                          the constructor of DistributedFullGrid.");
   }
 }
 

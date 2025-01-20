@@ -479,23 +479,23 @@ class MPISystem {
    */
   std::vector<RankType> getFailedRanks(int numFailedProcs);
 
-  bool initialized_;  // is MPISystem initialized?
+  bool initialized_ = false;  // is MPISystem initialized?
 
-  CommunicatorType worldComm_;  // contains all processes that are active
+  CommunicatorType worldComm_ = MPI_COMM_NULL;  // contains all processes that are active
 
-  CommunicatorType globalComm_;  // contains the manager and master processes
+  CommunicatorType globalComm_ = MPI_COMM_NULL;  // contains the manager and master processes
 
-  CommunicatorType localComm_;  // contains all processes in process group
+  CommunicatorType localComm_ = MPI_COMM_NULL;  // contains all processes in process group
 
   /**
    * contains all processes that share same domain in other process groups
    * -> only communicate with these ranks during allreduce
    */
-  CommunicatorType globalReduceComm_;
+  CommunicatorType globalReduceComm_ = MPI_COMM_NULL;
 
-  CommunicatorType outputGroupComm_;
+  CommunicatorType outputGroupComm_ = MPI_COMM_NULL;
 
-  CommunicatorType outputComm_;
+  CommunicatorType outputComm_ = MPI_COMM_NULL;
 
   simft::Sim_FT_MPI_Comm worldCommFT_;  // FT version of world comm
 
