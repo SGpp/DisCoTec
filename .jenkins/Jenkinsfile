@@ -13,7 +13,7 @@ pipeline {
                 artifactNumToKeepStr: "100"
             )
         )
-        timeout(time: 3, unit: 'HOURS') 
+        timeout(time: 5, unit: 'HOURS') 
         disableConcurrentBuilds()
     }
     environment {
