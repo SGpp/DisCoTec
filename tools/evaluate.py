@@ -15,6 +15,7 @@ parser.add_argument("--input_files", nargs='+', help="the input file", required=
 parser.add_argument("--no_compute_per_rank_statistics", help="compute the per rank statistics", action="store_true", default=False)
 parser.add_argument("--no_compute_per_step_statistics", help="compute the per step statistics", action="store_true", default=False)
 parser.add_argument("--no_compute_total_statistics", help="compute the total statistics", action="store_true", default=False)
+parser.add_argument("--no_compute_imbalance", help="compute the load imbalance", action="store_true", default=False)
 parser.add_argument("--io_only", help="only output IO ranks; a rank is an IO rank if it has the event \"{}\"".format(io_only_event), action="store_true", default=False)
 parser.add_argument("--no_tqdm",help="display no progress bars", action="store_true", default=False)
 #parser.add_argument("--groups_from_path",help="infer groups from json file name instead of file content", action="store_true", default=False)
@@ -68,14 +69,14 @@ if not args.no_compute_per_rank_statistics:
             data = np.vstack(data_per_rank[rank][event])
             processed_data_per_rank.loc[len(processed_data_per_rank.index)] = \
                 [rank, event, np.min(data), np.max(data), np.mean(data), np.median(data), np.std(data), np.sum(data)]
-            if "run" in event:
+            if "run" in event and not args.no_compute_imbalance:
                 if solver_event is None:
                     solver_event = event
                     solver_measurements = []
                 assert(solver_event == event)
                 solver_measurements.append(np.mean(data))
 
-    if solver_event is not None:
+    if not args.no_compute_imbalance and solver_event is not None:
         solver_load_imbalance = np.max(solver_measurements) / np.mean(solver_measurements)
         max_solver_rank = np.argmax(solver_measurements)
         print("imbalance of " + str(solver_load_imbalance) + " introduced by rank " + str(max_solver_rank) + " in group " + str(max_solver_rank//group_size))
