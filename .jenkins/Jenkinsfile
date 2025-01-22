@@ -84,6 +84,8 @@ pipeline {
                                         # https://forum.hdfgroup.org/t/cmake-zlib-dependency-not-properly-propagted-by-hdf5-targets/5149
                                         # spack install zlib
                                         # spack load zlib
+                                        spack spec -y python@:3.12.999
+                                        spack install -y python@:3.12.999
                                         spack spec -y discotec@main -lto %${compiler} ^${mpiimpl} # +selalib # --only dependencies # actually build discotec, such that load command will work
                                         spack install -y discotec@main -lto %${compiler} ^${mpiimpl} # +selalib # --only dependencies # actually build discotec, such that load command will work
                                         spack install -y lz4 %${compiler}
