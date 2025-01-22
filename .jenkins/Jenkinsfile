@@ -26,14 +26,14 @@ pipeline {
                 script {
                     buildbadge.setStatus('running')
                 }
-                withEnv(['SPACK_USER_CACHE_PATH=$TMP/spack/','SPACK_DISABLE_LOCAL_CONFIG=true']) {
+                withEnv(['SPACK_USER_CACHE_PATH="$(pwd)/spack_user_cache"','SPACK_USER_CONFIG_PATH="$(pwd)/spack_user_config"']) {
                     retry(count: 2) {
                         dir('discotec-spack') {
                             sh '''
                                 git -C spack pull || git clone git@github.com:spack/spack.git 
                                 cd spack
                                 # use old/working version of develop branch, shamelessly stolen from PLSSVM
-                                git checkout 6e2625ae65e2b059987c326ba4eb5edc6a32d27f
+                                # git checkout 6e2625ae65e2b059987c326ba4eb5edc6a32d27f
                                 # reset compilers and external packages due to possible different systems
                                 rm -f ~/.spack/bootstrap/config/packages.yaml
                                 rm -f ~/.spack/linux/compilers.yaml 
@@ -72,7 +72,7 @@ pipeline {
                 stages{
                     stage('build dependencies w/ spack') {
                         steps {
-                            withEnv(['SPACK_USER_CACHE_PATH=$TMP/spack/','SPACK_DISABLE_LOCAL_CONFIG=true']) {
+                            withEnv(['SPACK_USER_CACHE_PATH="$(pwd)/spack_user_cache"','SPACK_USER_CONFIG_PATH="$(pwd)/spack_user_config"']) {
 
                                 retry(count: 2) {
                                     dir('discotec-spack/spack') {
@@ -86,8 +86,8 @@ pipeline {
                                         # https://forum.hdfgroup.org/t/cmake-zlib-dependency-not-properly-propagted-by-hdf5-targets/5149
                                         # spack install zlib
                                         # spack load zlib
-                                        spack spec -y python@:3.12.999
-                                        spack --debug install -y python@:3.12.999
+                                        # spack spec -y python@:3.12.999
+                                        # spack --debug install -y python@:3.12.999
                                         spack spec -y discotec@main -lto %${compiler} ^${mpiimpl} # +selalib # --only dependencies # actually build discotec, such that load command will work
                                         spack install -y discotec@main -lto %${compiler} ^${mpiimpl} # +selalib # --only dependencies # actually build discotec, such that load command will work
                                         spack install -y lz4 %${compiler}
