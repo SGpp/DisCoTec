@@ -35,6 +35,9 @@ pipeline {
                                 # use old/working version of develop branch, shamelessly stolen from PLSSVM
                                 # git checkout 6e2625ae65e2b059987c326ba4eb5edc6a32d27f
                                 # reset compilers and external packages due to possible different systems
+                                rm -f ${SPACK_USER_CONFIG_PATH}/*.yaml
+                                rm -f ${SPACK_USER_CONFIG_PATH}/*/*.yaml
+                                rm -f ${SPACK_USER_CONFIG_PATH}/*/*/*.yaml
                                 rm -f ~/.spack/bootstrap/config/packages.yaml
                                 rm -f ~/.spack/linux/compilers.yaml 
                                 rm -f ~/.spack/packages.yaml
@@ -86,8 +89,8 @@ pipeline {
                                         # https://forum.hdfgroup.org/t/cmake-zlib-dependency-not-properly-propagted-by-hdf5-targets/5149
                                         # spack install zlib
                                         # spack load zlib
-                                        # spack spec -y python@:3.12.999
-                                        # spack --debug install -y python@:3.12.999
+                                        spack spec -y --verbose python@:3.12.999
+                                        spack install -y --verbose python@:3.12.999
                                         spack spec -y discotec@main -lto %${compiler} ^${mpiimpl} # +selalib # --only dependencies # actually build discotec, such that load command will work
                                         spack install -y discotec@main -lto %${compiler} ^${mpiimpl} # +selalib # --only dependencies # actually build discotec, such that load command will work
                                         spack install -y lz4 %${compiler}
