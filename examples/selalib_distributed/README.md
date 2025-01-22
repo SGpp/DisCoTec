@@ -40,12 +40,41 @@ this `selalib_distributed` example.
   onto `lmax` to do the diagnostics, which can be extremely costly)
 * load dependencies and run with mpi, like shown in `sbatch.sh` -- the number of
   MPI tasks has to match the process group number and size in `ctparam`.
+  Without modification, this should look similar to
+  `mpiexec -n 9 ./selalib_distributed` or
+  `mpiexec -n 8 ./selalib_distributed_workers_only` ;
   Make sure that OpenMP runs with 1 process per MPI rank.
+  The examples will create a separate output folder called `seladisco$n`
+  for every component grid (with index `$n`) in the current directory.
+  You should see some output like this for the first time step
+
+```bash
+ Entering main loop ... 
+ Time   0.010 of   0.010 :: step run time [s] =   0.021
+ Leaving main loop.  Main loop run time [s] =      0.021
+ Running 6D Vlasov simulation with MPI domain decomposition (slim) ...
+ git: main-0-g591da44
+ compiler: gfortran 13.2.0 (-std=f2008 -ffree-line-length-none -fstack-arrays -O3 -fPIC  -w  -march=native -fallow-argument-mismatch  -fopenmp)
+parallelism :: MPI procs:     8, OMP threads:  18
+               process grid:    1   1   1   2   2   2
+         process-local grid:    8   8   8   4   4   4
+```
+
+  and like this for all remaining time steps
+
+```bash
+ Entering main loop ... 
+ Time   0.020 of   0.010 :: step run time [s] =   0.048
+ Leaving main loop.  Main loop run time [s] =      0.049
+```
+
+  for every component grid in the simulation (-> can be a lot of output!)
 
 ### Postprocessing for Selalib+DisCoTec example
 
-* run `./combine_selalib_diagnostics ctparam` or update paths in
-  `./plot_landau.py` and run (which also invokes`./combine_selalib_diagnostics`
+* run `./combine_selalib_diagnostics ctparam` or
+  `./plot_selalib_diagnostics.py --ctparam_to_use ctparam`
+  (which also invokes`./combine_selalib_diagnostics`
   but then plots the quantities of interest)
 * analyze the sparse grid "surplusses" (maximum hierarchical coefficients per
   level) by running
