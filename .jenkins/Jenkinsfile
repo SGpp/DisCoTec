@@ -26,10 +26,12 @@ pipeline {
                 script {
                     buildbadge.setStatus('running')
                 }
-                withEnv(['SPACK_USER_CACHE_PATH="$(pwd)/spack_user_cache"','SPACK_USER_CONFIG_PATH="$(pwd)/spack_user_config"']) {
+                withEnv(['SPACK_USER_CACHE_PATH="$(pwd)/spack_user_cache"','SPACK_USER_CONFIG_PATH=$(pwd)/spack_user_config']) {
                     retry(count: 2) {
                         dir('discotec-spack') {
                             sh '''
+                                echo "SPACK_USER_CACHE_PATH: ${SPACK_USER_CACHE_PATH}"
+                                echo "SPACK_USER_CONFIG_PATH: ${SPACK_USER_CONFIG_PATH}"
                                 git -C spack pull || git clone git@github.com:spack/spack.git 
                                 cd spack
                                 # use old/working version of develop branch, shamelessly stolen from PLSSVM
