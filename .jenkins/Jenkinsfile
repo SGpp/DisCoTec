@@ -34,8 +34,8 @@ pipeline {
                                 echo "SPACK_USER_CONFIG_PATH: ${SPACK_USER_CONFIG_PATH}"
                                 git -C spack pull || git clone git@github.com:spack/spack.git 
                                 cd spack
-                                # use old/working version of develop branch, shamelessly stolen from PLSSVM
-                                # git checkout 6e2625ae65e2b059987c326ba4eb5edc6a32d27f
+                                # use old spack release version
+                                git checkout v0.21.3
                                 # reset compilers and external packages due to possible different systems
                                 rm -f ${SPACK_USER_CONFIG_PATH}/*.yaml
                                 rm -f ${SPACK_USER_CONFIG_PATH}/*/*.yaml
