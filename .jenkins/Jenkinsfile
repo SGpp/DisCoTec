@@ -32,7 +32,7 @@ pipeline {
                             sh '''
                                 echo "SPACK_USER_CACHE_PATH: ${SPACK_USER_CACHE_PATH}"
                                 echo "SPACK_USER_CONFIG_PATH: ${SPACK_USER_CONFIG_PATH}"
-                                git -C spack pull || git clone git@github.com:spack/spack.git 
+                                git clone git@github.com:spack/spack.git || true
                                 cd spack
                                 # use old spack release version
                                 git checkout v0.21.3
