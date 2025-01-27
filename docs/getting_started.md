@@ -133,6 +133,7 @@ mpiexec -np 9 ./test_distributedcombigrid_boost
 ```
 
 where you can use all the [parameters of the boost test suite](https://beta.boost.org/doc/libs/1_60_0/libs/test/doc/html/boost_test/utf_reference/rt_param_reference.html).
+Beware that the tests can already use significant resources.
 If timings matter, consider [pinning](#pinning-with-various-mpi-implementations).
 
 ## Run an Example
