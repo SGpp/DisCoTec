@@ -36,9 +36,9 @@ pipeline {
                                 # use old spack release version
                                 git checkout v0.21.3
                                 # reset compilers and external packages due to possible different systems
-                                rm -f ${SPACK_USER_CONFIG_PATH}/*.yaml
-                                rm -f ${SPACK_USER_CONFIG_PATH}/*/*.yaml
-                                rm -f ${SPACK_USER_CONFIG_PATH}/*/*/*.yaml
+                                #rm -f ${SPACK_USER_CONFIG_PATH}/*.yaml
+                                #rm -f ${SPACK_USER_CONFIG_PATH}/*/*.yaml
+                                #rm -f ${SPACK_USER_CONFIG_PATH}/*/*/*.yaml
                                 rm -f ~/.spack/bootstrap/config/packages.yaml
                                 rm -f ~/.spack/linux/compilers.yaml 
                                 rm -f ~/.spack/packages.yaml
