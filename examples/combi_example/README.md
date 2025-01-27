@@ -42,7 +42,20 @@ mpirun -n $N ./combi_example
 ```
 
 with the number of MPI processes `$N`
-as `ngroup` * `nprocs` + 1 (for the manager process).
+as `ngroup` $\cdot$ `nprocs` + 1 (for the manager process).
+For the unmodified `ctparam`, this would be 2 * 2 + 1 = 5 ->
+
+```bash
+mpirun -n 5 ./combi_example
+```
 
 The example will write the combined solution after every time step
-to the `out/` folder.
+to the `out/` folder in raw binary format.
+
+If DisCoTec was compiled with the `DISCOTEC_TIMING` flag (on by default),
+it will also write a `timers.json` file that contains time stamps for each
+MPI process. It can be visualized with
+
+```bash
+python ../../tools/plot.py timers.json
+```

@@ -10,23 +10,21 @@ import subprocess
 import argparse
 
 column_names = [
-    "time",
-    "mass $m$",
-    "L2",
-    "norm of el. charge density rho",
-    "norm of el. potential $||\phi||$",
-    "norm of el. field in x $||E_1||$",
-    "norm of el. field in y $||E_2||$",
-    "norm of el. field in z $||E_3||$",
-    "norm of momentum in x $||v_1 \cdot f||$",
-    "norm of momentum in y $||v_2 \cdot f||$",
-    "norm of momentum in z $||v_3 \cdot f||$",
-    "$||v_1^2||$",
-    "$||v_2^2||$",
-    "$||v_3^2||$",
+    R"time",
+    R"mass $m$",
+    R"L2",
+    R"norm of el. charge density rho",
+    R"norm of el. potential $||\phi||$",
+    R"norm of el. field in x $||E_1||$",
+    R"norm of el. field in y $||E_2||$",
+    R"norm of el. field in z $||E_3||$",
+    R"norm of momentum in x $||v_1 \cdot f||$",
+    R"norm of momentum in y $||v_2 \cdot f||$",
+    R"norm of momentum in z $||v_3 \cdot f||$",
+    R"$||v_1^2||$",
+    R"$||v_2^2||$",
+    R"$||v_3^2||$",
 ]
-
-# QoIs=["norm of el. potential $||\phi||$",  "mass $m$", "L2", "norm of el. charge density $|| \rho ||$", "norm(v1^2)" ]#, "norm(v2^2)", "norm(v3^2)"] #"norm(rho)" #"mass" #"norm(phi)"
 
 QoI_indices = [4, 1, 2, 3, 11, 12, 13]
 QoIs = [column_names[i] for i in QoI_indices]
@@ -85,7 +83,6 @@ def plot_selalib_qois(existing_dat_file_filenames, to_generate_ctparam_file):
         plt.xlabel("simulation time $t$")
 
         # plt.xlim([0, 0.1])
-
         plt.legend()
         plt.savefig(
             "selalib_diagnostics_"
@@ -95,8 +92,7 @@ def plot_selalib_qois(existing_dat_file_filenames, to_generate_ctparam_file):
             + ".svg",
             format="svg",
         )
-        plt.show()
-
+        # plt.show()
         plt.clf()
 
 

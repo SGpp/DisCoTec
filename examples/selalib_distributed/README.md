@@ -35,9 +35,11 @@ this `selalib_distributed` example.
 
 ### Run Selalib+DisCoTec example
 
-* update combination technique parameters in `ctparam`, selalib parameters in
-  `template/param.nml` (be careful with `haveDiagnosticsTask` -- it interpolates
-  onto `lmax` to do the diagnostics, which can be extremely costly)
+* set combination technique parameters in `ctparam`, selalib parameters in
+  `template/param.nml`. Be careful with `haveDiagnosticsTask` -- it interpolates
+  onto `lmax` to do the diagnostics, which can be extremely costly.
+  In this example, the `basis` parameter can take on the values of
+  `hat_periodic`, `fullweighting_periodic`, or `biorthogonal_periodic`.
 * load dependencies and run with mpi, like shown in `sbatch.sh` -- the number of
   MPI tasks has to match the process group number and size in `ctparam`.
   Without modification, this should look similar to
@@ -46,7 +48,7 @@ this `selalib_distributed` example.
   Make sure that OpenMP runs with 1 process per MPI rank.
   The examples will create a separate output folder called `seladisco$n`
   for every component grid (with index `$n`) in the current directory.
-  You should see some output like this for the first time step
+  You should see some output like this for the first time step:
 
 ```bash
  Entering main loop ... 
@@ -69,13 +71,15 @@ parallelism :: MPI procs:     8, OMP threads:  18
 ```
 
   for every component grid in the simulation (-> can be a lot of output!)
+  You may also see MPI errors at program exit, this is expected as a result of
+  the order of object destruction between SeLaLib and DisCoTec.
 
 ### Postprocessing for Selalib+DisCoTec example
 
 * run `./combine_selalib_diagnostics ctparam` or
   `./plot_selalib_diagnostics.py --ctparam_to_use ctparam`
   (which also invokes`./combine_selalib_diagnostics`
-  but then plots the quantities of interest)
+  but then plots the quantities of interest as `.svg` files)
 * analyze the sparse grid "surplusses" (maximum hierarchical coefficients per
   level) by running
   `../../tools/visualize_sg_minmax.py plot.dat_selalib_sg_${TIMESTEP}_0.txt`.
