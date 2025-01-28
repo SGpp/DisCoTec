@@ -15,6 +15,8 @@ int num_points_x = ...
 int num_points_y = ...
 int num_points_z = ...
 int num_points_vx = ...
+int num_points_vy = ...
+int num_points_vz = ...
 ...
 initial_function = ...
 grid.initialize(
@@ -23,6 +25,8 @@ grid.initialize(
                 num_points_y,
                 num_points_z,
                 num_points_vx,
+                num_points_vy,
+                num_points_vz,
                 ... 
                )
 helper_data_structures.initialize(...)
@@ -38,6 +42,9 @@ while(time_now < end_time) { # time loop
 properties = compute_properties(grid)
 write_output(properties, grid)
 ```
+
+This example assumes that your PDE solver uses three dimensions
+in both space and velocity.
 
 For use with DisCoTec, we assume nestable power-of-two discretizations, i.e.,
 where your grid spacing can be $2^{-l}$ for $l \in \mathbb{N}$.
@@ -60,6 +67,8 @@ int num_points_x = ...
 int num_points_y = ...
 int num_points_z = ...
 int num_points_vx = ...
+int num_points_vy = ...
+int num_points_vz = ...
 ...
 
 - initial_function = ...
@@ -69,6 +78,8 @@ int num_points_vx = ...
 -                 num_points_y,
 -                 num_points_z,
 -                 num_points_vx,
+-                 num_points_vy,
+-                 num_points_vz,
 -                 ... 
 -                )
 - helper_data_structures.initialize(...)
@@ -77,6 +88,8 @@ int num_points_vx = ...
 +                                num_points_y,
 +                                num_points_z,
 +                                num_points_vx,
++                                num_points_vy,
++                                num_points_vz,
 +                                ...
 +                               )
 float end_time = ...
@@ -112,7 +125,9 @@ C++ header `YourSolver.h`, roughly like this:
 
 class YourSolver {
  public:
-  YourSolver(int num_points_x, int num_points_y, int num_points_vx, int num_points_vy, ...);
+  YourSolver(int num_points_x, int num_points_y, int num_points_z,
+             int num_points_vx, int num_points_vy, int num_points_vz, 
+             ...);
   //...rule of 5...
 
   void run(double time_step);
@@ -143,9 +158,12 @@ With `YourSolver`, that will be as simple as:
 
 class YourTask : public combigrid::Task {
  public:
-  YourTask(combigrid::LevelVector& l, const std::vector<combigrid::BoundaryType>& boundary,
-           combigrid::real coeff, combigrid::real dt)
-      : Task(4, l, boundary, coeff, nullptr, nullptr), sim_(nullptr), dfg_(nullptr), dt_(dt) {}
+  YourTask(combigrid::LevelVector& l, 
+           const std::vector<combigrid::BoundaryType>& boundary,
+           combigrid::real coeff, 
+           combigrid::real dt)
+      : Task(4, l, boundary, coeff, nullptr, nullptr), 
+        sim_(nullptr), dfg_(nullptr), dt_(dt) {}
 
   virtual ~YourTask(){
     if (sim_ != nullptr){
@@ -162,17 +180,20 @@ class YourTask : public combigrid::Task {
     const auto& l = this->getLevelVector();
     int num_points_x = combigrid::powerOfTwoByBitshift(l[0]);
     int num_points_y = combigrid::powerOfTwoByBitshift(l[1]);
-    int num_points_vx = combigrid::powerOfTwoByBitshift(l[2]);
-    int num_points_vy = combigrid::powerOfTwoByBitshift(l[3]);
+    int num_points_z = combigrid::powerOfTwoByBitshift(l[2]);
+    int num_points_vx = combigrid::powerOfTwoByBitshift(l[3]);
+    int num_points_vy = combigrid::powerOfTwoByBitshift(l[4]);
+    int num_points_vz = combigrid::powerOfTwoByBitshift(l[5]);
 
     // this is the number of MPI processes in each dimension --
     // if all are 1, we are only using the parallelism between grids
-    std::vector<int> p = {1, 1, 1, 1};
+    std::vector<int> p = {1, 1, 1, 1, 1, 1};
 
     // if using MPI within your solver, 
     // pass p and the lcomm communicator to sim_, too
     sim_ =
-        std::make_unique<YourSolver>(num_points_x, num_points_y, num_points_vx, num_points_vy);
+        std::make_unique<YourSolver>(num_points_x, num_points_y, num_points_z, 
+                                     num_points_vx, num_points_vy, num_points_vz);
     // wrap tensor in a DistributedFullGrid
     dfg_ = std::make_unique<combigrid::DistributedFullGrid<combigrid::CombiDataType>>(
         this->getDim(), this->getLevelVector(), lcomm, this->getBoundary(),
@@ -201,7 +222,8 @@ contiguous array.
 The size of the whole "global" grid is $2^{l_d}$, with $l_d$ the level vector
 for each dimension $d$.
 Every MPI process in your solver should then have $2^{l_d} / p_d$ grid
-points, where $p$ is the Cartesian process vector.
+points, where $p$ is the Cartesian process vector
+containing the number of processes per dimension in each [process group](./parallelism.md).
 
 ## Make Your MPI Processes Workers
 
@@ -239,15 +261,14 @@ int main(int argc, char** argv) {
   combigrid::theMPISystem()->initWorldReusable(MPI_COMM_WORLD, ngroup, nprocs, false, true);
 
   // input parameters
-  const combigrid::DimType dim = 4;  // four-dimensional problem
+  const combigrid::DimType dim = 6;  // six-dimensional problem
   const combigrid::LevelVector lmin = {
       2, 2, 2,
-      2};  // minimal level vector for each grid -> have at least 4 points in each dimension
-  const combigrid::LevelVector lmax = {6, 6, 6, 6};  // maximum level vector -> level vector of target grid
+      2, 2, 2};  // minimal level vector for each grid -> have at least 4 points in each dimension
+  const combigrid::LevelVector lmax = {6, 6, 6, 6, 6, 6};  // maximum level vector -> level vector of target grid
   const std::vector<int> p = {
-      1, 1, 1, 1};  // parallelization of domain (one process per dimension) -> must match nprocs
-  const std::vector<bool> hierarchizationDims = {true, true, true,
-                                                 true};  // all dimensions should be hierarchized
+      1, 1, 1, 1, 1, 1};  // parallelization of domain (one process per dimension) -> must match nprocs
+  const std::vector<bool> hierarchizationDims(dim, true);  // all dimensions should be hierarchized
   const std::vector<combigrid::BoundaryType> boundary(dim,
                                                       1);  // periodic boundary in every dimension
   const combigrid::real dt = 0.01;                         // time step
