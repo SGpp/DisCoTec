@@ -18,7 +18,7 @@ All component grids are distributed to process groups (either statically, or
 dynamically through the manager rank).
 Each process group will be responsible for a set of component grids and the
 solver instance belonging to each.
-Within a process group and each grid, one can observe the exact same domain 
+Within a process group and each grid, one can observe the exact same domain
 decomposition parallelism as when using the solver directly.
 (The domain decomposition needs to be the same for all solver instances.)
 

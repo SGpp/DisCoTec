@@ -43,7 +43,8 @@ properties = compute_properties(grid)
 write_output(properties, grid)
 ```
 
-This example assumes that your PDE solver uses three dimensions in both space and velocity.
+This example assumes that your PDE solver uses three dimensions
+in both space and velocity.
 
 For use with DisCoTec, we assume nestable power-of-two discretizations, i.e.,
 where your grid spacing can be $2^{-l}$ for $l \in \mathbb{N}$.

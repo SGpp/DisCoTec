@@ -5,7 +5,8 @@
   it uses the SeLaLib target `sll_m_sim_bsl_vp_3d3v_cart_dd_slim_interface`
 * the experiments on mass conservation presented
   [here](https://doi.org/10.1016/j.jcp.2023.112338)
-  used the branch <https://gitlab.mpcdf.mpg.de/clapp/selalib/-/tree/exahd_communicator> .
+  used the branch
+  <https://gitlab.mpcdf.mpg.de/clapp/selalib/-/tree/exahd_communicator> .
 
 ## Build SeLaLib Dependency
 
