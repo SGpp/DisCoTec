@@ -36,9 +36,6 @@ pipeline {
                                 # use old spack release version
                                 git checkout v0.21.3
                                 # reset compilers and external packages due to possible different systems
-                                #rm -f ${SPACK_USER_CONFIG_PATH}/*.yaml
-                                #rm -f ${SPACK_USER_CONFIG_PATH}/*/*.yaml
-                                #rm -f ${SPACK_USER_CONFIG_PATH}/*/*/*.yaml
                                 rm -f ~/.spack/bootstrap/config/packages.yaml
                                 rm -f ~/.spack/linux/compilers.yaml 
                                 rm -f ~/.spack/packages.yaml
@@ -89,8 +86,6 @@ pipeline {
                                         # https://forum.hdfgroup.org/t/cmake-zlib-dependency-not-properly-propagted-by-hdf5-targets/5149
                                         # spack install zlib
                                         # spack load zlib
-                                        spack spec -y python@:3.12.999
-                                        spack --debug install -y --verbose python@:3.12.999
                                         spack spec -y discotec@main -lto %${compiler} ^${mpiimpl} # +selalib # --only dependencies # actually build discotec, such that load command will work
                                         spack --debug install -y discotec@main -lto %${compiler} ^${mpiimpl} # +selalib # --only dependencies # actually build discotec, such that load command will work
                                         spack install -y lz4 %${compiler}
