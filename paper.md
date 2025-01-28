@@ -10,7 +10,7 @@ tags:
   - massively parallel
 authors:
   - name: Theresa Pollinger
-    affiliation: 1 
+    affiliation: "3, 1"
     corresponding: true
     orcid: 0000-0002-0186-4340
   - name: Marcel Hurler
@@ -28,6 +28,8 @@ affiliations:
    index: 1
  - name: Technical University of Munich, Chair of Scientific Computing, Munich, Germany
    index: 2
+ - name: RIKEN Center for Computational Science (R-CCS), Kobe, Japan
+   index: 3
 nocite: |
   @obersteiner_spatially_2021
 date: 16 November 2023
