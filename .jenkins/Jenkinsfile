@@ -30,8 +30,11 @@ pipeline {
                     retry(count: 2) {
                         dir('discotec-spack') {
                             sh '''
-                                git -C spack pull || git clone git@github.com:spack/spack.git 
+                                echo "SPACK_USER_CACHE_PATH: ${SPACK_USER_CACHE_PATH}"
+                                git clone git@github.com:spack/spack.git || true
                                 cd spack
+                                # use old spack release version
+                                git checkout v0.21.3
                                 # reset compilers and external packages due to possible different systems
                                 rm -f ~/.spack/bootstrap/config/packages.yaml
                                 rm -f ~/.spack/linux/compilers.yaml 
@@ -71,7 +74,6 @@ pipeline {
                     stage('build dependencies w/ spack') {
                         steps {
                             withEnv(['SPACK_USER_CACHE_PATH=$TMP/spack/','SPACK_DISABLE_LOCAL_CONFIG=true']) {
-
                                 retry(count: 2) {
                                     dir('discotec-spack/spack') {
                                         sh '''
@@ -85,7 +87,7 @@ pipeline {
                                         # spack install zlib
                                         # spack load zlib
                                         spack spec -y discotec@main -lto %${compiler} ^${mpiimpl} # +selalib # --only dependencies # actually build discotec, such that load command will work
-                                        spack install -y discotec@main -lto %${compiler} ^${mpiimpl} # +selalib # --only dependencies # actually build discotec, such that load command will work
+                                        spack --debug install -y discotec@main -lto %${compiler} ^${mpiimpl} # +selalib # --only dependencies # actually build discotec, such that load command will work
                                         spack install -y lz4 %${compiler}
                                         '''
                                     }
