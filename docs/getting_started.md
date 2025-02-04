@@ -40,6 +40,14 @@ This will first build all dependencies, and then build DisCoTec inside the
 cloned folder.
 The executables are placed in the respective `example` and `test` folders.
 
+To use DisCoTec in another CMake project, you can then add the line
+
+```CMake
+add_subdirectory(DisCoTec/src)
+```
+
+in your project's CMake files.
+
 If you encounter problems with the Spack installation, check out
 the [Spack command documentation](https://spack.readthedocs.io/en/latest/getting_started.html),
 and see if other users had the same
