@@ -15,7 +15,7 @@ leval = 4 4 4 4 4 4
 # same order as in selalib: x1 x2 x3 v1 v2 v3
 p = 1 1 1 2 2 2
 #number of combination steps
-ncombi = 3
+ncombi = 10
 #indicates the file name of the 2 plot files
 fg_file_path = plot.dat
 fg_file_path2 = plot2.dat

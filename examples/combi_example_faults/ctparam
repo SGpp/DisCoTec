@@ -4,7 +4,7 @@ lmin = 3 3
 lmax = 6 6
 leval = 4 4
 p = 1 2
-ncombi = 3
+ncombi = 30
 
 [application]
 dt = 0.01
