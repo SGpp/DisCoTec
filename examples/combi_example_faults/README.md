@@ -52,4 +52,4 @@ mpirun -n 5 ./combi_example_faults
 Bungartz, Hans-Joachim; Pflüger, Dirk:
 A Highly Scalable, Algorithm-Based Fault-Tolerant Solver for Gyrokinetic Plasma Simulations.
 ScalA '17: Proceedings of the 8th Workshop on Latest Advances in Scalable Algorithms
-for Large-Scale Systems, 2017 (https://dl.acm.org/doi/10.1145/3148226.3148229)
+for Large-Scale Systems, 2017 (<https://dl.acm.org/doi/10.1145/3148226.3148229>)
