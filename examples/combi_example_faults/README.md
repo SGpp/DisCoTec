@@ -21,7 +21,7 @@ iteration_faults = 1 2
 global_rank_faults = 3 1
 ```
 
-Important: To use the fault-tolerant mechanisms it is necessary to compile the code using the `-DENABLE_FT` flag!
+Important: To use the fault-tolerant mechanisms it is necessary to compile the code using the `-DENABLEFT` flag!
 
 Using the default settings, run with
 
