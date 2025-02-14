@@ -4,7 +4,7 @@ lmin = 3 3
 lmax = 10 10
 leval = 10 10
 p = 2 4
-ncombi = 10000
+ncombi = 100
 basis = hat 
 
 [application]

@@ -152,15 +152,17 @@ int main(int argc, char** argv) {
     interpolationCoords.resize(1e5, std::vector<double>(dim, -1.));
     std::string interpolationCoordsFile = "interpolation_coords_" + std::to_string(dim) + "D_" +
                                           std::to_string(interpolationCoords.size()) + ".h5";
-    // // if the file does not exist, one rank creates it
-    // if (theMPISystem()->getWorldRank() == 0) {
-    //   if (!std::filesystem::exists(interpolationCoordsFile)) {
-    //     interpolationCoords = montecarlo::getRandomCoordinates(interpolationCoords.size(), dim);
-    //     h5io::writeValuesToH5File(interpolationCoords, interpolationCoordsFile, "worker_group",
-    //                               "only");
-    //   }
-    // }
-    // get them e.g. with `wget https://darus.uni-stuttgart.de/api/access/datafile/195524` (1e6)
+#ifdef DISCOTEC_USE_HIGHFIVE
+    // if the file does not exist, one rank creates it
+    if (theMPISystem()->getWorldRank() == 0) {
+      if (!std::filesystem::exists(interpolationCoordsFile)) {
+        interpolationCoords = montecarlo::getRandomCoordinates(interpolationCoords.size(), dim);
+        h5io::writeValuesToH5File(interpolationCoords, interpolationCoordsFile, "worker_group",
+                                  "only");
+      }
+    }
+#endif // DISCOTEC_USE_HIGHFIVE
+    // get the exact ones e.g. with `wget https://darus.uni-stuttgart.de/api/access/datafile/195524` (1e6)
     // or `wget https://darus.uni-stuttgart.de/api/access/datafile/195545` (1e5)
     interpolationCoords = broadcastParameters::getCoordinatesFromRankZero(
         interpolationCoordsFile, theMPISystem()->getWorldComm());

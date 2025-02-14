@@ -39,6 +39,7 @@ BOOST_CLASS_EXPORT(TaskExample)
 
 int main(int argc, char** argv) {
   simft::Sim_FT_MPI_Init(&argc, &argv);
+  Stats::initialize();
 
   /* number of process groups and number of processes per group */
   size_t ngroup, nprocs;
@@ -111,6 +112,7 @@ int main(int argc, char** argv) {
       }
       Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i],
                                 loadmodel.get() , dt, nsteps, p, faultCrit);
+      tasks.push_back(t);
       taskIDs.push_back( t->getID() );
     }
 
@@ -126,7 +128,6 @@ int main(int argc, char** argv) {
     bool success = manager.runfirst();
 
     for (size_t i = 1; i < ncombi; ++i){
-
       if ( !success ) {
         std::cout << "failed group detected at combi iteration " << i-1<< std::endl;
 
@@ -172,11 +173,12 @@ int main(int argc, char** argv) {
           std::cout << "sending tasks for recompute \n";
           manager.recompute(recomputeFaultsID,failedRecovery,groupFaults); //toDO handle faults in recompute
         }
-        std::cout << "updateing Combination Parameters \n";
+        std::cout << "updating Combination Parameters \n";
         //needs to be after reInitialization!
         /* communicate new combination scheme*/
         manager.updateCombiParameters();
-
+      } else {
+        std::cout << "no failed group detected at combi iteration " << i << std::endl;
       }
 
       /* combine solution */
@@ -192,12 +194,9 @@ int main(int argc, char** argv) {
       success = manager.runnext();
     }
 
-
-    std::string filename("out/solution_" + std::to_string(ncombi) + ".dat" );
-    manager.parallelEval( leval, filename, 0 );
-
     /* send exit signal to workers in order to enable a clean program termination */
     manager.exit();
+    std::cout << "manager finished" << std::endl;
   }
 
 // worker code
@@ -210,6 +209,8 @@ int main(int argc, char** argv) {
     while (signal != EXIT)
       signal = pgroup.wait();
   }
+
+  Stats::finalize();
 
   if( ENABLE_FT ){
     std::cout << "The number of detected faults during the simulation is " << faultsInfo.numFaults_ << "\n";

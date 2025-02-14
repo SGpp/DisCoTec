@@ -53,8 +53,10 @@ class ProcessManager {
         rescheduler_{std::move(rescheduler)},
         thirdLevel_{params.getThirdLevelHost(), params.getThirdLevelPort()},
         thirdLevelPGroup_{pgroups_[params.getThirdLevelPG()]} {
+    // initialize the CombiParameters on the process groups
+    this->updateCombiParameters();
     // only setup third level if explicitly desired
-    if (params.getThirdLevelHost() != "") setupThirdLevel();
+    if (params.getThirdLevelHost() != "") this->setupThirdLevel();
   }
 
   /**

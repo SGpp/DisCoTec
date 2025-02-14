@@ -36,56 +36,21 @@ class TaskExample : public Task {
     assert(dfg_ == NULL);
 
     int lrank = theMPISystem()->getLocalRank();
+    int pgroupNumber = theMPISystem()->getProcessGroupNumber();
 
-    /* create distributed full grid. we try to find a balanced ratio between
-     * the number of grid points and the number of processes per dimension
-     * by this very simple algorithm. to keep things simple we require powers
-     * of two for the number of processes here. */
-    int np;
-    MPI_Comm_size(lcomm, &np);
-
-    // check if power of two
-    if (!((np > 0) && ((np & (~np + 1)) == np)))
-      assert(false && "number of processes not power of two");
+    /* create distributed full grid.*/
 
     DimType dim = this->getDim();
-    std::vector<int> p(dim, 1);
     const LevelVector& l = this->getLevelVector();
-
-    if (p_.size() == 0) {
-      // compute parallelization
-      IndexType prod_p(1);
-
-      while (prod_p != static_cast<IndexType>(np)) {
-        DimType dimMaxRatio = 0;
-        real maxRatio = 0.0;
-
-        for (DimType k = 0; k < dim; ++k) {
-          real ratio = std::pow(2.0, l[k]) / p[k];
-
-          if (ratio > maxRatio) {
-            maxRatio = ratio;
-            dimMaxRatio = k;
-          }
-        }
-
-        p[dimMaxRatio] *= 2;
-        prod_p = 1;
-
-        for (DimType k = 0; k < dim; ++k) prod_p *= p[k];
-      }
-    } else {
-      p = p_;
-    }
 
     if (lrank == 0) {
       std::cout << "init task " << this->getID() << " with l = " << this->getLevelVector()
-                << " and p = " << p << std::endl;
+                << " and p_ = " << p_ << " on group " << pgroupNumber << std::endl;
     }
 
     // create local subgrid on each process
-    dfg_ = new OwningDistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p, false,
-                                                  decomposition);
+    dfg_ = new OwningDistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_,
+                                                        false, decomposition);
 
     /* loop over local subgrid and set initial values */
     auto elements = dfg_->getData();
@@ -114,7 +79,7 @@ class TaskExample : public Task {
 
     /* pseudo timestepping to demonstrate the behaviour of your typical
      * time-dependent simulation problem. */
-    // TODO replace by your time time stepping algorithm
+    // TODO replace by your time stepping algorithm
 
     for (size_t step = stepsTotal_; step < stepsTotal_ + nsteps_; ++step) {
       real time = step * dt_;

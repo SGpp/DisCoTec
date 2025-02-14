@@ -50,7 +50,7 @@ class TaskAdvection : public Task {
   void init(CommunicatorType lcomm,
             const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) override {
     assert(!initialized_);
-    assert(dfg_ == NULL);
+    assert(dfg_ == nullptr);
 
     DimType dim = this->getDim();
     const LevelVector& l = this->getLevelVector();

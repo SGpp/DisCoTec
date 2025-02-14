@@ -11,7 +11,6 @@
 #include <string>
 #include <vector>
 
-// compulsory includes for basic functionality
 #include "combischeme/CombiMinMaxScheme.hpp"
 #include "fault_tolerance/FaultCriterion.hpp"
 #include "fault_tolerance/StaticFaults.hpp"
@@ -174,14 +173,12 @@ int main(int argc, char** argv) {
     // create abstraction of the process group from the worker's view
     ProcessGroupWorker pgroup;
 
-    // wait for instructions from manager
     SignalType signal = -1;
 
+    // wait for instructions from manager
     while (signal != EXIT) signal = pgroup.wait();
   }
-
   Stats::finalize();
-
   /* write stats to json file for postprocessing */
   Stats::write("timers.json");
 

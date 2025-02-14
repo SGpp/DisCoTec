@@ -14,4 +14,4 @@
 
 #SBATCH --ntasks=9
 
-mpiexec.openmpi -n $SLURM_NTASKS ./distributed_combi_example
+mpiexec.openmpi -n $SLURM_NTASKS ./advection_example
