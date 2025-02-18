@@ -218,21 +218,22 @@ NHR@FAU hardware is partially funded by the German Research Foundation
 (DFG) — 440719683.
 
 The authors gratefully acknowledge the Gauss Centre for Supercomputing e.V.
-(<www.gauss-centre.eu>) for funding this project by providing computing time
-on the GCS Supercomputers Hermit, Hornet, Hazel Hen, and Hawk
-at Höchstleistungsrechenzentrum Stuttgart (<www.hlrs.de>).
+([www.gauss-centre.eu](www.gauss-centre.eu)) for funding this project by
+providing computing time on the GCS Supercomputers Hermit, Hornet, Hazel Hen,
+and Hawk at Höchstleistungsrechenzentrum Stuttgart ([www.hlrs.de](www.hlrs.de)).
 Simulations were performed on the national supercomputer HPE Apollo Hawk
 at the High Performance Computing Center Stuttgart (HLRS)
 under the grant number 42247.
 
 The authors gratefully acknowledge the Gauss Centre for Supercomputing e.V.
-(<www.gauss-centre.eu>) for funding this project by providing computing time
-on the GCS Supercomputer JUWELS at Jülich Supercomputing Centre (JSC).
+([www.gauss-centre.eu](www.gauss-centre.eu)) for funding this project by 
+providing computing time on the GCS Supercomputer JUWELS
+at Jülich Supercomputing Centre (JSC).
 
 The authors gratefully acknowledge the Gauss Centre for Supercomputing e.V.
-(<www.gauss-centre.eu>) for funding this project by providing computing time
-on the GCS Supercomputers SuperMUC and SuperMUC-NG
-at Leibniz Supercomputing Centre (<www.lrz.de>).
+([www.gauss-centre.eu](www.gauss-centre.eu)) for funding this project by
+providing computing time on the GCS Supercomputers SuperMUC and SuperMUC-NG
+at Leibniz Supercomputing Centre ([www.lrz.de](www.lrz.de)).
 
 We acknowledge contributions from Mario Heene, Christoph Kowitz, Alfredo Parra
 Hinojosa, Johannes Rentrop, Keerthi Gaddameedi, Marvin Dostal,
