@@ -204,6 +204,36 @@ which increases the overall numerical accuracy [@pollingerStableMassconservingSp
 
 # Acknowledgements
 
+This work was supported by the German Research Foundation (DFG)
+through the Priority Programme 1648 Software for Exascale Computing (SPPEXA).
+
+We acknowledge the support by the Stuttgart Center for Simulation Science (SimTech).
+
+The authors gratefully acknowledge the scientific support and HPC resources
+provided by the Erlangen National High Performance Computing Center (NHR@FAU)
+of the Friedrich-Alexander-Universität Erlangen-Nürnberg (FAU)
+under the NHR project a105cb.
+NHR funding is provided by federal and Bavarian state authorities.
+NHR@FAU hardware is partially funded by the German Research Foundation
+(DFG) — 440719683.
+
+The authors gratefully acknowledge the Gauss Centre for Supercomputing e.V.
+(<www.gauss-centre.eu>) for funding this project by providing computing time
+on the GCS Supercomputers Hermit, Hornet, Hazel Hen, and Hawk
+at Höchstleistungsrechenzentrum Stuttgart (<www.hlrs.de>).
+Simulations were performed on the national supercomputer HPE Apollo Hawk
+at the High Performance Computing Center Stuttgart (HLRS)
+under the grant number 42247.
+
+The authors gratefully acknowledge the Gauss Centre for Supercomputing e.V.
+(<www.gauss-centre.eu>) for funding this project by providing computing time
+on the GCS Supercomputer JUWELS at Jülich Supercomputing Centre (JSC).
+
+The authors gratefully acknowledge the Gauss Centre for Supercomputing e.V.
+(<www.gauss-centre.eu>) for funding this project by providing computing time
+on the GCS Supercomputers SuperMUC and SuperMUC-NG
+at Leibniz Supercomputing Centre (<www.lrz.de>).
+
 We acknowledge contributions from Mario Heene, Christoph Kowitz, Alfredo Parra
 Hinojosa, Johannes Rentrop, Keerthi Gaddameedi, Marvin Dostal,
 Marcel Breyer, Christoph Niethammer, Philipp Offenhäuser,
