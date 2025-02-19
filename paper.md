@@ -80,7 +80,7 @@ such as gyrokinetics [@brizardFoundationsNonlinearGyrokinetic2007]
 (which may not always be applicable),
 particle-in-cell methods (which suffer from inherent noise [@verboncoeurParticleSimulationPlasmas2005]),
 and restricting computations to a very limited resolution.
-A further---still developing but very promising---approach to the problem are
+A further---still developing but very promising---approach to the problem is
 low-rank methods [@einkemmerMassMomentumEnergy2021].
 Multi-scale (hierarchical) methods, such as the sparse grid combination
 technique (CT) that `DisCoTec` employs,
@@ -99,12 +99,12 @@ with the CT, which fills this gap.
 The sparse grid combination technique (with time-stepping) is a multi-scale
 approach for solving higher-dimensional problems.
 Instead of solving the problem on one grid that is very finely resolved in all dimensions,
-the problem is solved on the so-called 'component grids' which are all rather
+the problem is solved on the so-called 'component grids' that are all rather
 coarsely resolved---each of them differently in the different dimensions.
 For instance, the following schematic shows a two-dimensional combination scheme, 
 consisting of seven component grids.
 
-![Combination scheme in two dimensions with $\vec{\ell}^{\text{min}} = (2,1)$ and $\vec{\ell}^{\text{max}} = (5,4)$, periodic boundary conditions. Figure first published in  [@pollingerStableMassconservingHighdimensional2024]. \label{fig:combischeme-2d}](gfx/combischeme-2d.pdf)
+![Combination scheme in two dimensions with $\vec{\ell}^{\text{min}} = (2,1)$ and $\vec{\ell}^{\text{max}} = (5,4)$, periodic boundary conditions. Figure first published in @pollingerStableMassconservingHighdimensional2024. \label{fig:combischeme-2d}](gfx/combischeme-2d.pdf)
 
 By updating each other's information throughout the simulation, the component grids
 still obtain an accurate solution of the overall problem [@griebelCombinationTechniqueSolution1992].
@@ -129,7 +129,7 @@ will collaborate on a set of component grids, and the solver's existing
 parallelism can be re-used.
 The process groups are displayed as $pg_i$ in \autoref{fig:discotec-ranks}.
 
-![`DisCoTec` process groups: Each black square denotes one MPI rank. The ranks are grouped into the so-called 'process groups'. Distributed operations in `DisCoTec` require either communication in the process group, or perpendicular to it---there is no need for global communication or synchronization, which avoids a major scaling bottleneck. The manager rank is optional. Figure first published in  [@pollingerStableMassconservingHighdimensional2024]. \label{fig:discotec-ranks}](gfx/discotec-ranks.pdf)
+![`DisCoTec` process groups: Each black square denotes one MPI rank. The ranks are grouped into the so-called 'process groups'. Distributed operations in `DisCoTec` require either communication in the process group, or perpendicular to it---there is no need for global communication or synchronization, which avoids a major scaling bottleneck. The manager rank is optional. Figure first published in @pollingerStableMassconservingHighdimensional2024. \label{fig:discotec-ranks}](gfx/discotec-ranks.pdf)
 
 In addition, the number of process groups can be increased to leverage the
 combination technique's embarrassing parallelism in the solver time steps.
