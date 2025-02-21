@@ -62,7 +62,7 @@ used by `DisCoTec`, without requiring any multi-scale operations.
 An additional feature of `DisCoTec` is the possibility of performing
 widely-distributed simulations of higher-dimensional problems, where multiple
 High-Performance Computing (HPC) systems collaborate to solve a joint simulation,
-as demonstrated in [@pollingerRealizingJointExtremeScale2024].
+as demonstrated in @pollingerRealizingJointExtremeScale2024.
 Thus, `DisCoTec` can leverage the compute power and main memory of multiple HPC
 systems, with comparatively low and manageable transfer costs due to the
 combination technique.
