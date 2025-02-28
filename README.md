@@ -3,6 +3,7 @@
 [![Build Status](https://jenkins-sim.informatik.uni-stuttgart.de/buildStatus/icon?job=DisCoTec%2Fmain)](https://jenkins-sim.informatik.uni-stuttgart.de/job/DisCoTec/job/main/)
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 [![Zenodo DOI](https://zenodo.org/badge/226341053.svg)](https://zenodo.org/badge/latestdoi/226341053)
+[![JOSS DOI](https://joss.theoj.org/papers/10.21105/joss.07018/status.svg)](https://doi.org/10.21105/joss.07018)
 [![Latest spack version](https://img.shields.io/spack/v/discotec)](https://packages.spack.io/package.html?name=discotec)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/cac5bc0841784657b2bb75ea46e7cf01)](https://app.codacy.com/gh/SGpp/DisCoTec/dashboard)
 

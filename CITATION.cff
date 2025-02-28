@@ -1,0 +1,52 @@
+cff-version: "1.2.0"
+authors:
+- family-names: Pollinger
+  given-names: Theresa
+  orcid: "https://orcid.org/0000-0002-0186-4340"
+- family-names: Hurler
+  given-names: Marcel
+- family-names: Craen
+  given-names: Alexander Van
+  orcid: "https://orcid.org/0000-0002-3336-7226"
+- family-names: Obersteiner
+  given-names: Michael
+- family-names: Pflüger
+  given-names: Dirk
+  orcid: "https://orcid.org/0000-0002-4360-0212"
+contact:
+- family-names: Pollinger
+  given-names: Theresa
+  orcid: "https://orcid.org/0000-0002-0186-4340"
+doi: 10.5281/zenodo.14920617
+message: If you use this software, please cite our article in the
+  Journal of Open Source Software.
+preferred-citation:
+  authors:
+  - family-names: Pollinger
+    given-names: Theresa
+    orcid: "https://orcid.org/0000-0002-0186-4340"
+  - family-names: Hurler
+    given-names: Marcel
+  - family-names: Craen
+    given-names: Alexander Van
+    orcid: "https://orcid.org/0000-0002-3336-7226"
+  - family-names: Obersteiner
+    given-names: Michael
+  - family-names: Pflüger
+    given-names: Dirk
+    orcid: "https://orcid.org/0000-0002-4360-0212"
+  date-published: 2025-02-26
+  doi: 10.21105/joss.07018
+  issn: 2475-9066
+  issue: 106
+  journal: Journal of Open Source Software
+  publisher:
+    name: Open Journals
+  start: 7018
+  title: "DisCoTec: Distributed higher-dimensional HPC simulations with
+    the sparse grid combination technique"
+  type: article
+  url: "https://joss.theoj.org/papers/10.21105/joss.07018"
+  volume: 10
+title: "DisCoTec: Distributed higher-dimensional HPC simulations with
+  the sparse grid combination technique"
