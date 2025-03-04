@@ -245,10 +245,16 @@ endif()
 #    target_compile_options(discotec PUBLIC $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-mmic>)
 #endif()
 
+file(GLOB_RECURSE DISCOTEC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp) #TODO: @freifrauvonbleifrei: which files should be included? Do we keep the same structure as in the sources?
+
+message(STATUS "DisCoTec headers: ${DISCOTEC_HEADERS}")
+
+set_target_properties(discotec PROPERTIES PUBLIC_HEADER "${DISCOTEC_HEADERS}")
+
 install(TARGETS discotec
         EXPORT discotecTargets
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib
         RUNTIME DESTINATION bin
-        INCLUDES DESTINATION include
+        PUBLIC_HEADER DESTINATION include
         )
