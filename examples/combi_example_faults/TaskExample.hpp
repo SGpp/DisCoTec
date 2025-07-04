@@ -8,9 +8,9 @@
 #ifndef TASKEXAMPLE_HPP_
 #define TASKEXAMPLE_HPP_
 
-#include "fullgrid/DistributedFullGrid.hpp"
-#include "task/Task.hpp"
-#include "fault_tolerance/FTUtils.hpp"
+#include "discotec/fullgrid/DistributedFullGrid.hpp"
+#include "discotec/Task.hpp"
+#include "discotec/fault_tolerance/FTUtils.hpp"
 
 namespace combigrid {
 

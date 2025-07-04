@@ -1,4 +1,4 @@
-#include "FaultCriterion.hpp"
+#include "discotec/fault_tolerance/FaultCriterion.hpp"
 
 namespace combigrid {
 

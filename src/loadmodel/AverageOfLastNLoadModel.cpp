@@ -1,4 +1,4 @@
-#include "loadmodel/AverageOfLastNLoadModel.hpp"
+#include "discotec/loadmodel/AverageOfLastNLoadModel.hpp"
 
 #include <numeric>
 

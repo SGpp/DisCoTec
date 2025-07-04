@@ -4,9 +4,9 @@
 #include <chrono>
 #include <thread>
 
-#include "utils/Stats.hpp"
-#include "mpi/MPISystem.hpp"
-#include "utils/Types.hpp"
+#include "../include/discotec/utils/Stats.hpp"
+#include "../include/discotec/mpi/MPISystem.hpp"
+#include "../include/discotec/utils/Types.hpp"
 #include "test_helper.hpp"
 
 

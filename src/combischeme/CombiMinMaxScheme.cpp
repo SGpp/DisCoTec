@@ -1,4 +1,4 @@
-#include "combischeme/CombiMinMaxScheme.hpp"
+#include "discotec/combischeme/CombiMinMaxScheme.hpp"
 
 namespace combigrid {
 

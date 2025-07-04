@@ -3,11 +3,11 @@
 #include <boost/serialization/export.hpp>
 #include <boost/test/unit_test.hpp>
 
-#include "io/MPICompression.hpp"
-#include "io/MPIInputOutput.hpp"
-#include "mpi/MPISystem.hpp"
+#include "../include/discotec/io/MPICompression.hpp"
+#include "../include/discotec/io/MPIInputOutput.hpp"
+#include "../include/discotec/mpi/MPISystem.hpp"
 #include "test_helper.hpp"
-#include "utils/MonteCarlo.hpp"
+#include "../include/discotec/utils/MonteCarlo.hpp"
 
 using namespace combigrid;
 

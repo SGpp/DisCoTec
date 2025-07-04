@@ -2,7 +2,7 @@
 #include <cassert>
 #include <iostream>
 #include <unistd.h>
-#include "mpi/MPISystem.hpp"
+#include "../../include/discotec/mpi/MPISystem.hpp"
 
 using namespace combigrid;
 

@@ -10,21 +10,21 @@
 #include <boost/serialization/export.hpp>
 
 // compulsory includes for basic functionality
-#include "task/Task.hpp"
-#include "utils/Types.hpp"
-#include "combischeme/CombiMinMaxScheme.hpp"
-#include "fullgrid/FullGrid.hpp"
-#include "io/BroadcastParameters.hpp"
-#include "loadmodel/LinearLoadModel.hpp"
-#include "manager/CombiParameters.hpp"
-#include "manager/ProcessGroupManager.hpp"
-#include "manager/ProcessGroupWorker.hpp"
-#include "manager/ProcessManager.hpp"
-#include "fault_tolerance/LPOptimizationInterpolation.hpp"
-#include "mpi_fault_simulator/MPI-FT.h"
-#include "fault_tolerance/FaultCriterion.hpp"
-#include "fault_tolerance/StaticFaults.hpp"
-#include "fault_tolerance/WeibullFaults.hpp"
+#include "../../include/discotec/Task.hpp"
+#include "../../include/discotec/utils/Types.hpp"
+#include "../../include/discotec/combischeme/CombiMinMaxScheme.hpp"
+#include "../../include/discotec/fullgrid/FullGrid.hpp"
+#include "../../include/discotec/io/BroadcastParameters.hpp"
+#include "../../include/discotec/loadmodel/LinearLoadModel.hpp"
+#include "../../include/discotec/manager/CombiParameters.hpp"
+#include "../../include/discotec/manager/ProcessGroupManager.hpp"
+#include "../../include/discotec/manager/ProcessGroupWorker.hpp"
+#include "../../include/discotec/manager/ProcessManager.hpp"
+#include "../../include/discotec/fault_tolerance/LPOptimizationInterpolation.hpp"
+#include "../../include/discotec/MPI-FT.h"
+#include "../../include/discotec/fault_tolerance/FaultCriterion.hpp"
+#include "../../include/discotec/fault_tolerance/StaticFaults.hpp"
+#include "../../include/discotec/fault_tolerance/WeibullFaults.hpp"
 
 // include user specific task. this is the interface to your application
 #include "TaskExample.hpp"
@@ -34,7 +34,7 @@
 using namespace combigrid;
 
 // this is necessary for correct function of task serialization
-#include "utils/BoostExports.hpp"
+#include "../../include/discotec/utils/BoostExports.hpp"
 BOOST_CLASS_EXPORT(TaskExample)
 
 int main(int argc, char** argv) {

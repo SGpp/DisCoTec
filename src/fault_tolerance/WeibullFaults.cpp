@@ -1,7 +1,7 @@
-#include "WeibullFaults.hpp"
+#include "discotec/fault_tolerance/WeibullFaults.hpp"
 #include <math.h>
 #include <random>
-#include "mpi/MPISystem.hpp"
+#include "discotec/mpi/MPISystem.hpp"
 namespace combigrid {
 
 WeibullFaults::WeibullFaults(real k, real lambda, int numberOfCombis, bool faultMaster)

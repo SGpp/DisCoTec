@@ -1,4 +1,4 @@
-#include "sparsegrid/AnyDistributedSparseGrid.hpp"
+#include "discotec/sparsegrid/AnyDistributedSparseGrid.hpp"
 
 #include <algorithm>  // std::find
 #include <boost/multiprecision/cpp_int.hpp>

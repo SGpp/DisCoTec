@@ -1,4 +1,4 @@
-#include "MPI-FT.h"
+#include "../../include/discotec/MPI-FT.h"
 #include REAL_MPI_INCLUDE
 
 int simft::Sim_FT_MPI_Barrier(simft::Sim_FT_MPI_Comm f_comm) {

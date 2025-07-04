@@ -1,4 +1,4 @@
-#include "io/BroadcastParameters.hpp"
+#include "discotec/io/BroadcastParameters.hpp"
 
 #include <boost/iostreams/device/array.hpp>
 #include <boost/iostreams/stream.hpp>
@@ -6,10 +6,10 @@
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 
-#include "io/H5InputOutput.hpp"
-#include "mpi/MPISystem.hpp"
-#include "mpi/MPIUtils.hpp"
-#include "utils/MonteCarlo.hpp"
+#include "discotec/io/H5InputOutput.hpp"
+#include "discotec/mpi/MPISystem.hpp"
+#include "discotec/mpi/MPIUtils.hpp"
+#include "discotec/utils/MonteCarlo.hpp"
 
 namespace combigrid {
 namespace broadcastParameters {

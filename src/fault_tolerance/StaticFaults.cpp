@@ -1,4 +1,4 @@
-#include "StaticFaults.hpp"
+#include "discotec/fault_tolerance/StaticFaults.hpp"
 
 namespace combigrid {
 

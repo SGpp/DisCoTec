@@ -1,4 +1,4 @@
-#include "fault_tolerance/LPOptimizationInterpolation.hpp"
+#include "discotec/fault_tolerance/LPOptimizationInterpolation.hpp"
 
 namespace combigrid {
 

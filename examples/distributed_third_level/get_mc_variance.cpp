@@ -13,19 +13,19 @@
 #include <vector>
 
 // compulsory includes for basic functionality
-#include "combischeme/CombiMinMaxScheme.hpp"
-#include "fault_tolerance/FaultCriterion.hpp"
-#include "fault_tolerance/StaticFaults.hpp"
-#include "fault_tolerance/WeibullFaults.hpp"
-#include "fullgrid/FullGrid.hpp"
-#include "io/BroadcastParameters.hpp"
-#include "loadmodel/LinearLoadModel.hpp"
-#include "manager/ProcessGroupManager.hpp"
-#include "manager/ProcessGroupWorker.hpp"
-#include "manager/ProcessManager.hpp"
-#include "task/Task.hpp"
-#include "utils/MonteCarlo.hpp"
-#include "utils/Types.hpp"
+#include "../../include/discotec/combischeme/CombiMinMaxScheme.hpp"
+#include "../../include/discotec/fault_tolerance/FaultCriterion.hpp"
+#include "../../include/discotec/fault_tolerance/StaticFaults.hpp"
+#include "../../include/discotec/fault_tolerance/WeibullFaults.hpp"
+#include "../../include/discotec/fullgrid/FullGrid.hpp"
+#include "../../include/discotec/io/BroadcastParameters.hpp"
+#include "../../include/discotec/loadmodel/LinearLoadModel.hpp"
+#include "../../include/discotec/manager/ProcessGroupManager.hpp"
+#include "../../include/discotec/manager/ProcessGroupWorker.hpp"
+#include "../../include/discotec/manager/ProcessManager.hpp"
+#include "../../include/discotec/Task.hpp"
+#include "../../include/discotec/utils/MonteCarlo.hpp"
+#include "../../include/discotec/utils/Types.hpp"
 // include user specific task. this is the interface to your application
 
 // to allow using test tasks

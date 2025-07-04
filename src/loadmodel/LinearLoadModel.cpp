@@ -1,4 +1,4 @@
-#include "loadmodel/LinearLoadModel.hpp"
+#include "discotec/loadmodel/LinearLoadModel.hpp"
 
 namespace combigrid {
 

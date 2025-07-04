@@ -1,4 +1,4 @@
-#include "mpi/OpenMPUtils.hpp"
+#include "discotec/mpi/OpenMPUtils.hpp"
 
 #include <cassert>
 

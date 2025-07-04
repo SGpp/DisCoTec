@@ -5,10 +5,10 @@
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 
-#include "io/BroadcastParameters.hpp"
-#include "mpi/MPISystem.hpp"
-#include "mpi/MPIMemory.hpp"
-#include "utils/Stats.hpp"
+#include "../../include/discotec/io/BroadcastParameters.hpp"
+#include "../../include/discotec/mpi/MPISystem.hpp"
+#include "../../include/discotec/mpi/MPIMemory.hpp"
+#include "../../include/discotec/utils/Stats.hpp"
 
 #include <string>
 #include <vector>

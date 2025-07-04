@@ -66,19 +66,19 @@ set(DISCOTEC_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_waitall.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/rescheduler/RebalancingTaskRescheduler.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/sparsegrid/AnyDistributedSparseGrid.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/task/Task.cpp
+        Task.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/third_level/NetworkUtils.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/third_level/ThirdLevelUtils.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/LevelSetUtils.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/LevelVector.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/MonteCarlo.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/Stats.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/vtk/PlotFileWriter.cpp
+        PlotFileWriter.cpp
         )
 
 add_library(discotec ${DISCOTEC_SOURCES})
 target_compile_features(discotec PRIVATE cxx_std_17)
-target_include_directories(discotec PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(discotec PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
 target_compile_options(discotec PUBLIC $<$<CXX_COMPILER_ID:Intel>:-fp-model=precise>)
 

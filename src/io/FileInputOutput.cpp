@@ -1,11 +1,11 @@
-#include "io/FileInputOutput.hpp"
+#include "discotec/io/FileInputOutput.hpp"
 
 #include <filesystem>
 #include <fstream>
 #include <numeric>
 #include <vector>
 
-#include "mpi/MPISystem.hpp"
+#include "discotec/mpi/MPISystem.hpp"
 
 namespace combigrid {
 void writeConcatenatedFileRootOnly(const char* data, size_t sizeOfData, const std::string& path,

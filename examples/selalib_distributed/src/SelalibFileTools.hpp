@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "utils/Types.hpp"
+#include "../../../include/discotec/utils/Types.hpp"
 
 // helper funtion to read a bool vector from string
 inline std::vector<bool>& operator>>(const std::string& str, std::vector<bool>& vec) {

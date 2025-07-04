@@ -1,8 +1,8 @@
-#include "manager/ProcessGroupManager.hpp"
+#include "discotec/manager/ProcessGroupManager.hpp"
 
-#include "manager/CombiParameters.hpp"
-#include "mpi/MPIUtils.hpp"
-#include "mpi_fault_simulator/MPI-FT.h"
+#include "discotec/manager/CombiParameters.hpp"
+#include "discotec/mpi/MPIUtils.hpp"
+#include "discotec/MPI-FT.h"
 
 namespace combigrid {
 ProcessGroupManager::ProcessGroupManager(RankType pgroupRootID)

@@ -1,7 +1,7 @@
-#include "MPI-FT.h"
+#include "discotec/MPI-FT.h"
 #include REAL_MPI_INCLUDE
 #include <iostream>
-#include "utils/Stats.hpp"
+#include "discotec/utils/Stats.hpp"
 
 simft::Sim_FT_MPI_Comm simft::Sim_FT_MPI_COMM_WORLD;
 simft::Sim_FT_MPI_Comm simft::Sim_FT_MPI_COMM_NULL;

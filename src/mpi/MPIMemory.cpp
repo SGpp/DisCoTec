@@ -1,6 +1,6 @@
-#include "mpi/MPIMemory.hpp"
+#include "discotec/mpi/MPIMemory.hpp"
 
-#include "mpi/MPISystem.hpp"
+#include "discotec/mpi/MPISystem.hpp"
 
 #include <vector>
 

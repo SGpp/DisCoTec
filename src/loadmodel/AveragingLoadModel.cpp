@@ -5,8 +5,8 @@
 #include <thread>
 #include <sys/stat.h>
 
-#include "loadmodel/AveragingLoadModel.hpp"
-#include "utils/LevelVector.hpp"
+#include "discotec/loadmodel/AveragingLoadModel.hpp"
+#include "discotec/utils/LevelVector.hpp"
 
 namespace combigrid {
 

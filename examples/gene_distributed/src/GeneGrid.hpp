@@ -9,7 +9,7 @@
 #define GENEGRID_HPP_
 
 #include <vector>
-#include "utils/Types.hpp"
+#include "../../../include/discotec/utils/Types.hpp"
 #include "boost/multi_array.hpp"
 
 namespace combigrid {

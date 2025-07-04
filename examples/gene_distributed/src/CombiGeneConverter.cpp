@@ -8,7 +8,7 @@
 #include "CombiGeneConverter.hpp"
 #include <boost/multi_array.hpp>
 #include <cmath>
-#include "utils/LevelVector.hpp"
+#include "../../../include/discotec/utils/LevelVector.hpp"
 #include <cassert>
 
 namespace combigrid {

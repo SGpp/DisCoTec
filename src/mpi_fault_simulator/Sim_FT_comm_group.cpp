@@ -1,4 +1,4 @@
-#include "MPI-FT.h"
+#include "discotec/MPI-FT.h"
 #include REAL_MPI_INCLUDE
 
 int simft::Sim_FT_MPI_Comm_group(simft::Sim_FT_MPI_Comm f_comm, MPI_Group *group) {

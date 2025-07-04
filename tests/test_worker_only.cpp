@@ -9,19 +9,19 @@
 #include <filesystem>
 
 #include "TaskCount.hpp"
-#include "combischeme/CombiMinMaxScheme.hpp"
-#include "io/H5InputOutput.hpp"
-#include "loadmodel/LearningLoadModel.hpp"
-#include "loadmodel/LinearLoadModel.hpp"
-#include "manager/CombiParameters.hpp"
-#include "manager/ProcessGroupWorker.hpp"
-#include "sparsegrid/DistributedSparseGridUniform.hpp"
+#include "../include/discotec/combischeme/CombiMinMaxScheme.hpp"
+#include "../include/discotec/io/H5InputOutput.hpp"
+#include "../include/discotec/loadmodel/LearningLoadModel.hpp"
+#include "../include/discotec/loadmodel/LinearLoadModel.hpp"
+#include "../include/discotec/manager/CombiParameters.hpp"
+#include "../include/discotec/manager/ProcessGroupWorker.hpp"
+#include "../include/discotec/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "stdlib.h"
-#include "task/Task.hpp"
+#include "../include/discotec/Task.hpp"
 #include "test_helper.hpp"
-#include "utils/Config.hpp"
-#include "utils/MonteCarlo.hpp"
-#include "utils/Types.hpp"
+#include "../include/discotec/utils/Config.hpp"
+#include "../include/discotec/utils/MonteCarlo.hpp"
+#include "../include/discotec/utils/Types.hpp"
 
 using namespace combigrid;
 

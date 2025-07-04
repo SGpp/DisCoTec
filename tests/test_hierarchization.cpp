@@ -10,12 +10,12 @@
 #include <typeinfo>
 #include <vector>
 
-#include "fullgrid/DistributedFullGrid.hpp"
-#include "fullgrid/FullGrid.hpp"
+#include "../include/discotec/fullgrid/DistributedFullGrid.hpp"
+#include "../include/discotec/fullgrid/FullGrid.hpp"
 #include "hierarchization/DistributedHierarchization.hpp"
 #include "hierarchization/Hierarchization.hpp"
-#include "utils/MonteCarlo.hpp"
-#include "utils/Types.hpp"
+#include "../include/discotec/utils/MonteCarlo.hpp"
+#include "../include/discotec/utils/Types.hpp"
 #include "test_helper.hpp"
 #include "TaskConstParaboloid.hpp"
 

@@ -1,4 +1,4 @@
-#include "MPI-FT.h"
+#include "../../include/discotec/MPI-FT.h"
 #ifndef DISABLE_NBC
 #include REAL_MPI_INCLUDE
 

@@ -1,4 +1,4 @@
-#include "io/H5InputOutput.hpp"
+#include "discotec/io/H5InputOutput.hpp"
 
 namespace combigrid {
 namespace h5io {

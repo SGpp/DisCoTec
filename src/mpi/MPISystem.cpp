@@ -1,10 +1,10 @@
-#include "mpi/MPISystem.hpp"
+#include "discotec/mpi/MPISystem.hpp"
 
 #include <iostream>
 
-#include "manager/ProcessGroupManager.hpp"
-#include "mpi/OpenMPUtils.hpp"
-#include "utils/Stats.hpp"
+#include "discotec/manager/ProcessGroupManager.hpp"
+#include "discotec/mpi/OpenMPUtils.hpp"
+#include "discotec/utils/Stats.hpp"
 
 namespace combigrid {
 

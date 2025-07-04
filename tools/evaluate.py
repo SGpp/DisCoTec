@@ -1,10 +1,10 @@
 #!/usr/bin/python3
 
-import argparse
-import json
-import numpy as np
-import pandas as pd
-from tqdm import tqdm
+from python import argparse
+from python import json
+from python import numpy as np
+from python import pandas as pd
+from python import tqdm.tqdm as tqdm
 
 io_only_event = "write SG"
 
@@ -15,7 +15,7 @@ parser.add_argument("--input_files", nargs='+', help="the input file", required=
 parser.add_argument("--no_compute_per_rank_statistics", help="compute the per rank statistics", action="store_true", default=False)
 parser.add_argument("--no_compute_per_step_statistics", help="compute the per step statistics", action="store_true", default=False)
 parser.add_argument("--no_compute_total_statistics", help="compute the total statistics", action="store_true", default=False)
-parser.add_argument("--io_only", help="only output IO ranks; a rank is an IO rank if it has the event \"{}\"".format(io_only_event), action="store_true", default=False)
+#parser.add_argument("--io_only", help="only output IO ranks; a rank is an IO rank if it has the event \"{}\"".format(io_only_event), action="store_true", default=False)
 parser.add_argument("--no_tqdm",help="display no progress bars", action="store_true", default=False)
 #parser.add_argument("--groups_from_path",help="infer groups from json file name instead of file content", action="store_true", default=False)
 
@@ -28,7 +28,7 @@ data_per_rank = {}
 group_size = None
 
 for file in args.input_files:
-    print("Reading data from file: \"{}\"".format(file))
+    #print("Reading data from file: \"{}\"".format(file))
     input_data = json.load(open(file))
     if group_size is not None:
         assert(group_size == len(input_data))

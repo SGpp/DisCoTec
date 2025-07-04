@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "MPI-FT.h"
+#include "../../include/discotec/MPI-FT.h"
 #include REAL_MPI_INCLUDE
 #include <iostream>
 

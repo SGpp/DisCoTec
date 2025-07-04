@@ -13,8 +13,8 @@
 #include <unistd.h>
 #include <fstream>
 //#include "CombiGeneConverter.hpp"
-#include "mpi/MPISystem.hpp"
-#include "manager/ProcessGroupSignals.hpp"
+#include "../../../include/discotec/mpi/MPISystem.hpp"
+#include "../../../include/discotec/manager/ProcessGroupSignals.hpp"
 #include <math.h>
 
 //#include "utils/StatsContainer.hpp"

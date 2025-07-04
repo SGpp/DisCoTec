@@ -1,8 +1,8 @@
 #define BOOST_TEST_DYN_LINK
 
-#include "fullgrid/Tensor.hpp"
+#include "../include/discotec/fullgrid/Tensor.hpp"
 #include "test_helper.hpp"
-#include "utils/Types.hpp"
+#include "../include/discotec/utils/Types.hpp"
 
 using namespace combigrid;
 

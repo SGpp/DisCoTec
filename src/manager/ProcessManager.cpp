@@ -1,13 +1,13 @@
-#include "manager/ProcessManager.hpp"
+#include "discotec/manager/ProcessManager.hpp"
 #include <algorithm>
 #include <iostream>
 
 #include <boost/asio.hpp>
 
 #include "combicom/CombiCom.hpp"
-#include "io/H5InputOutput.hpp"
-#include "utils/Types.hpp"
-#include "mpi/MPIUtils.hpp"
+#include "discotec/io/H5InputOutput.hpp"
+#include "discotec/utils/Types.hpp"
+#include "discotec/mpi/MPIUtils.hpp"
 
 namespace combigrid {
 

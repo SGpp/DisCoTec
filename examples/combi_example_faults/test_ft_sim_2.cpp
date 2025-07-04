@@ -2,7 +2,7 @@
 #include <cassert>
 #include <iostream>
 #include <unistd.h>
-#include "mpi_fault_simulator/MPI-FT.h"
+#include "../../include/discotec/MPI-FT.h"
 
 void createCommunicators( size_t ngroup, size_t nprocs, int globalID, int globalSize,
     int& managerIDgcomm, int& gglobalID, int& lglobalID, MPI_Comm& gcomm, MPI_Comm& lcomm){

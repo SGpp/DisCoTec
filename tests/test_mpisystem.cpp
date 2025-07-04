@@ -7,10 +7,10 @@
 #include <boost/test/unit_test.hpp>
 #include <cstdio>
 
-#include "mpi/MPIMemory.hpp"
-#include "mpi/MPISystem.hpp"
+#include "../include/discotec/mpi/MPIMemory.hpp"
+#include "../include/discotec/mpi/MPISystem.hpp"
 #include "test_helper.hpp"
-#include "utils/Stats.hpp"
+#include "../include/discotec/utils/Stats.hpp"
 
 using namespace combigrid;
 

@@ -13,28 +13,28 @@
 #include <boost/serialization/export.hpp>
 
 // compulsory includes for basic functionality
-#include "task/Task.hpp"
-#include "utils/Types.hpp"
-#include "combischeme/CombiMinMaxScheme.hpp"
+#include "../include/discotec/Task.hpp"
+#include "../include/discotec/utils/Types.hpp"
+#include "../include/discotec/combischeme/CombiMinMaxScheme.hpp"
 #include "hierarchization/CombiLinearBasisFunction.hpp"
-#include "fullgrid/FullGrid.hpp"
-#include "loadmodel/LinearLoadModel.hpp"
-#include "loadmodel/LearningLoadModel.hpp"
-#include "manager/CombiParameters.hpp"
-#include "manager/ProcessGroupManager.hpp"
-#include "manager/ProcessGroupWorker.hpp"
-#include "manager/ProcessManager.hpp"
-#include "fault_tolerance/LPOptimizationInterpolation.hpp"
-#include "fault_tolerance/FaultCriterion.hpp"
-#include "fault_tolerance/StaticFaults.hpp"
-#include "fault_tolerance/WeibullFaults.hpp"
+#include "../include/discotec/fullgrid/FullGrid.hpp"
+#include "../include/discotec/loadmodel/LinearLoadModel.hpp"
+#include "../include/discotec/loadmodel/LearningLoadModel.hpp"
+#include "../include/discotec/manager/CombiParameters.hpp"
+#include "../include/discotec/manager/ProcessGroupManager.hpp"
+#include "../include/discotec/manager/ProcessGroupWorker.hpp"
+#include "../include/discotec/manager/ProcessManager.hpp"
+#include "../include/discotec/fault_tolerance/LPOptimizationInterpolation.hpp"
+#include "../include/discotec/fault_tolerance/FaultCriterion.hpp"
+#include "../include/discotec/fault_tolerance/StaticFaults.hpp"
+#include "../include/discotec/fault_tolerance/WeibullFaults.hpp"
 #include "test_helper.hpp"
-#include "utils/Config.hpp"
-#include "fault_tolerance/FTUtils.hpp"
-#include "fullgrid/DistributedFullGrid.hpp"
+#include "../include/discotec/utils/Config.hpp"
+#include "../include/discotec/fault_tolerance/FTUtils.hpp"
+#include "../include/discotec/fullgrid/DistributedFullGrid.hpp"
 
 // this is necessary for correct function of task serialization
-#include "utils/BoostExports.hpp"
+#include "../include/discotec/utils/BoostExports.hpp"
 
 using namespace combigrid;
 

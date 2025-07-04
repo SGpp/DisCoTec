@@ -1,11 +1,11 @@
-#include "utils/MonteCarlo.hpp"
+#include "discotec/utils/MonteCarlo.hpp"
 
 #include <algorithm>
 #include <cassert>
 #include <functional>
 #include <random>
 
-#include "utils/Config.hpp"
+#include "discotec/utils/Config.hpp"
 
 namespace combigrid {
 

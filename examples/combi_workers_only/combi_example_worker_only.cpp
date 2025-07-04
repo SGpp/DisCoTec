@@ -8,21 +8,21 @@
 
 // include user specific task. this is the interface to your application
 #include "../distributed_third_level/TaskAdvection.hpp"
-#include "combischeme/CombiMinMaxScheme.hpp"
-#include "io/BroadcastParameters.hpp"
-#include "io/H5InputOutput.hpp"
-#include "loadmodel/LinearLoadModel.hpp"
-#include "manager/CombiParameters.hpp"
-#include "manager/ProcessGroupWorker.hpp"
-#include "mpi/MPISystem.hpp"
-#include "task/Task.hpp"
-#include "utils/MonteCarlo.hpp"
-#include "utils/Types.hpp"
+#include "../../include/discotec/combischeme/CombiMinMaxScheme.hpp"
+#include "../../include/discotec/io/BroadcastParameters.hpp"
+#include "../../include/discotec/io/H5InputOutput.hpp"
+#include "../../include/discotec/loadmodel/LinearLoadModel.hpp"
+#include "../../include/discotec/manager/CombiParameters.hpp"
+#include "../../include/discotec/manager/ProcessGroupWorker.hpp"
+#include "../../include/discotec/mpi/MPISystem.hpp"
+#include "../../include/discotec/Task.hpp"
+#include "../../include/discotec/utils/MonteCarlo.hpp"
+#include "../../include/discotec/utils/Types.hpp"
 
 using namespace combigrid;
 
 // this is necessary for correct function of task serialization
-#include "utils/BoostExports.hpp"
+#include "../../include/discotec/utils/BoostExports.hpp"
 BOOST_CLASS_EXPORT(TaskAdvection)
 
 int main(int argc, char** argv) {

@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <iostream>
-#include "MPI-FT.h"
+#include "../../include/discotec/MPI-FT.h"
 #include REAL_MPI_INCLUDE
 
 int simft::Sim_FT_MPI_Send(void *buf, int count, MPI_Datatype type, int dest, int tag,

@@ -2,7 +2,7 @@
 #include <cassert>
 #include <iostream>
 #include <unistd.h>
-#include "mpi_fault_simulator/MPI-FT.h"
+#include "../../include/discotec/MPI-FT.h"
 
 int main(int argc, char** argv) {
   //MPI_Init(&argc, &argv);

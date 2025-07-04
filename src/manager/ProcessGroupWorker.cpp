@@ -1,14 +1,14 @@
-#include "manager/ProcessGroupWorker.hpp"
+#include "discotec/manager/ProcessGroupWorker.hpp"
 
 #include "combicom/CombiCom.hpp"
-#include "manager/InterpolationWorker.hpp"
-#include "manager/ProcessGroupSignals.hpp"
-#include "mpi/MPIUtils.hpp"
-#include "loadmodel/LearningLoadModel.hpp"
-#include "mpi/MPISystem.hpp"
-#include "mpi_fault_simulator/MPI-FT.h"
-#include "io/H5InputOutput.hpp"
-#include "utils/MonteCarlo.hpp"
+#include "discotec/manager/InterpolationWorker.hpp"
+#include "discotec/manager/ProcessGroupSignals.hpp"
+#include "discotec/mpi/MPIUtils.hpp"
+#include "discotec/loadmodel/LearningLoadModel.hpp"
+#include "discotec/mpi/MPISystem.hpp"
+#include "discotec/MPI-FT.h"
+#include "discotec/io/H5InputOutput.hpp"
+#include "discotec/utils/MonteCarlo.hpp"
 
 #include "boost/lexical_cast.hpp"
 

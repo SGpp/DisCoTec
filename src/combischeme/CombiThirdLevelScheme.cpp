@@ -1,4 +1,4 @@
-#include "combischeme/CombiThirdLevelScheme.hpp"
+#include "../../include/discotec/combischeme/CombiThirdLevelScheme.hpp"
 
 #include <numeric>
 #include <vector>

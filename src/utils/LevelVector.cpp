@@ -1,4 +1,4 @@
-#include "utils/LevelVector.hpp"
+#include "discotec/utils/LevelVector.hpp"
 
 namespace combigrid {
 std::string toString(combigrid::LevelVector const& l) {

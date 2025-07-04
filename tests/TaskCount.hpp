@@ -3,7 +3,7 @@
 #define BOOST_TEST_DYN_LINK
 
 #include <boost/serialization/export.hpp>
-#include "task/Task.hpp"
+#include "../include/discotec/Task.hpp"
 
 using namespace combigrid;
 
