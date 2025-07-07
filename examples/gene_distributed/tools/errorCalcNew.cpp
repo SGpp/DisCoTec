@@ -1,10 +1,10 @@
 #include <assert.h>
 #include <fstream>
-#include "../../../include/discotec/utils/Config.hpp"
-#include "../../../include/discotec/utils/Types.hpp"
-#include "../../../include/discotec/utils/LevelVector.hpp"
-#include "../../../include/discotec/fullgrid/FullGrid.hpp"
-#include "../../../include/discotec/fullgrid/MultiArray.hpp"
+#include "discotec/utils/Config.hpp"
+#include "discotec/utils/Types.hpp"
+#include "discotec/utils/LevelVector.hpp"
+#include "discotec/fullgrid/FullGrid.hpp"
+#include "discotec/fullgrid/MultiArray.hpp"
 #include <iostream>
 #include <vector>
 #include <sys/stat.h>
@@ -95,7 +95,7 @@ int main( int argc, char** argv ){
   real err = 0.0;
   for( auto i=0; i<data1.size(); ++i ){
     real tmp = std::abs( data1[i] ) - std::abs( data2[i] );
-    
+
     if(std::abs(tmp)/std::abs(data1[i]) > 1e-12) std::cout <<" i: " << i << " value: " << std::abs(tmp)/std::abs(data1[i]) << " ";
     err += tmp*tmp;
   }

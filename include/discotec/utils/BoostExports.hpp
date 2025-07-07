@@ -5,7 +5,7 @@
 #include "../fault_tolerance/FaultCriterion.hpp"
 #include "../fault_tolerance/StaticFaults.hpp"
 #include "../fault_tolerance/WeibullFaults.hpp"
-#include "hierarchization/CombiLinearBasisFunction.hpp"
+#include "discotec/hierarchization/CombiLinearBasisFunction.hpp"
 
 // this header should be included once for every compilation unit; if there are
 // "not registered" or "not exported"-type errors, maybe this header was called before all

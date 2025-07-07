@@ -13,28 +13,28 @@
 #include <boost/serialization/export.hpp>
 
 // compulsory includes for basic functionality
-#include "../include/discotec/Task.hpp"
-#include "../include/discotec/utils/Types.hpp"
-#include "../include/discotec/combischeme/CombiMinMaxScheme.hpp"
-#include "hierarchization/CombiLinearBasisFunction.hpp"
-#include "../include/discotec/fullgrid/FullGrid.hpp"
-#include "../include/discotec/loadmodel/LinearLoadModel.hpp"
-#include "../include/discotec/loadmodel/LearningLoadModel.hpp"
-#include "../include/discotec/manager/CombiParameters.hpp"
-#include "../include/discotec/manager/ProcessGroupManager.hpp"
-#include "../include/discotec/manager/ProcessGroupWorker.hpp"
-#include "../include/discotec/manager/ProcessManager.hpp"
-#include "../include/discotec/fault_tolerance/LPOptimizationInterpolation.hpp"
-#include "../include/discotec/fault_tolerance/FaultCriterion.hpp"
-#include "../include/discotec/fault_tolerance/StaticFaults.hpp"
-#include "../include/discotec/fault_tolerance/WeibullFaults.hpp"
+#include "discotec/Task.hpp"
+#include "discotec/utils/Types.hpp"
+#include "discotec/combischeme/CombiMinMaxScheme.hpp"
+#include "discotec/hierarchization/CombiLinearBasisFunction.hpp"
+#include "discotec/fullgrid/FullGrid.hpp"
+#include "discotec/loadmodel/LinearLoadModel.hpp"
+#include "discotec/loadmodel/LearningLoadModel.hpp"
+#include "discotec/manager/CombiParameters.hpp"
+#include "discotec/manager/ProcessGroupManager.hpp"
+#include "discotec/manager/ProcessGroupWorker.hpp"
+#include "discotec/manager/ProcessManager.hpp"
+#include "discotec/fault_tolerance/LPOptimizationInterpolation.hpp"
+#include "discotec/fault_tolerance/FaultCriterion.hpp"
+#include "discotec/fault_tolerance/StaticFaults.hpp"
+#include "discotec/fault_tolerance/WeibullFaults.hpp"
 #include "test_helper.hpp"
-#include "../include/discotec/utils/Config.hpp"
-#include "../include/discotec/fault_tolerance/FTUtils.hpp"
-#include "../include/discotec/fullgrid/DistributedFullGrid.hpp"
+#include "discotec/utils/Config.hpp"
+#include "discotec/fault_tolerance/FTUtils.hpp"
+#include "discotec/fullgrid/DistributedFullGrid.hpp"
 
 // this is necessary for correct function of task serialization
-#include "../include/discotec/utils/BoostExports.hpp"
+#include "discotec/utils/BoostExports.hpp"
 
 using namespace combigrid;
 

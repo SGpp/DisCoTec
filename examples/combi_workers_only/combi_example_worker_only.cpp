@@ -8,21 +8,21 @@
 
 // include user specific task. this is the interface to your application
 #include "../distributed_third_level/TaskAdvection.hpp"
-#include "../../include/discotec/combischeme/CombiMinMaxScheme.hpp"
-#include "../../include/discotec/io/BroadcastParameters.hpp"
-#include "../../include/discotec/io/H5InputOutput.hpp"
-#include "../../include/discotec/loadmodel/LinearLoadModel.hpp"
-#include "../../include/discotec/manager/CombiParameters.hpp"
-#include "../../include/discotec/manager/ProcessGroupWorker.hpp"
-#include "../../include/discotec/mpi/MPISystem.hpp"
-#include "../../include/discotec/Task.hpp"
-#include "../../include/discotec/utils/MonteCarlo.hpp"
-#include "../../include/discotec/utils/Types.hpp"
+#include "discotec/combischeme/CombiMinMaxScheme.hpp"
+#include "discotec/io/BroadcastParameters.hpp"
+#include "discotec/io/H5InputOutput.hpp"
+#include "discotec/loadmodel/LinearLoadModel.hpp"
+#include "discotec/manager/CombiParameters.hpp"
+#include "discotec/manager/ProcessGroupWorker.hpp"
+#include "discotec/mpi/MPISystem.hpp"
+#include "discotec/Task.hpp"
+#include "discotec/utils/MonteCarlo.hpp"
+#include "discotec/utils/Types.hpp"
 
 using namespace combigrid;
 
 // this is necessary for correct function of task serialization
-#include "../../include/discotec/utils/BoostExports.hpp"
+#include "discotec/utils/BoostExports.hpp"
 BOOST_CLASS_EXPORT(TaskAdvection)
 
 int main(int argc, char** argv) {

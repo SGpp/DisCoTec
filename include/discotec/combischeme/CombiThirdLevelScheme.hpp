@@ -1,4 +1,4 @@
-#include "../../../../../.cache/JetBrains/CLion2024.1/.remote/ipvs-epyc2_22/347dacd9-0950-4b02-b7f7-b2d9ba9d9d1d/usr/include/c++/9/vector"
+#include <vector>
 
 #include "../utils/Types.hpp"
 #include "../utils/LevelVector.hpp"

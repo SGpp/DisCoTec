@@ -13,9 +13,9 @@
 #include <unistd.h>
 #include <fstream>
 #include "../../gene_distributed/src/CombiGeneConverter.hpp"
-#include "../../../include/discotec/fullgrid/DistributedFullGrid.hpp"
-#include "../../../include/discotec/mpi/MPISystem.hpp"
-#include "../../../include/discotec/manager/ProcessGroupSignals.hpp"
+#include "discotec/fullgrid/DistributedFullGrid.hpp"
+#include "discotec/mpi/MPISystem.hpp"
+#include "discotec/manager/ProcessGroupSignals.hpp"
 #include <math.h>
 
 //#include "utils/StatsContainer.hpp"

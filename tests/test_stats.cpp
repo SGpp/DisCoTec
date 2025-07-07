@@ -4,9 +4,9 @@
 #include <chrono>
 #include <thread>
 
-#include "../include/discotec/utils/Stats.hpp"
-#include "../include/discotec/mpi/MPISystem.hpp"
-#include "../include/discotec/utils/Types.hpp"
+#include "discotec/utils/Stats.hpp"
+#include "discotec/mpi/MPISystem.hpp"
+#include "discotec/utils/Types.hpp"
 #include "test_helper.hpp"
 
 
@@ -62,7 +62,7 @@ void testMeasureTime(int size, long for_milliseconds) {
   combigrid::Stats::initialize();
 
   combigrid::Stats::Event e;
-  std::chrono::milliseconds timespan(for_milliseconds); 
+  std::chrono::milliseconds timespan(for_milliseconds);
   std::this_thread::sleep_for(timespan);
   e.end = std::chrono::high_resolution_clock::now();
 

@@ -70,7 +70,7 @@ bool sumAndCheckSubspaceSizes(const SparseGridType& dsg) {
  * @param numberOfMiB the number of Mebibytes
  * @return the number of Bytes
  */
-static size_t MiBtoBytes(uint32_t numberOfMiB) {
+static inline size_t MiBtoBytes(uint32_t numberOfMiB) {
   return powerOfTwoByBitshift(20) * static_cast<size_t>(numberOfMiB);
 }
 
@@ -83,7 +83,7 @@ static size_t MiBtoBytes(uint32_t numberOfMiB) {
  * @return the chunk size in number of elements
  */
 template <typename SG_ELEMENT>
-static int getGlobalReduceChunkSize(uint32_t maxMiBToSendPerThread) {
+static inline int getGlobalReduceChunkSize(uint32_t maxMiBToSendPerThread) {
   if (maxMiBToSendPerThread > static_cast<uint32_t>(std::numeric_limits<int>::max()) ||
       maxMiBToSendPerThread == 0) {
     return std::numeric_limits<int>::max();
@@ -408,11 +408,11 @@ static void sendSubspaceDataSizes(SparseGridType& dsg, RankType dest, Communicat
            TRANSFER_SUBSPACE_DATA_SIZES_TAG, comm);
 }
 
-/** 
+/**
  * @brief Performs a max-allreduce in communicator comm with subspace sizes of the sparse grids
  *
  * Typically used in the GlobalReduceComm to ensure that all workers have the same subspace sizes for sparse grid reduce.
- * 
+ *
  * @tparam SparseGridType (derived from) DistributedSparseGridUniform
  * @param dsg the sparse grid of type SparseGridType
  * @param comm the communicator
@@ -435,9 +435,9 @@ void reduceSubspaceSizes(SparseGridType& dsg, CommunicatorType comm) {
 
 /**
  * @brief Performs a max-reduce in communicator globalReduceComm with subspace sizes of the sparse grids
- * 
+ *
  * this together with broadcastSubspaceSizes can be used as a two-step replacement for reduceSubspaceSizes.
- * 
+ *
  * @tparam SparseGridType (derived from) DistributedSparseGridUniform
  * @param dsg the sparse grid of type SparseGridType
  * @param globalReduceRankThatCollects the rank that collects the data
@@ -463,7 +463,7 @@ void maxReduceSubspaceSizesAcrossGroups(
  * @brief Broadcasts the subspace sizes of the sparse grid from rank \p sendingRank in communicator \p comm
  *
  * this together with maxReduceSubspaceSizesAcrossGroups can be used as a two-step replacement for reduceSubspaceSizes.
- * 
+ *
  * @tparam SparseGridType (derived from) DistributedSparseGridUniform
  * @param dsg the sparse grid of type SparseGridType
  * @param comm the communicator
@@ -485,7 +485,7 @@ void broadcastSubspaceSizes(SparseGridType& dsg, CommunicatorType comm, RankType
 
 /**
  * @brief gather all subspace sizes on the different ranks of \p comm to the rank \p collectorRank
- * 
+ *
  * can be used for the widely-distributed combination technique
  */
 template <typename SparseGridType>
@@ -506,7 +506,7 @@ void sendSubspaceSizesWithGather(SparseGridType& dsg, CommunicatorType comm,
 
 /**
  * @brief receive all subspace sizes on the different ranks of \p comm from the rank \p collectorRank
- * 
+ *
  * can be used for the widely-distributed combination technique
  */
 template <typename SparseGridType>
@@ -596,9 +596,9 @@ static void asyncBcastDsgData(SparseGridType& dsg, RankType root, CommunicatorTy
 
 /**
  * @brief asynchronous Bcast of the raw sparse grid data in the communicator \p comm
- * 
+ *
  * but only for the subspaces allocated by all process groups (and used by at least two groups -> outgroup sparse grid reduce)
- * 
+ *
  * @tparam SparseGridType the type of the sparse grid
  * @param dsg the sparse grid of type SparseGridType
  * @param root the rank that broadcasts the data

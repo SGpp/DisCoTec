@@ -3,7 +3,7 @@
 
 #include <boost/serialization/map.hpp>
 
-#include "hierarchization/CombiLinearBasisFunction.hpp"
+#include "../hierarchization/CombiLinearBasisFunction.hpp"
 #include "../mpi/MPISystem.hpp"
 #include "../utils/LevelSetUtils.hpp"
 #include "../utils/LevelVector.hpp"

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "hierarchization/DistributedHierarchization.hpp"
+#include "../hierarchization/DistributedHierarchization.hpp"
 #include "../Task.hpp"
 #include "../utils/Types.hpp"
 

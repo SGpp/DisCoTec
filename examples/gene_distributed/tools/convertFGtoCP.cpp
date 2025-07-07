@@ -6,8 +6,8 @@
  */
 #include <assert.h>
 #include <fstream>
-#include "../../../include/discotec/utils/Types.hpp"
-#include "../../../include/discotec/utils/LevelVector.hpp"
+#include "discotec/utils/Types.hpp"
+#include "discotec/utils/LevelVector.hpp"
 #include <iostream>
 #include <vector>
 #include "timing.h"

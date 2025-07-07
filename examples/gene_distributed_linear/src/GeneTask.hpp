@@ -15,16 +15,16 @@
 #include <string>
 #include <vector>
 
-#include "../../../include/discotec/fullgrid/FullGrid.hpp"
-#include "../../../include/discotec/fullgrid/DistributedFullGrid.hpp"
-#include "../../../include/discotec/loadmodel/LoadModel.hpp"
-#include "../../../include/discotec/Task.hpp"
-#include "../../../include/discotec/utils/IndexVector.hpp"
-#include "../../../include/discotec/utils/LevelVector.hpp"
-#include "../../../include/discotec/utils/Types.hpp"
+#include "discotec/fullgrid/FullGrid.hpp"
+#include "discotec/fullgrid/DistributedFullGrid.hpp"
+#include "discotec/loadmodel/LoadModel.hpp"
+#include "discotec/Task.hpp"
+#include "discotec/utils/IndexVector.hpp"
+#include "discotec/utils/LevelVector.hpp"
+#include "discotec/utils/Types.hpp"
 #include "../../gene_distributed/src/GeneLocalCheckpoint.hpp"
-#include "../../../include/discotec/fault_tolerance/FTUtils.hpp"
-#include "../../../include/discotec/fullgrid/MultiArray.hpp"
+#include "discotec/fault_tolerance/FTUtils.hpp"
+#include "discotec/fullgrid/MultiArray.hpp"
 
 namespace combigrid {
 

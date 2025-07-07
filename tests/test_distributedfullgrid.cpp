@@ -11,15 +11,15 @@
 #include <vector>
 
 #include "TaskConstParaboloid.hpp"
-#include "combicom/CombiCom.hpp"
-#include "../include/discotec/fullgrid/DistributedFullGrid.hpp"
-#include "../include/discotec/fullgrid/FullGrid.hpp"
-#include "hierarchization/DistributedHierarchization.hpp"
-#include "../include/discotec/io/H5InputOutput.hpp"
-#include "../include/discotec/mpi/MPIMemory.hpp"
+#include "discotec/combicom/CombiCom.hpp"
+#include "discotec/fullgrid/DistributedFullGrid.hpp"
+#include "discotec/fullgrid/FullGrid.hpp"
+#include "discotec/hierarchization/DistributedHierarchization.hpp"
+#include "discotec/io/H5InputOutput.hpp"
+#include "discotec/mpi/MPIMemory.hpp"
 #include "test_helper.hpp"
-#include "../include/discotec/utils/MonteCarlo.hpp"
-#include "../include/discotec/utils/Types.hpp"
+#include "discotec/utils/MonteCarlo.hpp"
+#include "discotec/utils/Types.hpp"
 
 using namespace combigrid;
 

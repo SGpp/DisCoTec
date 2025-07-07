@@ -3,7 +3,7 @@
 // to resolve https://github.com/open-mpi/ompi/issues/5157
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
-#include "../include/discotec/third_level/NetworkUtils.hpp"
+#include "discotec/third_level/NetworkUtils.hpp"
 #include "test_helper.hpp"
 
 static std::string host             = "localhost";

@@ -13,26 +13,26 @@
 #include <boost/serialization/export.hpp>
 
 // compulsory includes for basic functionality
-#include "../../../include/discotec/utils/Stats.hpp"
-#include "../../../include/discotec/Task.hpp"
-#include "../../../include/discotec/utils/Types.hpp"
-#include "../../../include/discotec/combischeme/CombiMinMaxScheme.hpp"
-#include "../../../include/discotec/fullgrid/FullGrid.hpp"
-#include "../../../include/discotec/loadmodel/LinearLoadModel.hpp"
-#include "../../../include/discotec/manager/CombiParameters.hpp"
-#include "../../../include/discotec/manager/ProcessGroupManager.hpp"
-#include "../../../include/discotec/manager/ProcessGroupWorker.hpp"
-#include "../../../include/discotec/manager/ProcessManager.hpp"
-#include "../../../include/discotec/fault_tolerance/FaultCriterion.hpp"
-#include "../../../include/discotec/fault_tolerance/StaticFaults.hpp"
-#include "../../../include/discotec/fault_tolerance/WeibullFaults.hpp"
+#include "discotec/utils/Stats.hpp"
+#include "discotec/Task.hpp"
+#include "discotec/utils/Types.hpp"
+#include "discotec/combischeme/CombiMinMaxScheme.hpp"
+#include "discotec/fullgrid/FullGrid.hpp"
+#include "discotec/loadmodel/LinearLoadModel.hpp"
+#include "discotec/manager/CombiParameters.hpp"
+#include "discotec/manager/ProcessGroupManager.hpp"
+#include "discotec/manager/ProcessGroupWorker.hpp"
+#include "discotec/manager/ProcessManager.hpp"
+#include "discotec/fault_tolerance/FaultCriterion.hpp"
+#include "discotec/fault_tolerance/StaticFaults.hpp"
+#include "discotec/fault_tolerance/WeibullFaults.hpp"
 
 // include user specific task. this is the interface to your application
 #include "GeneTask.hpp"
 
 using namespace combigrid;
 // this is necessary for correct function of task serialization
-#include "../../../include/discotec/utils/BoostExports.hpp"
+#include "discotec/utils/BoostExports.hpp"
 BOOST_CLASS_EXPORT(GeneTask)
 
 // helper funtion to read a bool vector from string
@@ -181,7 +181,7 @@ int main(int argc, char** argv) {
   /* create an abstraction of the process groups for the manager's view
     * a pgroup is identified by the ID in gcomm
     */
-  
+
   ProcessGroupManagerContainer pgroups;
   //create vector containing the different process groups
   for (size_t i=0; i<ngroup; ++i) {
@@ -430,12 +430,12 @@ int main(int argc, char** argv) {
 
   // send exit signal to workers in order to enable a clean program termination
   manager.exit();
-  
+
   // finalize timing evaluations
   Stats::finalize();
   /* write stats to json file for postprocessing */
   Stats::write( "timers.json" );
-  std::cout << "Program finished successfully" << std::endl;  
+  std::cout << "Program finished successfully" << std::endl;
   //terminate the program
   if( ENABLE_FT ){
     std::cout << "The number of detected faults during the simulation is " << nfaults << "\n";
@@ -452,6 +452,6 @@ int main(int argc, char** argv) {
 
   std::chrono::high_resolution_clock::time_point end_time = std::chrono::high_resolution_clock::now();
   std::cout << "total " << std::chrono::duration_cast<std::chrono::microseconds>(end_time - init_time).count() << " " << std::endl;
-  
+
   return 0;
 }

@@ -4,11 +4,11 @@
 #include <iostream>
 #include <vector>
 #include "boost/lexical_cast.hpp"
-#include "../include/discotec/fullgrid/FullGrid.hpp"
-#include "../include/discotec/fullgrid/MultiArray.hpp"
-#include "../include/discotec/utils/Config.hpp"
-#include "../include/discotec/utils/LevelVector.hpp"
-#include "../include/discotec/utils/Types.hpp"
+#include "discotec/fullgrid/FullGrid.hpp"
+#include "discotec/fullgrid/MultiArray.hpp"
+#include "discotec/utils/Config.hpp"
+#include "discotec/utils/LevelVector.hpp"
+#include "discotec/utils/Types.hpp"
 // #include "timing.h"
 
 using namespace combigrid;

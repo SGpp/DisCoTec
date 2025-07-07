@@ -10,21 +10,21 @@
 #include <boost/serialization/export.hpp>
 
 // compulsory includes for basic functionality
-#include "../../include/discotec/Task.hpp"
-#include "../../include/discotec/utils/Types.hpp"
-#include "../../include/discotec/combischeme/CombiMinMaxScheme.hpp"
-#include "../../include/discotec/fullgrid/FullGrid.hpp"
-#include "../../include/discotec/io/BroadcastParameters.hpp"
-#include "../../include/discotec/loadmodel/LinearLoadModel.hpp"
-#include "../../include/discotec/manager/CombiParameters.hpp"
-#include "../../include/discotec/manager/ProcessGroupManager.hpp"
-#include "../../include/discotec/manager/ProcessGroupWorker.hpp"
-#include "../../include/discotec/manager/ProcessManager.hpp"
-#include "../../include/discotec/fault_tolerance/LPOptimizationInterpolation.hpp"
-#include "../../include/discotec/MPI-FT.h"
-#include "../../include/discotec/fault_tolerance/FaultCriterion.hpp"
-#include "../../include/discotec/fault_tolerance/StaticFaults.hpp"
-#include "../../include/discotec/fault_tolerance/WeibullFaults.hpp"
+#include "discotec/Task.hpp"
+#include "discotec/utils/Types.hpp"
+#include "discotec/combischeme/CombiMinMaxScheme.hpp"
+#include "discotec/fullgrid/FullGrid.hpp"
+#include "discotec/io/BroadcastParameters.hpp"
+#include "discotec/loadmodel/LinearLoadModel.hpp"
+#include "discotec/manager/CombiParameters.hpp"
+#include "discotec/manager/ProcessGroupManager.hpp"
+#include "discotec/manager/ProcessGroupWorker.hpp"
+#include "discotec/manager/ProcessManager.hpp"
+#include "discotec/fault_tolerance/LPOptimizationInterpolation.hpp"
+#include "discotec/MPI-FT.h"
+#include "discotec/fault_tolerance/FaultCriterion.hpp"
+#include "discotec/fault_tolerance/StaticFaults.hpp"
+#include "discotec/fault_tolerance/WeibullFaults.hpp"
 
 // include user specific task. this is the interface to your application
 #include "TaskExample.hpp"
@@ -34,7 +34,7 @@
 using namespace combigrid;
 
 // this is necessary for correct function of task serialization
-#include "../../include/discotec/utils/BoostExports.hpp"
+#include "discotec/utils/BoostExports.hpp"
 BOOST_CLASS_EXPORT(TaskExample)
 
 int main(int argc, char** argv) {
@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
 
     /* create load model */
     std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LinearLoadModel>(new LinearLoadModel());
- 
+
 
     IndexType checkProcs = 1;
     for (auto k : p)
@@ -223,4 +223,4 @@ int main(int argc, char** argv) {
 
   return 0;
 }
-	
+

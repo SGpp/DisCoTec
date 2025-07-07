@@ -1,11 +1,11 @@
 #ifndef PROCESSGROUPMANAGER_HPP_
 #define PROCESSGROUPMANAGER_HPP_
 
-#include "../../../../../.cache/JetBrains/CLion2024.1/.remote/ipvs-epyc2_22/347dacd9-0950-4b02-b7f7-b2d9ba9d9d1d/usr/include/c++/9/stdexcept"
-#include "../../../../../.cache/JetBrains/CLion2024.1/.remote/ipvs-epyc2_22/347dacd9-0950-4b02-b7f7-b2d9ba9d9d1d/usr/include/c++/9/string"
-#include "../../../../../.cache/JetBrains/CLion2024.1/.remote/ipvs-epyc2_22/347dacd9-0950-4b02-b7f7-b2d9ba9d9d1d/usr/include/c++/9/vector"
+#include <stdexcept>
+#include <string>
+#include <vector>
 
-#include "combicom/CombiCom.hpp"
+#include "../combicom/CombiCom.hpp"
 #include "../fullgrid/FullGrid.hpp"
 #include "CombiParameters.hpp"
 #include "ProcessGroupSignals.hpp"

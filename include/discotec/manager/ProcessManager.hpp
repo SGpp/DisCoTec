@@ -1,8 +1,8 @@
 #ifndef PROCESSMANAGER_HPP_
 #define PROCESSMANAGER_HPP_
 
-#include "../../../../../.cache/JetBrains/CLion2024.1/.remote/ipvs-epyc2_22/347dacd9-0950-4b02-b7f7-b2d9ba9d9d1d/usr/include/c++/9/numeric"
-#include "../../../../../.cache/JetBrains/CLion2024.1/.remote/ipvs-epyc2_22/347dacd9-0950-4b02-b7f7-b2d9ba9d9d1d/usr/include/c++/9/vector"
+#include <numeric>
+#include <vector>
 
 #include "../combischeme/CombiMinMaxScheme.hpp"
 #include "../fault_tolerance/LPOptimizationInterpolation.hpp"

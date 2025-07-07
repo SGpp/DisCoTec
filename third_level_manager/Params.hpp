@@ -2,7 +2,7 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/algorithm/string.hpp>
 #include <string>
-#include "../include/discotec/third_level/NetworkUtils.hpp"
+#include "discotec/third_level/NetworkUtils.hpp"
 
 class Params
 {

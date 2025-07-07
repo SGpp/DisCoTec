@@ -6,10 +6,10 @@
  */
 #include <assert.h>
 #include <fstream>
-#include "../../../include/discotec/utils/Types.hpp"
-#include "../../../include/discotec/utils/LevelVector.hpp"
-#include "../../../include/discotec/fullgrid/FullGrid.hpp"
-#include "../../../include/discotec/fullgrid/MultiArray.hpp"
+#include "discotec/utils/Types.hpp"
+#include "discotec/utils/LevelVector.hpp"
+#include "discotec/fullgrid/FullGrid.hpp"
+#include "discotec/fullgrid/MultiArray.hpp"
 #include <iostream>
 #include <vector>
 #include <sys/stat.h>

@@ -4,7 +4,7 @@
 
 #include <boost/asio.hpp>
 
-#include "combicom/CombiCom.hpp"
+#include "discotec/combicom/CombiCom.hpp"
 #include "discotec/io/H5InputOutput.hpp"
 #include "discotec/utils/Types.hpp"
 #include "discotec/mpi/MPIUtils.hpp"

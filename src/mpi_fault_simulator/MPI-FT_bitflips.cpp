@@ -3,7 +3,7 @@
 #include <ctime>
 #include <iostream>
 #include <random>
-#include "../../include/discotec/MPI-FT.h"
+#include "discotec/MPI-FT.h"
 #include REAL_MPI_INCLUDE
 #define BYTE_SIZE 8
 

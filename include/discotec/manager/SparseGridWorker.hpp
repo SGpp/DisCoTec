@@ -2,9 +2,9 @@
 
 #include <thread>
 
-#include "combicom/CombiCom.hpp"
+#include "../combicom/CombiCom.hpp"
 #include "../fullgrid/DistributedFullGrid.hpp"
-#include "hierarchization/DistributedHierarchization.hpp"
+#include "../hierarchization/DistributedHierarchization.hpp"
 #include "TaskWorker.hpp"
 #include "../mpi/MPISystem.hpp"
 #include "../mpi/MPIUtils.hpp"

@@ -6,7 +6,7 @@
 
 #include <boost/test/unit_test.hpp>
 
-#include "../include/discotec/mpi/MPISystem.hpp"
+#include "discotec/mpi/MPISystem.hpp"
 
 using namespace combigrid;
 

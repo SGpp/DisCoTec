@@ -15,15 +15,15 @@
 #include <string>
 #include <vector>
 
-#include "../../../include/discotec/fullgrid/FullGrid.hpp"
-#include "../../../include/discotec/fullgrid/DistributedFullGrid.hpp"
-#include "../../../include/discotec/Task.hpp"
-#include "../../../include/discotec/utils/IndexVector.hpp"
-#include "../../../include/discotec/utils/LevelVector.hpp"
-#include "../../../include/discotec/utils/Types.hpp"
+#include "discotec/fullgrid/FullGrid.hpp"
+#include "discotec/fullgrid/DistributedFullGrid.hpp"
+#include "discotec/Task.hpp"
+#include "discotec/utils/IndexVector.hpp"
+#include "discotec/utils/LevelVector.hpp"
+#include "discotec/utils/Types.hpp"
 #include "GeneLocalCheckpoint.hpp"
-#include "../../../include/discotec/fault_tolerance/FTUtils.hpp"
-#include "../../../include/discotec/fullgrid/MultiArray.hpp"
+#include "discotec/fault_tolerance/FTUtils.hpp"
+#include "discotec/fullgrid/MultiArray.hpp"
 
 namespace combigrid {
 
@@ -178,7 +178,7 @@ class GeneTask : public combigrid::Task {
   /**
    * Sets the current combination step
    */
-  inline void setCombiStep(int ncombi);  
+  inline void setCombiStep(int ncombi);
   /**
    * Returns the current combination step
    */
@@ -349,7 +349,7 @@ private:
 
   bool gyromatrix_buffered_ = false; //indicates if gyromatrix is buffered
   bool geneXBoundariesIncluded_; //indicates if gene boundaries are set on both sides -> this is important for boundary conditions
-  
+
   MPI_Request * requestArray_;
   std::vector<CombiDataType *> receiveBufferArray_;
   /*

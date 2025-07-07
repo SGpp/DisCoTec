@@ -9,9 +9,9 @@
 #include <random>
 #include <vector>
 
-#include "../include/discotec/fullgrid/DistributedFullGrid.hpp"
-#include "../include/discotec/fullgrid/FullGrid.hpp"
-#include "../include/discotec/utils/Types.hpp"
+#include "discotec/fullgrid/DistributedFullGrid.hpp"
+#include "discotec/fullgrid/FullGrid.hpp"
+#include "discotec/utils/Types.hpp"
 #include "test_helper.hpp"
 
 using namespace combigrid;

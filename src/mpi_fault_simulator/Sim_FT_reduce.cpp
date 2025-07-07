@@ -1,4 +1,4 @@
-#include "../../include/discotec/MPI-FT.h"
+#include "discotec/MPI-FT.h"
 #include REAL_MPI_INCLUDE
 
 int simft::Sim_FT_MPI_Reduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype,

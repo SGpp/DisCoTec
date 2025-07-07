@@ -7,11 +7,11 @@
 #include <string>
 #include <vector>
 
-#include "../../include/discotec/combischeme/CombiMinMaxScheme.hpp"
-#include "../../include/discotec/combischeme/CombiThirdLevelScheme.hpp"
-#include "../../include/discotec/io/BroadcastParameters.hpp"
-#include "../../include/discotec/manager/ProcessGroupWorker.hpp"
-#include "../../include/discotec/sparsegrid/DistributedSparseGridIO.hpp"
+#include "discotec/combischeme/CombiMinMaxScheme.hpp"
+#include "discotec/combischeme/CombiThirdLevelScheme.hpp"
+#include "discotec/io/BroadcastParameters.hpp"
+#include "discotec/manager/ProcessGroupWorker.hpp"
+#include "discotec/sparsegrid/DistributedSparseGridIO.hpp"
 
 using namespace combigrid;
 

@@ -13,8 +13,8 @@
 #include <unistd.h>
 #include <fstream>
 //#include "CombiGeneConverter.hpp"
-#include "../../../include/discotec/mpi/MPISystem.hpp"
-#include "../../../include/discotec/manager/ProcessGroupSignals.hpp"
+#include "discotec/mpi/MPISystem.hpp"
+#include "discotec/manager/ProcessGroupSignals.hpp"
 #include <math.h>
 
 //#include "utils/StatsContainer.hpp"
@@ -556,7 +556,7 @@ void GeneTask::setDFG(){
 
     // some checks
     const std::vector<int> p( dfgVector_[species]->getParallelization().rbegin(),
-                          dfgVector_[species]->getParallelization().rend() );    
+                          dfgVector_[species]->getParallelization().rend() );
     std::vector<int> tmp( dfgVector_[species]->getDimension() );
     dfgVector_[species]->getCartesianUtils().getPartitionCoordsOfLocalRank( tmp );
 

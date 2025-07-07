@@ -13,26 +13,26 @@
 #include <boost/serialization/export.hpp>
 
 // compulsory includes for basic functionality
-#include "../../../include/discotec/utils/Stats.hpp"
-#include "../../../include/discotec/Task.hpp"
-#include "../../../include/discotec/utils/Types.hpp"
-#include "../../../include/discotec/combischeme/CombiMinMaxScheme.hpp"
-#include "../../../include/discotec/fullgrid/FullGrid.hpp"
-#include "../../../include/discotec/loadmodel/LinearLoadModel.hpp"
-#include "../../../include/discotec/manager/CombiParameters.hpp"
-#include "../../../include/discotec/manager/ProcessGroupManager.hpp"
-#include "../../../include/discotec/manager/ProcessGroupWorker.hpp"
-#include "../../../include/discotec/manager/ProcessManager.hpp"
-#include "../../../include/discotec/fault_tolerance/FaultCriterion.hpp"
-#include "../../../include/discotec/fault_tolerance/StaticFaults.hpp"
-#include "../../../include/discotec/fault_tolerance/WeibullFaults.hpp"
+#include "discotec/utils/Stats.hpp"
+#include "discotec/Task.hpp"
+#include "discotec/utils/Types.hpp"
+#include "discotec/combischeme/CombiMinMaxScheme.hpp"
+#include "discotec/fullgrid/FullGrid.hpp"
+#include "discotec/loadmodel/LinearLoadModel.hpp"
+#include "discotec/manager/CombiParameters.hpp"
+#include "discotec/manager/ProcessGroupManager.hpp"
+#include "discotec/manager/ProcessGroupWorker.hpp"
+#include "discotec/manager/ProcessManager.hpp"
+#include "discotec/fault_tolerance/FaultCriterion.hpp"
+#include "discotec/fault_tolerance/StaticFaults.hpp"
+#include "discotec/fault_tolerance/WeibullFaults.hpp"
 
 // include user specific task. this is the interface to your application
 #include "GeneTask.hpp"
 
 using namespace combigrid;
 // this is necessary for correct function of task serialization
-#include "../../../include/discotec/utils/BoostExports.hpp"
+#include "discotec/utils/BoostExports.hpp"
 BOOST_CLASS_EXPORT(GeneTask)
 
 // helper funtion to read a bool vector from string
@@ -116,7 +116,7 @@ int main(int argc, char** argv) {
 
     // create load model
     std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
-    
+
     /* generate a list of levelvectors and coefficients
      * CombiTS_CT will generate a valid combination. however, you could
      * also read in a list of levelvectors and coefficients from a file */

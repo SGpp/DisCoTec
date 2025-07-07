@@ -10,7 +10,7 @@
 #include <vector>
 #include <boost/test/tools/floating_point_comparison.hpp> // new header for boost >= 1.59
 #include <boost/test/unit_test.hpp>
-#include "../include/discotec/utils/Stats.hpp"
+#include "discotec/utils/Stats.hpp"
 
 namespace TestHelper{
   static constexpr double tolerance = 1e-12;

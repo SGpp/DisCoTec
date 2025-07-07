@@ -3,7 +3,7 @@
 #include <vector>
 #include <thread>
 #include <boost/property_tree/json_parser.hpp>
-#include "../include/discotec/third_level/NetworkUtils.hpp"
+#include "discotec/third_level/NetworkUtils.hpp"
 #include "Params.hpp"
 #include "System.hpp"
 #include "Stats.hpp"

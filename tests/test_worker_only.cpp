@@ -9,19 +9,19 @@
 #include <filesystem>
 
 #include "TaskCount.hpp"
-#include "../include/discotec/combischeme/CombiMinMaxScheme.hpp"
-#include "../include/discotec/io/H5InputOutput.hpp"
-#include "../include/discotec/loadmodel/LearningLoadModel.hpp"
-#include "../include/discotec/loadmodel/LinearLoadModel.hpp"
-#include "../include/discotec/manager/CombiParameters.hpp"
-#include "../include/discotec/manager/ProcessGroupWorker.hpp"
-#include "../include/discotec/sparsegrid/DistributedSparseGridUniform.hpp"
+#include "discotec/combischeme/CombiMinMaxScheme.hpp"
+#include "discotec/io/H5InputOutput.hpp"
+#include "discotec/loadmodel/LearningLoadModel.hpp"
+#include "discotec/loadmodel/LinearLoadModel.hpp"
+#include "discotec/manager/CombiParameters.hpp"
+#include "discotec/manager/ProcessGroupWorker.hpp"
+#include "discotec/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "stdlib.h"
-#include "../include/discotec/Task.hpp"
+#include "discotec/Task.hpp"
 #include "test_helper.hpp"
-#include "../include/discotec/utils/Config.hpp"
-#include "../include/discotec/utils/MonteCarlo.hpp"
-#include "../include/discotec/utils/Types.hpp"
+#include "discotec/utils/Config.hpp"
+#include "discotec/utils/MonteCarlo.hpp"
+#include "discotec/utils/Types.hpp"
 
 using namespace combigrid;
 

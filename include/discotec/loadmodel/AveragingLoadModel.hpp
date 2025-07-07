@@ -1,9 +1,9 @@
 #ifndef AVERAGINGLOADMODEL_HPP_
 #define AVERAGINGLOADMODEL_HPP_
 
-#include "../../../../../.cache/JetBrains/CLion2024.1/.remote/ipvs-epyc2_22/347dacd9-0950-4b02-b7f7-b2d9ba9d9d1d/usr/include/c++/9/deque"
-#include "../../../../../.cache/JetBrains/CLion2024.1/.remote/ipvs-epyc2_22/347dacd9-0950-4b02-b7f7-b2d9ba9d9d1d/usr/include/c++/9/limits"
-#include "../../../../../.cache/JetBrains/CLion2024.1/.remote/ipvs-epyc2_22/347dacd9-0950-4b02-b7f7-b2d9ba9d9d1d/usr/include/c++/9/string"
+#include <deque>
+#include <limits>
+#include <string>
 
 #include "LearningLoadModel.hpp"
 #include "LinearLoadModel.hpp"
@@ -21,13 +21,13 @@ static std::string getFilename(const LevelVector& levelVector){
 unsigned long int getAverageOfFirstColumn(std::istream& fs);
 
 /**
- * AveragingLoadModel is a LearningLoadModel that is saving received duration 
- * information to the file system. For its expected load calculation it is 
+ * AveragingLoadModel is a LearningLoadModel that is saving received duration
+ * information to the file system. For its expected load calculation it is
  * using the average of previously received duration information (from files).
- * The expected load calculation of the LinearLoadModel is used if no previous 
+ * The expected load calculation of the LinearLoadModel is used if no previous
  * duration information is available.
  *
- * TODO: Could implement additional functions to become a 
+ * TODO: Could implement additional functions to become a
  *       SpecificUOTLearningLoadModel
  */
 class AveragingLoadModel : public LearningLoadModel {
@@ -53,7 +53,7 @@ class AveragingLoadModel : public LearningLoadModel {
     }
   }
 
-  void addDurationInformation(const DurationInformation& dI, 
+  void addDurationInformation(const DurationInformation& dI,
                               const LevelVector& l) override {
 
     durationsOfLevels_->at(l).push_back(dI);
@@ -80,10 +80,10 @@ class AveragingLoadModel : public LearningLoadModel {
     // assert(fs.good());
     for (size_t i = 0; i < num_entries && !durations.empty(); ++i) {
       DurationInformation duration = durations.front();
-      fs << std::to_string(duration.duration) << " " 
-         << std::to_string(duration.real_dt) << " " 
+      fs << std::to_string(duration.duration) << " "
+         << std::to_string(duration.real_dt) << " "
          // << std::to_string(duration.task_id)  << " "
-         << std::to_string(duration.simtime_now)  << " " 
+         << std::to_string(duration.simtime_now)  << " "
          << std::to_string(duration.pgroup_id) << " "
          << std::endl;
       durations.pop_front();

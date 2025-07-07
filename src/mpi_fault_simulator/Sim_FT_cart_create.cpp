@@ -1,4 +1,4 @@
-#include "../../include/discotec/MPI-FT.h"
+#include "discotec/MPI-FT.h"
 #include REAL_MPI_INCLUDE
 
 int simft::Sim_FT_MPI_Cart_create(simft::Sim_FT_MPI_Comm comm_old, int ndims, int dims[],

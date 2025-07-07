@@ -8,8 +8,8 @@
 #include <string>
 #include <vector>
 
-#include "../../../include/discotec/combischeme/CombiMinMaxScheme.hpp"
-#include "../../../include/discotec/utils/Types.hpp"
+#include "discotec/combischeme/CombiMinMaxScheme.hpp"
+#include "discotec/utils/Types.hpp"
 
 using namespace combigrid;
 

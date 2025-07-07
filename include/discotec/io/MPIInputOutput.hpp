@@ -18,7 +18,7 @@ static inline std::string getMpiErrorString(int err) {
 }
 namespace mpiio {
 
-static MPI_Info getNewConsecutiveMpiInfo(bool withCollectiveBuffering) {
+static inline MPI_Info getNewConsecutiveMpiInfo(bool withCollectiveBuffering) {
   // see: https://wickie.hlrs.de/platforms/index.php/MPI-IO
   // to be further modified externally e.g. via romio hints
   MPI_Info info = MPI_INFO_NULL;

@@ -1,6 +1,6 @@
 #include "discotec/manager/ProcessGroupWorker.hpp"
 
-#include "combicom/CombiCom.hpp"
+#include "discotec/combicom/CombiCom.hpp"
 #include "discotec/manager/InterpolationWorker.hpp"
 #include "discotec/manager/ProcessGroupSignals.hpp"
 #include "discotec/mpi/MPIUtils.hpp"

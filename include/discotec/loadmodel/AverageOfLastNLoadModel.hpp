@@ -1,8 +1,8 @@
 #ifndef AVERAGEOFLASTNLOADMODEL_HPP_
 #define AVERAGEOFLASTNLOADMODEL_HPP_
 
-#include "../../../../../.cache/JetBrains/CLion2024.1/.remote/ipvs-epyc2_22/347dacd9-0950-4b02-b7f7-b2d9ba9d9d1d/usr/include/c++/9/map"
-#include "../../../../../.cache/JetBrains/CLion2024.1/.remote/ipvs-epyc2_22/347dacd9-0950-4b02-b7f7-b2d9ba9d9d1d/usr/include/c++/9/deque"
+#include <map>
+#include <deque>
 
 #include "MicrosecondsLearningLoadModel.hpp"
 #include "LinearLoadModel.hpp"
@@ -18,14 +18,14 @@ class AverageOfLastNLoadModel : public MicrocsecondsLearningLoadModel {
   /**
    * The constructor for this load model.
    *
-   * @param n Count of past run times to be used for the calculation of the 
+   * @param n Count of past run times to be used for the calculation of the
    *          load prognosis.
    * @param tasks The level vectors of all tasks in this simulation.
-   * @param loadModelIfNoHistory The load model used for the calculation of 
-   *                             LoadModel::eval when no past duration 
+   * @param loadModelIfNoHistory The load model used for the calculation of
+   *                             LoadModel::eval when no past duration
    *                             information is available.
    */
-  AverageOfLastNLoadModel(unsigned int n, const std::vector<LevelVector>& tasks, 
+  AverageOfLastNLoadModel(unsigned int n, const std::vector<LevelVector>& tasks,
                           std::unique_ptr<LoadModel> loadModelIfNoHistory);
 
   /**
@@ -34,22 +34,22 @@ class AverageOfLastNLoadModel : public MicrocsecondsLearningLoadModel {
    * @param info The duration information to add.
    * @param lvlVec The level vector of the task to add the information to.
    */
-  void addDurationInformation(const DurationInformation& info, 
+  void addDurationInformation(const DurationInformation& info,
                               const LevelVector& lvlVec) override;
 
   /**
-   * Calculates the expected load of a given task in microseconds by using the 
+   * Calculates the expected load of a given task in microseconds by using the
    * average of the last n received duration informations.
    *
    * @param lvlVec The level vector corresponding to the task.
-   * @returns Expected load of the given task. If no accurate calculation is 
+   * @returns Expected load of the given task. If no accurate calculation is
    *          possible zero seconds are returned.
    */
   std::chrono::microseconds evalSpecificUOT(const LevelVector& lvlVec) override;
 
   /**
-   * Calculates the relative expected load of a given task compared to other 
-   * tasks. 
+   * Calculates the relative expected load of a given task compared to other
+   * tasks.
    *
    * @param lvlVec The level vector corresponding to the task.
    * @returns Relative value of expected load for the given task.

@@ -10,19 +10,19 @@
 #include <vector>
 
 #include <boost/serialization/export.hpp>
-#include "../include/discotec/combischeme/CombiMinMaxScheme.hpp"
-#include "../include/discotec/fault_tolerance/FaultCriterion.hpp"
-#include "../include/discotec/fault_tolerance/StaticFaults.hpp"
-#include "../include/discotec/fault_tolerance/WeibullFaults.hpp"
-#include "../include/discotec/fullgrid/FullGrid.hpp"
-#include "../include/discotec/loadmodel/LinearLoadModel.hpp"
-#include "../include/discotec/manager/CombiParameters.hpp"
-#include "../include/discotec/manager/ProcessGroupManager.hpp"
-#include "../include/discotec/manager/ProcessGroupWorker.hpp"
-#include "../include/discotec/manager/ProcessManager.hpp"
-#include "../include/discotec/Task.hpp"
-#include "../include/discotec/utils/Config.hpp"
-#include "../include/discotec/utils/Types.hpp"
+#include "discotec/combischeme/CombiMinMaxScheme.hpp"
+#include "discotec/fault_tolerance/FaultCriterion.hpp"
+#include "discotec/fault_tolerance/StaticFaults.hpp"
+#include "discotec/fault_tolerance/WeibullFaults.hpp"
+#include "discotec/fullgrid/FullGrid.hpp"
+#include "discotec/loadmodel/LinearLoadModel.hpp"
+#include "discotec/manager/CombiParameters.hpp"
+#include "discotec/manager/ProcessGroupManager.hpp"
+#include "discotec/manager/ProcessGroupWorker.hpp"
+#include "discotec/manager/ProcessManager.hpp"
+#include "discotec/Task.hpp"
+#include "discotec/utils/Config.hpp"
+#include "discotec/utils/Types.hpp"
 #include "test_helper.hpp"
 
 using namespace combigrid;
@@ -69,7 +69,7 @@ class TaskConst : public combigrid::Task {
   void run(CommunicatorType lcomm) {
 
     std::cout << "run " << getCommRank(lcomm) << std::endl;
-    
+
     auto elements = dfg_->getData();
     for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
       // BOOST_CHECK(abs(dfg_->getData()[li]));
@@ -78,7 +78,7 @@ class TaskConst : public combigrid::Task {
     BOOST_CHECK(dfg_);
 
     setFinished(true);
-    
+
     MPI_Barrier(lcomm);
     // std::cerr << "barrier" << std::endl;
   }
@@ -190,7 +190,7 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
       std::cout << "combine " << std::endl;
       manager.combine();
     }
-    
+
     // compare with known results:
     // point in the middle
     std::vector<std::vector<real>> midPoint = {{0.5, 0.5}};

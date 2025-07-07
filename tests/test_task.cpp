@@ -9,9 +9,9 @@
 #include <vector>
 
 #include <boost/serialization/export.hpp>
-#include "../include/discotec/loadmodel/LinearLoadModel.hpp"
-#include "../include/discotec/Task.hpp"
-#include "../include/discotec/utils/Config.hpp"
+#include "discotec/loadmodel/LinearLoadModel.hpp"
+#include "discotec/Task.hpp"
+#include "discotec/utils/Config.hpp"
 
 #include "test_helper.hpp"
 

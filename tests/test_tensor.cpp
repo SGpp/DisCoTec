@@ -1,8 +1,8 @@
 #define BOOST_TEST_DYN_LINK
 
-#include "../include/discotec/fullgrid/Tensor.hpp"
+#include "discotec/fullgrid/Tensor.hpp"
 #include "test_helper.hpp"
-#include "../include/discotec/utils/Types.hpp"
+#include "discotec/utils/Types.hpp"
 
 using namespace combigrid;
 
@@ -110,7 +110,7 @@ BOOST_AUTO_TEST_CASE(test_iterate_lower_boundaries_6d) {
         tensorLowestLayerIteratedIndex = nHigher * jump;  // local linear index
         for (IndexType nLower = 0; nLower < tensor.getOffsetsVector()[d];
              ++nLower && ++tensorLowestLayerIteratedIndex && ++numberOfPointsVisited) {
-          
+
           auto arrayIndex = tensor.getVectorIndex(tensorLowestLayerIteratedIndex);
           BOOST_CHECK_EQUAL(arrayIndex[d], 0);
         }

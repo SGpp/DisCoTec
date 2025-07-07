@@ -4,7 +4,7 @@
 #define BOOST_TEST_DYN_LINK
 
 #include <boost/serialization/export.hpp>
-#include "../include/discotec/Task.hpp"
+#include "discotec/Task.hpp"
 
 using namespace combigrid;
 
@@ -55,7 +55,7 @@ class TaskConst : public combigrid::Task {
     BOOST_CHECK(dfg_);
 
     setFinished(true);
-    
+
     MPI_Barrier(lcomm);
     BOOST_CHECK(true);
   }

@@ -12,18 +12,18 @@
 #include <vector>
 
 #include "TaskConstParaboloid.hpp"
-#include "combicom/CombiCom.hpp"
-#include "../include/discotec/combischeme/CombiMinMaxScheme.hpp"
-#include "../include/discotec/fullgrid/FullGrid.hpp"
-#include "../include/discotec/manager/CombiParameters.hpp"
-#include "../include/discotec/sparsegrid/DistributedSparseGridIO.hpp"
-#include "../include/discotec/sparsegrid/DistributedSparseGridUniform.hpp"
-#include "../include/discotec/sparsegrid/SGrid.hpp"
-#include "../include/discotec/utils/DecompositionUtils.hpp"
-#include "../include/discotec/utils/IndexVector.hpp"
-#include "../include/discotec/utils/LevelSetUtils.hpp"
-#include "../include/discotec/utils/MonteCarlo.hpp"
-#include "../include/discotec/utils/Types.hpp"
+#include "discotec/combicom/CombiCom.hpp"
+#include "discotec/combischeme/CombiMinMaxScheme.hpp"
+#include "discotec/fullgrid/FullGrid.hpp"
+#include "discotec/manager/CombiParameters.hpp"
+#include "discotec/sparsegrid/DistributedSparseGridIO.hpp"
+#include "discotec/sparsegrid/DistributedSparseGridUniform.hpp"
+#include "discotec/sparsegrid/SGrid.hpp"
+#include "discotec/utils/DecompositionUtils.hpp"
+#include "discotec/utils/IndexVector.hpp"
+#include "discotec/utils/LevelSetUtils.hpp"
+#include "discotec/utils/MonteCarlo.hpp"
+#include "discotec/utils/Types.hpp"
 #include "test_helper.hpp"
 
 using namespace combigrid;
@@ -234,7 +234,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     auto largeUniDFG = std::unique_ptr<OwningDistributedFullGrid<std::complex<double>>>(
         new OwningDistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true,
                                                       dfgDecomposition));
-    
+
     BOOST_TEST_CHECKPOINT("read from disk chunked");
     uniDSGfromSubspaces->setZero();
     DistributedSparseGridIO::readFromDiskChunked(*uniDSGfromSubspaces, "test_sg_");
@@ -644,7 +644,7 @@ BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel_large) {
   }
   BOOST_CHECK(std::is_sorted(downSet.begin(), downSet.end()));
   BOOST_CHECK(std::is_sorted(created.begin(), created.end()));
-  
+
   start = std::chrono::high_resolution_clock::now();
   auto downSetGenerator = HypercubeDownSetGenerator(lmax);
   auto previousFind = downSet.begin();

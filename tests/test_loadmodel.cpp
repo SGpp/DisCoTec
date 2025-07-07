@@ -6,11 +6,11 @@
 #include <random>
 #include <thread>
 
-#include "../include/discotec/loadmodel/AveragingLoadModel.hpp"
-#include "../include/discotec/manager/ProcessGroupSignals.hpp"
-#include "../include/discotec/mpi/MPISystem.hpp"
-#include "../include/discotec/mpi/MPIUtils.hpp"
-#include "../include/discotec/utils/Stats.hpp"
+#include "discotec/loadmodel/AveragingLoadModel.hpp"
+#include "discotec/manager/ProcessGroupSignals.hpp"
+#include "discotec/mpi/MPISystem.hpp"
+#include "discotec/mpi/MPIUtils.hpp"
+#include "discotec/utils/Stats.hpp"
 #include "test_helper.hpp"
 
 using namespace combigrid;
@@ -42,7 +42,7 @@ void testDataSave(int size) {
         // this assumes that the manager rank is the highest in globalComm
         MPIUtils::receiveClass(&recvbuf, i, theMPISystem()->getGlobalComm());
         if (LearningLoadModel* llm = dynamic_cast<LearningLoadModel*>(loadModel.get())) {
-          llm->addDurationInformation(recvbuf, lvv.at(recvbuf.task_id)); 
+          llm->addDurationInformation(recvbuf, lvv.at(recvbuf.task_id));
         }
       }
     }

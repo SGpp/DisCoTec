@@ -1,9 +1,9 @@
 #ifndef THIRDLEVELUTILSHPP_
 #define THIRDLEVELUTILSHPP_
 
-#include "../../../../../.cache/JetBrains/CLion2024.1/.remote/ipvs-epyc2_22/347dacd9-0950-4b02-b7f7-b2d9ba9d9d1d/usr/include/c++/9/stdlib.h"
-#include "../../../../../.cache/JetBrains/CLion2024.1/.remote/ipvs-epyc2_22/347dacd9-0950-4b02-b7f7-b2d9ba9d9d1d/usr/include/c++/9/ctime"
-#include "../../../../../.cache/JetBrains/CLion2024.1/.remote/ipvs-epyc2_22/347dacd9-0950-4b02-b7f7-b2d9ba9d9d1d/usr/include/c++/9/sstream"
+#include <stdlib.h>
+#include <ctime>
+#include <sstream>
 #include "../mpi/MPISystem.hpp"
 #include "NetworkUtils.hpp"
 #include "../fullgrid/FullGrid.hpp"

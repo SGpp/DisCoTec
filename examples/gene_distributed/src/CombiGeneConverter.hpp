@@ -9,9 +9,9 @@
 #define COMBIGENECONVERTER_HPP_
 
 #include "GeneGrid.hpp"
-#include "../../../include/discotec/fullgrid/FullGrid.hpp"
+#include "discotec/fullgrid/FullGrid.hpp"
 #include "boost/multi_array.hpp"
-#include "../../../include/discotec/utils/Types.hpp"
+#include "discotec/utils/Types.hpp"
 
 namespace combigrid {
 
