@@ -26,7 +26,7 @@ pipeline {
                 script {
                     buildbadge.setStatus('running')
                 }
-                withEnv(['SPACK_USER_CACHE_PATH=$TMP/spack/','SPACK_USER_CONFIG_PATH=$TMP/user_config','SPACK_SYSTEM_CONFIG_PATH=$TMP/sys_config']) {
+                withEnv(['SPACK_USER_CACHE_PATH=$TMP/$BUILD_TAG/user_cache/','SPACK_USER_CONFIG_PATH=$TMP/$BUILD_TAG/user_config/','SPACK_SYSTEM_CONFIG_PATH=$TMP/$BUILD_TAG/sys_config/']) {
                     retry(count: 2) {
                         dir('discotec-spack') {
                             sh '''
@@ -76,7 +76,7 @@ pipeline {
                 stages{
                     stage('build dependencies w/ spack') {
                         steps {
-                            withEnv(['SPACK_USER_CACHE_PATH=$TMP/spack/','SPACK_USER_CONFIG_PATH=$TMP/user_config','SPACK_SYSTEM_CONFIG_PATH=$TMP/sys_config']) {
+                            withEnv(['SPACK_USER_CACHE_PATH=$TMP/$BUILD_TAG/user_cache/','SPACK_USER_CONFIG_PATH=$TMP/$BUILD_TAG/user_config/','SPACK_SYSTEM_CONFIG_PATH=$TMP/$BUILD_TAG/sys_config/']) {
                                 retry(count: 2) {
                                     dir('discotec-spack/spack') {
                                         sh '''
@@ -152,7 +152,7 @@ pipeline {
                     }
                     stage('build DisCoTec') {
                         steps {
-                            withEnv(['SPACK_USER_CACHE_PATH=$TMP/spack/','SPACK_USER_CONFIG_PATH=$TMP/user_config','SPACK_SYSTEM_CONFIG_PATH=$TMP/sys_config']) {
+                            withEnv(['SPACK_USER_CACHE_PATH=$TMP/$BUILD_TAG/user_cache/','SPACK_USER_CONFIG_PATH=$TMP/$BUILD_TAG/user_config/','SPACK_SYSTEM_CONFIG_PATH=$TMP/$BUILD_TAG/sys_config/']) {
                                 retry(count: 2) {
                                     dir("DisCoTec-${compiler}-${mpiimpl}-${build_type}") {
                                         sh '''
