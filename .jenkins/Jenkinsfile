@@ -39,9 +39,9 @@ pipeline {
                                 rm -f ~/.spack/bootstrap/config/packages.yaml
                                 rm -f ~/.spack/linux/compilers.yaml 
                                 rm -f ~/.spack/packages.yaml
-                                rm -f ${SPACK_USER_CACHE_PATH}/*
-                                rm -f ${SPACK_USER_CONFIG_PATH}/*
-                                rm -f ${SPACK_SYSTEM_CONFIG_PATH}/*
+                                rm -rf ${SPACK_USER_CACHE_PATH}/*
+                                rm -rf ${SPACK_USER_CONFIG_PATH}/*
+                                rm -rf ${SPACK_SYSTEM_CONFIG_PATH}/*
                                 # clean build caches
                                 . ./share/spack/setup-env.sh
                                 spack clean -ab
