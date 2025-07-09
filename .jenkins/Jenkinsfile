@@ -26,7 +26,7 @@ pipeline {
                 script {
                     buildbadge.setStatus('running')
                 }
-                withEnv(['SPACK_USER_CACHE_PATH=$TMP/spack/','SPACK_DISABLE_LOCAL_CONFIG=true']) {
+                withEnv(['SPACK_USER_CACHE_PATH=$TMP/spack/','SPACK_USER_CONFIG_PATH=$TMP/user_config','SPACK_SYSTEM_CONFIG_PATH=$TMP/sys_config']) {
                     retry(count: 2) {
                         dir('discotec-spack') {
                             sh '''
@@ -39,6 +39,9 @@ pipeline {
                                 rm -f ~/.spack/bootstrap/config/packages.yaml
                                 rm -f ~/.spack/linux/compilers.yaml 
                                 rm -f ~/.spack/packages.yaml
+                                rm -f ${SPACK_USER_CACHE_PATH}/*
+                                rm -f ${SPACK_USER_CONFIG_PATH}/*
+                                rm -f ${SPACK_SYSTEM_CONFIG_PATH}/*
                                 # clean build caches
                                 . ./share/spack/setup-env.sh
                                 spack clean -ab
@@ -73,7 +76,7 @@ pipeline {
                 stages{
                     stage('build dependencies w/ spack') {
                         steps {
-                            withEnv(['SPACK_USER_CACHE_PATH=$TMP/spack/','SPACK_DISABLE_LOCAL_CONFIG=true']) {
+                            withEnv(['SPACK_USER_CACHE_PATH=$TMP/spack/','SPACK_USER_CONFIG_PATH=$TMP/user_config','SPACK_SYSTEM_CONFIG_PATH=$TMP/sys_config']) {
                                 retry(count: 2) {
                                     dir('discotec-spack/spack') {
                                         sh '''
@@ -149,7 +152,7 @@ pipeline {
                     }
                     stage('build DisCoTec') {
                         steps {
-                            withEnv(['SPACK_USER_CACHE_PATH=$TMP/spack/','SPACK_DISABLE_LOCAL_CONFIG=true']) {                             
+                            withEnv(['SPACK_USER_CACHE_PATH=$TMP/spack/','SPACK_USER_CONFIG_PATH=$TMP/user_config','SPACK_SYSTEM_CONFIG_PATH=$TMP/sys_config']) {
                                 retry(count: 2) {
                                     dir("DisCoTec-${compiler}-${mpiimpl}-${build_type}") {
                                         sh '''
