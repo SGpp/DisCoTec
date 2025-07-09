@@ -91,7 +91,7 @@ pipeline {
                                         # spack load zlib
                                         # following lines to fix "util-linux-uuid: Executing phase: 'autoreconf'"; "Error: RuntimeError: Cannot generate configure: missing dependencies: autoconf, automake, libtool."
                                         spack install autoconf automake libtool
-                                        spack load autoconf automake libtool
+                                        spack load --first autoconf automake libtool
                                         spack spec -y discotec@main -lto %${compiler} ^${mpiimpl} # +selalib # --only dependencies # actually build discotec, such that load command will work
                                         spack --debug install -y discotec@main -lto %${compiler} ^${mpiimpl} # +selalib # --only dependencies # actually build discotec, such that load command will work
                                         spack install -y lz4 %${compiler}
