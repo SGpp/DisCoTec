@@ -81,7 +81,8 @@ pipeline {
                                     dir('discotec-spack/spack') {
                                         sh '''
                                         . ./share/spack/setup-env.sh
-                                        spack external find --exclude curl # curl may be missing dev-libs which causes cmake install to fail
+                                        # to avoid spack searching everything in /usr (including /usr/nfs.local/ , which is slooow)
+                                        # spack external find --exclude curl # curl may be missing dev-libs which causes cmake install to fail
                                         spack compiler find  
                                         ## remove compilers with issues: https://github.com/mxe/mxe/issues/3082 (need to upgrade spack version if this not sufficient any more)
                                         # spack compiler remove -a gcc@14.2.0: || true # ignore if this compiler was not found
