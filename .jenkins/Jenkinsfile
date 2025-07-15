@@ -83,7 +83,9 @@ pipeline {
                                         . ./share/spack/setup-env.sh
                                         # to avoid spack searching everything in /usr (including /usr/nfs.local/ , which is slooow)
                                         # spack external find --exclude curl # curl may be missing dev-libs which causes cmake install to fail
-                                        spack compiler find  
+                                        # spack compiler find
+                                        cat ./etc/spack/linux/compilers.yaml
+                                        cat $SPACK_USER_CONFIG_PATH/linux/compilers.yaml
                                         ## remove compilers with issues: https://github.com/mxe/mxe/issues/3082 (need to upgrade spack version if this not sufficient any more)
                                         # spack compiler remove -a gcc@14.2.0: || true # ignore if this compiler was not found
                                         # cf. error w/ hdf5, during selalib build: The link interface of target "hdf5-static" contains: ZLIB::ZLIB but the target was not found.
