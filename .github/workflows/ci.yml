@@ -40,6 +40,7 @@ jobs:
           . ./spack/share/spack/setup-env.sh
           spack bootstrap now
           spack compiler find
+          spack external find --exclude curl,perl
           spack install ${{ matrix.compiler }}
           spack install autoconf 
           spack install automake 
