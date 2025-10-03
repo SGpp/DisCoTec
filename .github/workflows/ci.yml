@@ -24,9 +24,9 @@ jobs:
         compiler: [gcc]           # todo test clang/flang
         mpi:      [openmpi, mpich]
     env:
-      SPACK_USER_CACHE_PATH: /tmp/spack_user
-      SPACK_USER_CONFIG_PATH: /tmp/spack_user
-      SPACK_SYSTEM_CONFIG_PATH: /tmp/spack_sys
+      SPACK_USER_CACHE_PATH: $GITHUB_WORKSPACE/spack/user_cache
+      SPACK_USER_CONFIG_PATH: $GITHUB_WORKSPACE/spack/user_config
+      SPACK_SYSTEM_CONFIG_PATH: $GITHUB_WORKSPACE/spack/system_config
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -39,6 +39,8 @@ jobs:
         run: |
           . ./spack/share/spack/setup-env.sh
           spack bootstrap now
+          spack compiler find
+          spack install ${{ matrix.compiler }}
           spack install autoconf  %${{ matrix.compiler }}
           spack install automake  %${{ matrix.compiler }}
           spack install libtool   %${{ matrix.compiler }}
@@ -54,9 +56,9 @@ jobs:
         mpi:         [openmpi, mpich]
         build_type:  [Release, Debug]
     env:
-      SPACK_USER_CACHE_PATH: /tmp/spack_user
-      SPACK_USER_CONFIG_PATH: /tmp/spack_user
-      SPACK_SYSTEM_CONFIG_PATH: /tmp/spack_sys
+      SPACK_USER_CACHE_PATH: $GITHUB_WORKSPACE/spack/user_cache
+      SPACK_USER_CONFIG_PATH: $GITHUB_WORKSPACE/spack/user_config
+      SPACK_SYSTEM_CONFIG_PATH: $GITHUB_WORKSPACE/spack/system_config
     steps:
       - name: Checkout DisCoTec
         uses: actions/checkout@v4
