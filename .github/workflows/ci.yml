@@ -109,7 +109,6 @@ jobs:
           ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=reduce
           ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=rescheduling
           ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=task
-          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=integration
           ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=stats
           ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid
           ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_create* --log_level=message
@@ -117,5 +116,6 @@ jobs:
           ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_sparse* --log_level=message
           ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=worker
           ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=hierarchization --log_level=message
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=integration
           #${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=ftolerance # cf https://github.com/SGpp/DisCoTec/issues
           ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=thirdLevel/test_workers_only,test_workers_2d,test_8_workers  # file-based exchange needs to execute correctly
