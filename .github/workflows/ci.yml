@@ -94,21 +94,27 @@ jobs:
         run:  |
           . ../../spack/share/spack/setup-env.sh
           spack load --first ${{ matrix.mpi }}
+          if [ "${{ matrix.mpi }}" == "openmpi" ]; then
+            export MPI_RUN_COMMAND="mpiexec --map-by node:OVERSUBSCRIBE "
+          elif [ "${{ matrix.mpi }}" == "mpich" ]; then
+            export MPI_RUN_COMMAND="mpiexec "
+          fi
+          
           OMPI_ALLOW_RUN_AS_ROOT=1 \
-            mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=mpisystem         
-          mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=fullgrid
-          mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=hierarchization --log_level=message
-          mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=io
-          mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=loadmodel
-          mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=reduce
-          mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=rescheduling
-          mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=task
-          mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=integration
-          mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=stats
-          mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid
-          mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_create* --log_level=message
-          mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_write* --log_level=message
-          mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_sparse* --log_level=message
-          mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=worker
-          #mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=ftolerance # cf https://github.com/SGpp/DisCoTec/issues
-          mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=thirdLevel/test_workers_only,test_workers_2d,test_8_workers  # file-based exchange needs to execute correctly
+            ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=mpisystem         
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=fullgrid
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=hierarchization --log_level=message
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=io
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=loadmodel
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=reduce
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=rescheduling
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=task
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=integration
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=stats
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_create* --log_level=message
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_write* --log_level=message
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_sparse* --log_level=message
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=worker
+          #${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=ftolerance # cf https://github.com/SGpp/DisCoTec/issues
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=thirdLevel/test_workers_only,test_workers_2d,test_8_workers  # file-based exchange needs to execute correctly
