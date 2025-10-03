@@ -68,20 +68,15 @@ jobs:
         with:
           path: discotec
 
-      - name: Load Spack + dependencies
+      - name: Load dependencies + CMake Configure
+        working-directory: discotec
         run: |
-          ls -l
-          echo $(pwd)
-          . spack/share/spack/setup-env.sh
+          . ../spack/share/spack/setup-env.sh
           spack find
           spack load --first ${{ matrix.mpi }} # %${{ matrix.compiler }}
           spack load --first cmake # %${{ matrix.compiler }} 
           spack load --first boost # %${{ matrix.compiler }}
           spack load --first glpk highfive lz4
-
-      - name: CMake Configure
-        working-directory: discotec
-        run: |
           cmake -B build -S . \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DDISCOTEC_TEST=ON -DDISCOTEC_TIMING=ON \
@@ -97,6 +92,8 @@ jobs:
         working-directory: discotec/tests
         timeout-minutes: 360
         run:  |
+          . ../../spack/share/spack/setup-env.sh
+          spack load --first ${{ matrix.mpi }}
           OMPI_ALLOW_RUN_AS_ROOT=1 \
             mpiexec.${{ matrix.mpi }} -n 9 ./test_distributedcombigrid_boost --run_test=mpisystem         
           mpiexec.${{ matrix.mpi }} -n 9 ./test_distributedcombigrid_boost --run_test=fullgrid
