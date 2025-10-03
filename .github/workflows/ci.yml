@@ -1,0 +1,101 @@
+name: DisCoTec-github-CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+# ── global options (analogous to Jenkins logRotation & timeout)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  deps-matrix:
+    name: build-deps (${{ matrix.compiler }}, ${{ matrix.mpi }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [gcc]           # todo test clang/flang
+        mpi:      [openmpi, mpich]
+    env:
+      SPACK_USER_CACHE_PATH: /tmp/spack_user
+      SPACK_USER_CONFIG_PATH: /tmp/spack_user
+      SPACK_SYSTEM_CONFIG_PATH: /tmp/spack_sys
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          repository: spack/spack
+          ref:        v1.0.2
+          path:       spack
+
+      - name: Spack bootstrap & install
+        run: |
+          . ./spack/share/spack/setup-env.sh
+          spack bootstrap now
+          spack install autoconf  %${{ matrix.compiler }}
+          spack install automake  %${{ matrix.compiler }}
+          spack install libtool   %${{ matrix.compiler }}
+          spack install -y        discotec@main -lto %${{ matrix.compiler }} ^${{ matrix.mpi }}
+
+  build-test:
+    needs: deps-matrix
+    name: build-test (${{ matrix.compiler }}, ${{ matrix.mpi }}, ${{ matrix.build_type }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler:    [gcc]
+        mpi:         [openmpi, mpich]
+        build_type:  [Release, Debug]
+    env:
+      SPACK_USER_CACHE_PATH: /tmp/spack_user
+      SPACK_USER_CONFIG_PATH: /tmp/spack_user
+      SPACK_SYSTEM_CONFIG_PATH: /tmp/spack_sys
+    steps:
+      - name: Checkout DisCoTec
+        uses: actions/checkout@v4
+        with:
+          path: discotec
+
+      - name: Load Spack + dependencies
+        run: |
+          . spack/share/spack/setup-env.sh
+          spack load --first ${{ matrix.mpi }} %${{ matrix.compiler }}
+          spack load --first cmake %${{ matrix.compiler }} boost %${{ matrix.compiler }}
+          spack load --first glpk highfive ^${{ matrix.mpi }} lz4
+          echo "PATH=$PATH" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
+
+      - name: CMake Configure
+        working-directory: discotec
+        run: |
+          cmake -B build -S . \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DDISCOTEC_TEST=ON -DDISCOTEC_TIMING=ON \
+            -DDISCOTEC_ENABLEFT=OFF -DDISCOTEC_GENE=OFF \
+            -DDISCOTEC_USE_HIGHFIVE=ON -DDISCOTEC_OPENMP=ON \
+            -DDISCOTEC_USE_LTO=OFF -DDISCOTEC_WITH_COMPRESSION=ON
+
+      - name: Build
+        working-directory: discotec
+        run:  cmake --build build -j
+
+      - name: Unit tests
+        working-directory: discotec/tests
+        timeout-minutes: 360
+        run:  |
+          OMPI_ALLOW_RUN_AS_ROOT=1 \
+            mpiexec.${{ matrix.mpi }} -n 9 ./test_distributedcombigrid_boost --run_test=mpisystem         
+          mpiexec.${{ matrix.mpi }} -n 9 ./test_distributedcombigrid_boost --run_test=fullgrid
+          mpiexec.${{ matrix.mpi }} -n 9 ./test_distributedcombigrid_boost --run_test=hierarchization --log_level=message
+          mpiexec.${{ matrix.mpi }} -n 9 ./test_distributedcombigrid_boost --run_test=io
+          mpiexec.${{ matrix.mpi }} -n 9 ./test_distributedcombigrid_boost --run_test=loadmodel
+          mpiexec.${{ matrix.mpi }} -n 9 ./test_distributedcombigrid_boost --run_test=reduce
+          mpiexec.${{ matrix.mpi }} -n 9 ./test_distributedcombigrid_boost --run_test=rescheduling
+          mpiexec.${{ matrix.mpi }} -n 9 ./test_distributedcombigrid_boost --run_test=task
