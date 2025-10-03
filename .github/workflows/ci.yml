@@ -61,7 +61,7 @@ jobs:
           spack external find --exclude curl,perl
           spack mirror add --unsigned github-actions-buildcache oci://ghcr.io/spack/github-actions-buildcache
           spack install ${{ matrix.compiler }}
-          spack install --only dependencies -y discotec@main -lto %${{ matrix.compiler }} ^${{ matrix.mpi }}
+          spack install --only dependencies -y discotec@main -lto +compression %${{ matrix.compiler }} ^${{ matrix.mpi }}
 
       - name: Checkout DisCoTec
         uses: actions/checkout@v4
