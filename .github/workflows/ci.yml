@@ -17,7 +17,7 @@ defaults:
 
 jobs:
   test-matrix:
-    name: build-deps (${{ matrix.compiler }}, ${{ matrix.mpi }}, ${{ matrix.build_type }})
+    name: build-and-test (${{ matrix.compiler }}, ${{ matrix.mpi }}, ${{ matrix.build_type }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -38,11 +38,11 @@ jobs:
           elif [ "${{ matrix.compiler }}" == "clang" ]; then
             sudo apt-get install -y clang-20 flang-20
           fi
-          if [ "${{ matrix.mpi }}" == "openmpi" ]; then
-            sudo apt-get install -y libopenmpi-dev
-          elif [ "${{ matrix.mpi }}" == "mpich" ]; then
-            sudo apt-get install -y mpich
-          fi
+          # if [ "${{ matrix.mpi }}" == "openmpi" ]; then
+          #  sudo apt-get install -y libopenmpi-dev
+          # elif [ "${{ matrix.mpi }}" == "mpich" ]; then
+          #  sudo apt-get install -y mpich
+          # fi
       - name: Checkout spack
         uses: actions/checkout@v4
         with:
@@ -70,6 +70,7 @@ jobs:
           ls -l
           echo $(pwd)
           . spack/share/spack/setup-env.sh
+          spack find
           spack load --first ${{ matrix.mpi }} # %${{ matrix.compiler }}
           spack load --first cmake # %${{ matrix.compiler }} 
           spack load --first boost # %${{ matrix.compiler }}
