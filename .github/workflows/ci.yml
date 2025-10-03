@@ -23,6 +23,7 @@ jobs:
         compiler: [gcc]           # todo test clang/flang
         mpi:      [openmpi, mpich]
         build_type:  [Release, Debug]
+      fail-fast: false
     env:
       SPACK_USER_CACHE_PATH: spack/user_cache
       SPACK_USER_CONFIG_PATH: spack/user_config
