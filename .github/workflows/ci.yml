@@ -41,10 +41,10 @@ jobs:
           spack bootstrap now
           spack compiler find
           spack install ${{ matrix.compiler }}
-          spack install autoconf  %${{ matrix.compiler }}
-          spack install automake  %${{ matrix.compiler }}
-          spack install libtool   %${{ matrix.compiler }}
-          spack install -y        discotec@main -lto %${{ matrix.compiler }} ^${{ matrix.mpi }}
+          spack install autoconf 
+          spack install automake 
+          spack install libtool 
+          spack install --only dependencies -y discotec@main -lto %${{ matrix.compiler }} ^${{ matrix.mpi }}
 
   build-test:
     needs: deps-matrix
