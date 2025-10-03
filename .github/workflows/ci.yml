@@ -16,19 +16,29 @@ defaults:
     shell: bash
 
 jobs:
-  deps-matrix:
-    name: build-deps (${{ matrix.compiler }}, ${{ matrix.mpi }})
+  test-matrix:
+    name: build-deps (${{ matrix.compiler }}, ${{ matrix.mpi }}, ${{ matrix.build_type }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
         compiler: [gcc]           # todo test clang/flang
         mpi:      [openmpi, mpich]
+        build_type:  [Release, Debug]
     env:
       SPACK_USER_CACHE_PATH: spack/user_cache
       SPACK_USER_CONFIG_PATH: spack/user_config
       SPACK_SYSTEM_CONFIG_PATH: spack/system_config
     steps:
-      - name: Checkout sources
+      - name: update system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake libboost-all-dev libhdf5-dev liblz4-dev
+          if [ "${{ matrix.compiler }}" == "gcc" ]; then
+            sudo apt-get install -y gcc
+          elif [ "${{ matrix.compiler }}" == "clang" ]; then
+            sudo apt-get install -y clang-20 flang-20
+          fi
+      - name: Checkout spack
         uses: actions/checkout@v4
         with:
           repository: spack/spack
@@ -45,20 +55,6 @@ jobs:
           spack install ${{ matrix.compiler }}
           spack install --only dependencies -y discotec@main -lto %${{ matrix.compiler }} ^${{ matrix.mpi }}
 
-  build-test:
-    needs: deps-matrix
-    name: build-test (${{ matrix.compiler }}, ${{ matrix.mpi }}, ${{ matrix.build_type }})
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        compiler:    [gcc]
-        mpi:         [openmpi, mpich]
-        build_type:  [Release, Debug]
-    env:
-      SPACK_USER_CACHE_PATH: spack/user_cache
-      SPACK_USER_CONFIG_PATH: spack/user_config
-      SPACK_SYSTEM_CONFIG_PATH: spack/system_config
-    steps:
       - name: Checkout DisCoTec
         uses: actions/checkout@v4
         with:
