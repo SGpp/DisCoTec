@@ -70,11 +70,10 @@ jobs:
           ls -l
           echo $(pwd)
           . spack/share/spack/setup-env.sh
-          spack load --first ${{ matrix.mpi }} %${{ matrix.compiler }}
-          spack load --first cmake %${{ matrix.compiler }} boost %${{ matrix.compiler }}
-          spack load --first glpk highfive ^${{ matrix.mpi }} lz4
-          echo "PATH=$PATH" >> $GITHUB_ENV
-          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          spack load --first ${{ matrix.mpi }} # %${{ matrix.compiler }}
+          spack load --first cmake # %${{ matrix.compiler }} 
+          spack load --first boost # %${{ matrix.compiler }}
+          spack load --first glpk highfive lz4
 
       - name: CMake Configure
         working-directory: discotec
