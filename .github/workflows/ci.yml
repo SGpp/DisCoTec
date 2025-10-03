@@ -95,7 +95,7 @@ jobs:
           . ../../spack/share/spack/setup-env.sh
           spack load --first ${{ matrix.mpi }}
           OMPI_ALLOW_RUN_AS_ROOT=1 \
-            mpiexec.${{ matrix.mpi }} -n 9 ./test_distributedcombigrid_boost --run_test=mpisystem         
+            mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=mpisystem         
           mpiexec.${{ matrix.mpi }} -n 9 ./test_distributedcombigrid_boost --run_test=fullgrid
           mpiexec.${{ matrix.mpi }} -n 9 ./test_distributedcombigrid_boost --run_test=hierarchization --log_level=message
           mpiexec.${{ matrix.mpi }} -n 9 ./test_distributedcombigrid_boost --run_test=io
