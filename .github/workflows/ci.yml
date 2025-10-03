@@ -41,10 +41,8 @@ jobs:
           spack bootstrap now
           spack compiler find
           spack external find --exclude curl,perl
+          spack mirror add --unsigned github-actions-buildcache oci://ghcr.io/spack/github-actions-buildcache
           spack install ${{ matrix.compiler }}
-          spack install autoconf 
-          spack install automake 
-          spack install libtool 
           spack install --only dependencies -y discotec@main -lto %${{ matrix.compiler }} ^${{ matrix.mpi }}
 
   build-test:
