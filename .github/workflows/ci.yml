@@ -38,6 +38,11 @@ jobs:
           elif [ "${{ matrix.compiler }}" == "clang" ]; then
             sudo apt-get install -y clang-20 flang-20
           fi
+          if [ "${{ matrix.mpi }}" == "openmpi" ]; then
+            sudo apt-get install -y libopenmpi-dev
+          elif [ "${{ matrix.mpi }}" == "mpich" ]; then
+            sudo apt-get install -y mpich
+          fi
       - name: Checkout spack
         uses: actions/checkout@v4
         with:
