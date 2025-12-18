@@ -60,6 +60,7 @@ jobs:
           spack compiler find
           spack external find --exclude curl,perl
           spack mirror add --unsigned github-actions-buildcache oci://ghcr.io/spack/github-actions-buildcache
+          spack config add "packages:cmake:buildable:false"
           spack install ${{ matrix.compiler }}
           spack install --only dependencies -y discotec@main -lto +compression %${{ matrix.compiler }} ^${{ matrix.mpi }}
 
