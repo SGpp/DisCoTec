@@ -437,8 +437,8 @@ BOOST_AUTO_TEST_CASE(test_7) {
 
 // 6D anisotropic but regular
 BOOST_AUTO_TEST_CASE(test_8) {
-  LevelVector lmin = {2, 1, 4, 1, 3, 1};
-  LevelVector lmax = {4, 3, 6, 3, 5, 3};
+  LevelVector lmin = {2, 1, 3, 1, 2, 1};
+  LevelVector lmax = {4, 3, 5, 3, 4, 3};
   for (int procOne : {1, 3}) {
     for (int procTwo : {1, 2}) {
       for (BoundaryType bValue : std::vector<BoundaryType>({0, 1, 2})) {
