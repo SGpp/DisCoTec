@@ -47,12 +47,12 @@ jobs:
             sudo apt-get install -y mpich libmpich-dev
           fi
       - name: Checkout spack
-        uses: actions/checkout@v4
+        uses: spack/setup-spack@5ab3c91bdefffffad9a7e45d1d156146afebb3a7
         with:
-          repository: spack/spack
-          ref:        v1.0.2
-          path:       spack
-
+          ref: v1.1.0
+          buildcache: true
+          color: true
+          path: spack
       - name: Spack bootstrap & install
         run: |
           . ./spack/share/spack/setup-env.sh
@@ -67,7 +67,7 @@ jobs:
           spack install --only dependencies -y discotec@main -lto +compression %${{ matrix.compiler }} ^${{ matrix.mpi }}
 
       - name: Checkout DisCoTec
-        uses: actions/checkout@v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
           path: discotec
 
