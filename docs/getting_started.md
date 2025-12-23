@@ -69,7 +69,7 @@ Additional (optional) dependencies:
 - HDF5
 - HighFive
 - lz4
-- glpk (used version bundled in the DisCoTec repo)
+- glpk
 - vtk
 
 You can also install the dependencies with Spack, and `spack load`

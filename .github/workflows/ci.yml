@@ -1,0 +1,124 @@
+name: DisCoTec-github-CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+# ── global options (analogous to Jenkins logRotation & timeout)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test-matrix:
+    name: build-and-test (${{ matrix.compiler }}, ${{ matrix.mpi }}, ${{ matrix.build_type }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [gcc]           # todo test clang/flang
+        mpi:      [openmpi, mpich]
+        build_type:  [Release, Debug]
+      fail-fast: false
+    env:
+      SPACK_USER_CACHE_PATH: spack/user_cache
+      SPACK_USER_CONFIG_PATH: spack/user_config
+      SPACK_SYSTEM_CONFIG_PATH: spack/system_config
+    steps:
+      - name: update system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake # libhdf5-dev \
+            # liblz4-dev libboost-test-dev libboost-serialization-dev \
+            # libboost-filesystem-dev libboost-system-dev \
+            # libboost-program-options-dev libboost-date-time-dev
+          if [ "${{ matrix.compiler }}" == "gcc" ]; then
+            sudo apt-get install -y gcc
+          elif [ "${{ matrix.compiler }}" == "clang" ]; then
+            sudo apt-get install -y clang-20 flang-20
+          fi
+          if [ "${{ matrix.mpi }}" == "openmpi" ]; then
+            sudo apt-get install -y openmpi-bin openmpi-common libopenmpi-dev
+          elif [ "${{ matrix.mpi }}" == "mpich" ]; then
+            sudo apt-get install -y mpich libmpich-dev
+          fi
+      - name: Checkout spack
+        uses: spack/setup-spack@5ab3c91bdefffffad9a7e45d1d156146afebb3a7
+        with:
+          ref: v1.1.0
+          buildcache: true
+          color: true
+          path: spack
+      - name: Spack bootstrap & install
+        run: |
+          . ./spack/share/spack/setup-env.sh
+          spack bootstrap now
+          spack compiler find
+          spack external find --exclude curl,perl
+          # spack mirror add --unsigned github-actions-buildcache oci://ghcr.io/spack/github-actions-buildcache
+          spack config add "packages:cmake:buildable:false"
+          spack config add "packages:mpich:buildable:false"
+          spack config add "packages:openmpi:buildable:false"
+          spack install ${{ matrix.compiler }}
+          spack install --only dependencies -y discotec@main -lto +compression %${{ matrix.compiler }} ^${{ matrix.mpi }}
+
+      - name: Checkout DisCoTec
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          path: discotec
+
+      - name: Load dependencies + CMake Configure
+        working-directory: discotec
+        run: |
+          . ../spack/share/spack/setup-env.sh
+          spack find
+          spack load --first ${{ matrix.mpi }} # %${{ matrix.compiler }}
+          spack load --first cmake # %${{ matrix.compiler }} 
+          spack load --first boost # %${{ matrix.compiler }}
+          spack load --first glpk highfive lz4
+          cmake -B build -S . \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DDISCOTEC_TEST=ON -DDISCOTEC_TIMING=ON \
+            -DDISCOTEC_ENABLEFT=OFF -DDISCOTEC_GENE=OFF \
+            -DDISCOTEC_USE_HIGHFIVE=ON -DDISCOTEC_OPENMP=ON \
+            -DDISCOTEC_USE_LTO=OFF -DDISCOTEC_WITH_COMPRESSION=ON
+
+      - name: Build
+        working-directory: discotec
+        run:  cmake --build build -j
+
+      - name: Unit tests
+        working-directory: discotec/tests
+        timeout-minutes: 360
+        run:  |
+          . ../../spack/share/spack/setup-env.sh
+          spack load --first ${{ matrix.mpi }}
+          if [ "${{ matrix.mpi }}" == "openmpi" ]; then
+            export MPI_RUN_COMMAND="mpiexec --map-by node:OVERSUBSCRIBE "
+          elif [ "${{ matrix.mpi }}" == "mpich" ]; then
+            export MPI_RUN_COMMAND="mpiexec "
+          fi
+
+          set -x # echo commands that are executed
+          OMPI_ALLOW_RUN_AS_ROOT=1 \
+            ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=mpisystem         
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=fullgrid
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=io
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=loadmodel
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=reduce
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=rescheduling
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=task
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=stats
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=worker
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=hierarchization --log_level=message
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=integration
+          #${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=ftolerance # cf https://github.com/SGpp/DisCoTec/issues
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=thirdLevel/test_workers_only,test_workers_2d,test_8_workers  # file-based exchange needs to execute correctly
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_create* --log_level=message
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_write* --log_level=message
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_sparse* --log_level=message
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid
