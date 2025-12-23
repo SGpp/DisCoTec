@@ -59,7 +59,7 @@ jobs:
           spack bootstrap now
           spack compiler find
           spack external find --exclude curl,perl
-          spack mirror add --unsigned github-actions-buildcache oci://ghcr.io/spack/github-actions-buildcache
+          # spack mirror add --unsigned github-actions-buildcache oci://ghcr.io/spack/github-actions-buildcache
           spack config add "packages:cmake:buildable:false"
           spack config add "packages:mpich:buildable:false"
           spack config add "packages:openmpi:buildable:false"
