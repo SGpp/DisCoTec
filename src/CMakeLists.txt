@@ -85,7 +85,6 @@ target_compile_options(discotec PUBLIC $<$<CXX_COMPILER_ID:Intel>:-fp-model=prec
 # Defining options
 include(CMakeDependentOption)
 
-option(DISCOTEC_BUILD_MISSING_DEPS "Automatic fetch and build first layer of missing dependencies" ON)
 option(DISCOTEC_TIMING "Build with high-resolution timing" ON)
 if (DISCOTEC_TIMING)
     target_compile_definitions(discotec PUBLIC TIMING)
@@ -134,6 +133,15 @@ if(DISCOTEC_WITH_COMPRESSION)
     endif()
     target_link_libraries(discotec PUBLIC ${LZ4_LIBRARIES})
     target_compile_definitions(discotec PUBLIC DISCOTEC_USE_LZ4)
+endif()
+option(DISCOTEC_USE_PALIWA "Use paliwa library for lifting transforms" OFF) # use with `spack load paliwa` and `discotec@main +paliwa`
+if(DISCOTEC_USE_PALIWA)
+    find_package(Paliwa REQUIRED)
+    find_package(DDC REQUIRED QUIET)
+    find_package(Kokkos REQUIRED COMPONENTS CXX)
+    target_include_directories(discotec PUBLIC ${PALIWA_INCLUDE_DIRS})
+    target_link_libraries(discotec PUBLIC paliwa::core)
+    target_compile_definitions(discotec PUBLIC DISCOTEC_USE_PALIWA)
 endif()
 
 set(DISCOTEC_COMPILE_ARCH "native" CACHE STRING "Microarchitecture to compile for (-march)")

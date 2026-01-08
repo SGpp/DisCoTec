@@ -104,12 +104,11 @@ source folder.
 #### Optional CMake Options
 
 - `DISCOTEC_TEST=**ON**|OFF` - Build tests if you build the complete project.
-- `DISCOTEC_BUILD_MISSING_DEPS=**ON**|OFF`- First order dependencies that are
-  not found are built automatically (glpk is always built).
 - `DISCOTEC_TIMING=**ON**|OFF` - Enables internal timing
 - `DISCOTEC_USE_HDF5=**ON**|OFF`
 - `DISCOTEC_USE_HIGHFIVE=**ON**|OFF` - Enables HDF5 support via HighFive. If
   `DISCOTEC_USE_HIGHFIVE=ON`, `DISCOTEC_USE_HDF5` has also to be `ON`.
+- `DISCOTEC_USE_PALIWA=OFF` - Use paliwa library
 - `DISCOTEC_UNIFORMDECOMPOSITION=**ON **|OFF` - Enables the uniform
   decomposition of the grid.
 - `DISCOTEC_GENE=ON|**OFF**` - Currently GEne is not supported with CMake!
