@@ -7,7 +7,63 @@
 #include "utils/PowerOfTwo.hpp"
 #include "utils/Stats.hpp"
 
+#ifdef DISCOTEC_USE_PALIWA
+#include <variant>
+
+#include "paliwa/paliwa_dimensions.hpp"
+#include "paliwa/paliwa_domains.hpp"
+#include "paliwa/paliwa_transform.hpp"
+#include "paliwa/paliwa_wavelets.hpp"
+#include <ddc/ddc.hpp>
+#endif // DISCOTEC_USE_PALIWA
+
 namespace combigrid {
+
+#ifdef DISCOTEC_USE_PALIWA  
+// discotec: dimension at runtime <-> ddc dimension at compile time
+// define variant types around fixed dimensions
+using DDCLevel = std::variant<std::array<long int, 0>, std::array<long int, 1>, std::array<long int, 2>, std::array<long int, 3>,
+                              std::array<long int, 4>, std::array<long int, 5>, std::array<long int, 6>>;
+using DDCDomain =
+    std::variant<ddc::StridedDiscreteDomain<>, ddc::StridedDiscreteDomain<paliwa::DDimA>, ddc::StridedDiscreteDomain<paliwa::DDimB, paliwa::DDimC>, ddc::StridedDiscreteDomain<paliwa::DDimD, paliwa::DDimE, paliwa::DDimF>,
+                  ddc::StridedDiscreteDomain<paliwa::DDimG, paliwa::DDimH, paliwa::DDimI, paliwa::DDimJ>,
+                  ddc::StridedDiscreteDomain<paliwa::DDimK, paliwa::DDimL, paliwa::DDimM, paliwa::DDimN, paliwa::DDimO>,
+                  ddc::StridedDiscreteDomain<paliwa::DDimP, paliwa::DDimQ, paliwa::DDimR, paliwa::DDimS, paliwa::DDimT, paliwa::DDimU>>;
+
+
+template <typename FG_ELEMENT>
+DDCDomain dfgToDDCDomain(const DistributedFullGrid<FG_ELEMENT>& dfg) {
+  DDCDomain ddc_domain;
+  DimType dim = dfg.getDimension();
+  const LevelVector& level = dfg.getLevels();
+  DDCLevel ddc_level;
+  std::visit([&level] (auto& lvl_array) {
+      std::copy(std::begin(level), std::end(level), std::begin(lvl_array));
+  }, ddc_level);
+  if (dim == 1) {
+    auto ddc_level_ = std::get<1>(ddc_level);
+    ddc_domain = paliwa::strided_domain_from_level<paliwa::DDimA>(ddc_level_, ddc_level_);
+  } else if (dim == 2) {
+    auto ddc_level_ = std::get<2>(ddc_level);
+    ddc_domain = paliwa::strided_domain_from_level<paliwa::DDimB, paliwa::DDimC>(ddc_level_, ddc_level_);
+  } else if (dim == 3) {
+    auto ddc_level_ = std::get<3>(ddc_level);
+    ddc_domain = paliwa::strided_domain_from_level<paliwa::DDimD, paliwa::DDimE, paliwa::DDimF>(ddc_level_, ddc_level_);
+  } else if (dim == 4) {
+    auto ddc_level_ = std::get<4>(ddc_level);
+    ddc_domain = paliwa::strided_domain_from_level<paliwa::DDimG, paliwa::DDimH, paliwa::DDimI, paliwa::DDimJ>(ddc_level_, ddc_level_);
+  } else if (dim == 5) {
+    auto ddc_level_ = std::get<5>(ddc_level);
+    ddc_domain = paliwa::strided_domain_from_level<paliwa::DDimK, paliwa::DDimL, paliwa::DDimM, paliwa::DDimN, paliwa::DDimO>(ddc_level_, ddc_level_);
+  } else if (dim == 6) {
+    auto ddc_level_ = std::get<6>(ddc_level);
+    ddc_domain = paliwa::strided_domain_from_level<paliwa::DDimP, paliwa::DDimQ, paliwa::DDimR, paliwa::DDimS, paliwa::DDimT, paliwa::DDimU>(ddc_level_, ddc_level_);
+  } else {
+    throw std::runtime_error("dfgToDDCDomain: dimension not supported");
+  }  
+  return ddc_domain;
+}
+#endif // DISCOTEC_USE_PALIWA
 
 /* The RemoteDataSlice is meant to store a (d-1)-dimensional block of a
  * d-dimensional DistributedFullGrid. The RemoteDataSlice is d-dimensional,
