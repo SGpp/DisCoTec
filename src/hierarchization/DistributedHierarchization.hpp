@@ -24,44 +24,97 @@ namespace combigrid {
 // define variant types around fixed dimensions
 using DDCLevel = std::variant<std::array<long int, 0>, std::array<long int, 1>, std::array<long int, 2>, std::array<long int, 3>,
                               std::array<long int, 4>, std::array<long int, 5>, std::array<long int, 6>>;
-using DDCDomain =
-    std::variant<ddc::StridedDiscreteDomain<>, ddc::StridedDiscreteDomain<paliwa::DDimA>, ddc::StridedDiscreteDomain<paliwa::DDimB, paliwa::DDimC>, ddc::StridedDiscreteDomain<paliwa::DDimD, paliwa::DDimE, paliwa::DDimF>,
-                  ddc::StridedDiscreteDomain<paliwa::DDimG, paliwa::DDimH, paliwa::DDimI, paliwa::DDimJ>,
-                  ddc::StridedDiscreteDomain<paliwa::DDimK, paliwa::DDimL, paliwa::DDimM, paliwa::DDimN, paliwa::DDimO>,
-                  ddc::StridedDiscreteDomain<paliwa::DDimP, paliwa::DDimQ, paliwa::DDimR, paliwa::DDimS, paliwa::DDimT, paliwa::DDimU>>;
+using DDCVector = std::variant<ddc::DiscreteVector<>,
+                               ddc::DiscreteVector<paliwa::DDimA>,
+                               ddc::DiscreteVector<paliwa::DDimB, paliwa::DDimC>,
+                               ddc::DiscreteVector<paliwa::DDimD, paliwa::DDimE, paliwa::DDimF>,
+                               ddc::DiscreteVector<paliwa::DDimG, paliwa::DDimH, paliwa::DDimI, paliwa::DDimJ>,
+                               ddc::DiscreteVector<paliwa::DDimK, paliwa::DDimL, paliwa::DDimM, paliwa::DDimN, paliwa::DDimO>,
+                               ddc::DiscreteVector<paliwa::DDimP, paliwa::DDimQ, paliwa::DDimR, paliwa::DDimS, paliwa::DDimT, paliwa::DDimU>>;
+using DDCDomain = std::variant<ddc::StridedDiscreteDomain<>,
+                               ddc::StridedDiscreteDomain<paliwa::DDimA>,
+                               ddc::StridedDiscreteDomain<paliwa::DDimB, paliwa::DDimC>,
+                               ddc::StridedDiscreteDomain<paliwa::DDimD, paliwa::DDimE, paliwa::DDimF>,
+                               ddc::StridedDiscreteDomain<paliwa::DDimG, paliwa::DDimH, paliwa::DDimI, paliwa::DDimJ>,
+                               ddc::StridedDiscreteDomain<paliwa::DDimK, paliwa::DDimL, paliwa::DDimM, paliwa::DDimN, paliwa::DDimO>,
+                               ddc::StridedDiscreteDomain<paliwa::DDimP, paliwa::DDimQ, paliwa::DDimR, paliwa::DDimS, paliwa::DDimT, paliwa::DDimU>>;
+template <typename FG_ELEMENT>
+using DDCChunkSpan = std::variant<ddc::ChunkSpan<FG_ELEMENT, std::variant_alternative_t<0, DDCDomain>>,
+                                  ddc::ChunkSpan<FG_ELEMENT, std::variant_alternative_t<1, DDCDomain>>,
+                                  ddc::ChunkSpan<FG_ELEMENT, std::variant_alternative_t<2, DDCDomain>>,
+                                  ddc::ChunkSpan<FG_ELEMENT, std::variant_alternative_t<3, DDCDomain>>,
+                                  ddc::ChunkSpan<FG_ELEMENT, std::variant_alternative_t<4, DDCDomain>>,
+                                  ddc::ChunkSpan<FG_ELEMENT, std::variant_alternative_t<5, DDCDomain>>,
+                                  ddc::ChunkSpan<FG_ELEMENT, std::variant_alternative_t<6, DDCDomain>>>;
+
+template <typename T>
+DDCVector stdVectorToDDCVector(const std::vector<T>& v) {
+  auto vector_size = std::size(v);
+  if (vector_size == 0) {
+    return std::variant_alternative_t<0, DDCVector>{};
+  } else if (vector_size == 1) {
+    return std::variant_alternative_t<1, DDCVector>{v[0]};
+  } else if (vector_size == 2) {
+    return std::variant_alternative_t<2, DDCVector>{v[0], v[1]};
+  } else if (vector_size == 3) {
+    return std::variant_alternative_t<3, DDCVector>{v[0], v[1], v[2]};
+  } else if (vector_size == 4) {
+    return std::variant_alternative_t<4, DDCVector>{v[0], v[1], v[2], v[3]};
+  } else if (vector_size == 5) {
+    return std::variant_alternative_t<5, DDCVector>{v[0], v[1], v[2], v[3], v[4]};
+  } else if (vector_size == 6) {
+    return std::variant_alternative_t<6, DDCVector>{v[0], v[1], v[2], v[3], v[4], v[5]};
+  } else {
+    throw std::runtime_error("stdVectorToDDCVector: dimension not supported");
+  }
+}
 
 
 template <typename FG_ELEMENT>
-DDCDomain dfgToDDCDomain(const DistributedFullGrid<FG_ELEMENT>& dfg) {
+DDCDomain dfgToDDCDomain(const DistributedFullGrid<FG_ELEMENT>& dfg, const LevelVector& maxLevel) {
   DDCDomain ddc_domain;
   DimType dim = dfg.getDimension();
   const LevelVector& level = dfg.getLevels();
-  DDCLevel ddc_level;
-  std::visit([&level] (auto& lvl_array) {
-      std::copy(std::begin(level), std::end(level), std::begin(lvl_array));
-  }, ddc_level);
   if (dim == 1) {
-    auto ddc_level_ = std::get<1>(ddc_level);
-    ddc_domain = paliwa::strided_domain_from_level<paliwa::DDimA>(ddc_level_, ddc_level_);
+    std::array<long int, 1> ddc_level = {level[0]};
+    std::array<long int, 1> ddc_max_level = {maxLevel[0]};
+    ddc_domain = paliwa::strided_domain_from_level<paliwa::DDimA>(ddc_level, ddc_max_level);
   } else if (dim == 2) {
-    auto ddc_level_ = std::get<2>(ddc_level);
-    ddc_domain = paliwa::strided_domain_from_level<paliwa::DDimB, paliwa::DDimC>(ddc_level_, ddc_level_);
+    std::array<long int, 2> ddc_level = {level[0], level[1]};
+    std::array<long int, 2> ddc_max_level = {maxLevel[0], maxLevel[1]};
+    ddc_domain = paliwa::strided_domain_from_level<paliwa::DDimB, paliwa::DDimC>(ddc_level, ddc_max_level);
   } else if (dim == 3) {
-    auto ddc_level_ = std::get<3>(ddc_level);
-    ddc_domain = paliwa::strided_domain_from_level<paliwa::DDimD, paliwa::DDimE, paliwa::DDimF>(ddc_level_, ddc_level_);
+    std::array<long int, 3> ddc_level = {level[0], level[1], level[2]};
+    std::array<long int, 3> ddc_max_level = {maxLevel[0], maxLevel[1], maxLevel[2]};
+    ddc_domain = paliwa::strided_domain_from_level<paliwa::DDimD, paliwa::DDimE, paliwa::DDimF>(ddc_level, ddc_max_level);
   } else if (dim == 4) {
-    auto ddc_level_ = std::get<4>(ddc_level);
-    ddc_domain = paliwa::strided_domain_from_level<paliwa::DDimG, paliwa::DDimH, paliwa::DDimI, paliwa::DDimJ>(ddc_level_, ddc_level_);
+    std::array<long int, 4> ddc_level = {level[0], level[1], level[2], level[3]};
+    std::array<long int, 4> ddc_max_level = {maxLevel[0], maxLevel[1], maxLevel[2], maxLevel[3]};
+    ddc_domain = paliwa::strided_domain_from_level<paliwa::DDimG, paliwa::DDimH, paliwa::DDimI, paliwa::DDimJ>(ddc_level, ddc_max_level);
   } else if (dim == 5) {
-    auto ddc_level_ = std::get<5>(ddc_level);
-    ddc_domain = paliwa::strided_domain_from_level<paliwa::DDimK, paliwa::DDimL, paliwa::DDimM, paliwa::DDimN, paliwa::DDimO>(ddc_level_, ddc_level_);
+    std::array<long int, 5> ddc_level = {level[0], level[1], level[2], level[3], level[4]};
+    std::array<long int, 5> ddc_max_level = {maxLevel[0], maxLevel[1], maxLevel[2], maxLevel[3], maxLevel[4]};
+    ddc_domain = paliwa::strided_domain_from_level<paliwa::DDimK, paliwa::DDimL, paliwa::DDimM, paliwa::DDimN, paliwa::DDimO>(ddc_level, ddc_max_level);
   } else if (dim == 6) {
-    auto ddc_level_ = std::get<6>(ddc_level);
-    ddc_domain = paliwa::strided_domain_from_level<paliwa::DDimP, paliwa::DDimQ, paliwa::DDimR, paliwa::DDimS, paliwa::DDimT, paliwa::DDimU>(ddc_level_, ddc_level_);
+    std::array<long int, 6> ddc_level = {level[0], level[1], level[2], level[3], level[4], level[5]};
+    std::array<long int, 6> ddc_max_level = {maxLevel[0], maxLevel[1], maxLevel[2], maxLevel[3], maxLevel[4], maxLevel[5]};
+    ddc_domain = paliwa::strided_domain_from_level<paliwa::DDimP, paliwa::DDimQ, paliwa::DDimR, paliwa::DDimS, paliwa::DDimT, paliwa::DDimU>(ddc_level, ddc_max_level);
   } else {
     throw std::runtime_error("dfgToDDCDomain: dimension not supported");
   }  
   return ddc_domain;
+}
+
+constexpr std::string paliwaWaveletName(BasisFunctionBasis* hierarchicalBasis) {
+  if (dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBasis)) {
+    return "hat";
+  } else if (dynamic_cast<BiorthogonalPeriodicBasisFunction*>(hierarchicalBasis)) {
+    return "biorthogonal";
+  } else if (dynamic_cast<FullWeightingPeriodicBasisFunction*>(hierarchicalBasis)) {
+    return "fullweighting";
+  } else {
+    throw std::runtime_error("paliwaWaveletName: basis function not supported");
+  }
 }
 #endif // DISCOTEC_USE_PALIWA
 
