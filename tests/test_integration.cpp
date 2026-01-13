@@ -2,6 +2,7 @@
 // to resolve https://github.com/open-mpi/ompi/issues/5157
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
+#include <stdlib.h>
 
 #include <boost/serialization/export.hpp>
 #include <boost/test/unit_test.hpp>
@@ -18,11 +19,10 @@
 #include "manager/ProcessManager.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 #include "task/Task.hpp"
+#include "test_helper.hpp"
 #include "utils/Config.hpp"
 #include "utils/MonteCarlo.hpp"
 #include "utils/Types.hpp"
-#include "stdlib.h"
-#include "test_helper.hpp"
 
 using namespace combigrid;
 
@@ -92,6 +92,15 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
 
   BOOST_CHECK_EQUAL(theMPISystem()->getWorldSize(), size);
   BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getWorldComm()), size);
+
+#ifdef DISCOTEC_USE_PALIWA
+  if (boundaryV != 1) {
+    BOOST_TEST_MESSAGE(
+        "Skipping integration test since paliwa is enabled and only periodic boundary is "
+        "supported");
+    return;
+  }
+#endif
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     // make sure the manager's ranks are set right
@@ -310,7 +319,9 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
     }
     BOOST_CHECK_EQUAL(nrun, ncombi);
     BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getLocalComm()));
-    MASTER_EXCLUSIVE_SECTION { BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalComm())); }
+    MASTER_EXCLUSIVE_SECTION {
+      BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalComm()));
+    }
   }
 
   combigrid::Stats::finalize();
@@ -404,7 +415,9 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
       BOOST_TEST(dynamic_cast<T*>(b) != nullptr);
     }
     BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getLocalComm()));
-    MASTER_EXCLUSIVE_SECTION { BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalComm())); }
+    MASTER_EXCLUSIVE_SECTION {
+      BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalComm()));
+    }
   }
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
@@ -413,7 +426,7 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
 
 #ifndef ISGENE  // integration tests won't work with ISGENE because of worker magic
 
-#ifndef NDEBUG // in case of a build with asserts, have longer timeout
+#ifndef NDEBUG  // in case of a build with asserts, have longer timeout
 BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(580))
 #else
 BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(480))
@@ -472,15 +485,17 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
                                                              << " milliseconds");
 }
 
+#ifndef DISCOTEC_USE_PALIWA
 BOOST_AUTO_TEST_CASE(test_2) { checkPassingHierarchicalBases<HierarchicalHatBasisFunction>(1, 1); }
 
 BOOST_AUTO_TEST_CASE(test_3) { checkPassingHierarchicalBases<FullWeightingBasisFunction>(1, 2); }
 
-BOOST_AUTO_TEST_CASE(test_4) {
+BOOST_AUTO_TEST_CASE(test_4) { checkPassingHierarchicalBases<BiorthogonalBasisFunction>(1, 4); }
+#endif  // not DISCOTEC_USE_PALIWA
+
+BOOST_AUTO_TEST_CASE(test_5) {
   checkPassingHierarchicalBases<FullWeightingPeriodicBasisFunction>(2, 2);
 }
-
-BOOST_AUTO_TEST_CASE(test_5) { checkPassingHierarchicalBases<BiorthogonalBasisFunction>(1, 4); }
 
 BOOST_AUTO_TEST_CASE(test_6) {
   checkPassingHierarchicalBases<BiorthogonalPeriodicBasisFunction>(4, 2);
