@@ -78,6 +78,14 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
     BOOST_TEST_CHECKPOINT("drop out of test comm");
     return;
   }
+#ifdef DISCOTEC_USE_PALIWA
+  if (boundaryV != 1) {
+    BOOST_TEST_MESSAGE(
+        "Skipping integration test since paliwa is enabled and only periodic boundary is "
+        "supported");
+    return;
+  }
+#endif
   BOOST_TEST_CHECKPOINT("initialize stats");
   combigrid::Stats::initialize();
 
@@ -92,15 +100,6 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
 
   BOOST_CHECK_EQUAL(theMPISystem()->getWorldSize(), size);
   BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getWorldComm()), size);
-
-#ifdef DISCOTEC_USE_PALIWA
-  if (boundaryV != 1) {
-    BOOST_TEST_MESSAGE(
-        "Skipping integration test since paliwa is enabled and only periodic boundary is "
-        "supported");
-    return;
-  }
-#endif
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     // make sure the manager's ranks are set right
