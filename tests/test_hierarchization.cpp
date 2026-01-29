@@ -10,14 +10,14 @@
 #include <typeinfo>
 #include <vector>
 
+#include "TaskConstParaboloid.hpp"
 #include "fullgrid/DistributedFullGrid.hpp"
 #include "fullgrid/FullGrid.hpp"
 #include "hierarchization/DistributedHierarchization.hpp"
 #include "hierarchization/Hierarchization.hpp"
+#include "test_helper.hpp"
 #include "utils/MonteCarlo.hpp"
 #include "utils/Types.hpp"
-#include "test_helper.hpp"
-#include "TaskConstParaboloid.hpp"
 
 /**
  * functor for test function $f(x) = \prod_{i=0}^d x_i^2$
@@ -178,7 +178,7 @@ std::vector<real> getMonteCarloMomenta(DistributedFullGrid<FG_ELEMENT>& dfg, siz
 
 template <typename FG_ELEMENT>
 using FunctionPointer = void (*)(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                  const std::vector<bool>& dims, LevelVector lmin);
+                                 const std::vector<bool>& dims, LevelVector lmin);
 
 template <typename FG_ELEMENT>
 real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT>& dfg,
@@ -276,6 +276,7 @@ void checkBiorthogonalHierarchization(Functor& f, DistributedFullGrid<std::compl
     formerL1 = dfg.getLpNorm(1);
   }
 
+#ifndef DISCOTEC_USE_PALIWA
   auto dim = dfg.getDimension();
   std::vector<bool> hierarchizationDimensions(dim, true);
   DistributedHierarchization::hierarchizeBiorthogonal<std::complex<double>>(
@@ -309,6 +310,7 @@ void checkBiorthogonalHierarchization(Functor& f, DistributedFullGrid<std::compl
 
   DistributedHierarchization::dehierarchizeBiorthogonal<std::complex<double>>(
       dfg, hierarchizationDimensions, lmin);
+#endif  // not DISCOTEC_USE_PALIWA
 }
 
 template <typename Functor>
@@ -320,6 +322,7 @@ void checkFullWeightingHierarchization(Functor& f, DistributedFullGrid<std::comp
     formerL1 = dfg.getLpNorm(1);
   }
 
+#ifndef DISCOTEC_USE_PALIWA
   auto dim = dfg.getDimension();
   std::vector<bool> hierarchizationDimensions(dim, true);
   DistributedHierarchization::hierarchizeFullWeighting<std::complex<double>>(
@@ -340,6 +343,7 @@ void checkFullWeightingHierarchization(Functor& f, DistributedFullGrid<std::comp
 
   DistributedHierarchization::dehierarchizeFullWeighting<std::complex<double>>(
       dfg, hierarchizationDimensions, lmin);
+#endif  // not DISCOTEC_USE_PALIWA
 }
 
 template <typename Functor>
@@ -349,7 +353,8 @@ void checkHierarchization(Functor& f, LevelVector& levels, std::vector<int>& pro
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     const auto dim = static_cast<DimType>(levels.size());
-    OwningDistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
+    OwningDistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs,
+                                                        forward);
     // run test with value check
     checkHierarchization(f, dfg, checkValues, lmin);
   }
@@ -410,6 +415,7 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
     Hierarchization::hierarchize(fg);
   }
 
+#ifndef DISCOTEC_USE_PALIWA
   BOOST_TEST_CHECKPOINT("Distributed Hierarchization begins");
   // hierarchize distributed fg
 
@@ -513,11 +519,11 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
       // currently std::abs does not seem to do the right thing
       // create distributed fg and copy values
       OwningDistributedFullGrid<std::complex<double>> dfgCopyOne(
-          dim, dfgLevel, dfg.getCommunicator(), dfg.returnBoundaryFlags(),
-          dfg.getParallelization(), true, dfg.getDecomposition());
+          dim, dfgLevel, dfg.getCommunicator(), dfg.returnBoundaryFlags(), dfg.getParallelization(),
+          true, dfg.getDecomposition());
       OwningDistributedFullGrid<std::complex<double>> dfgCopyTwo(
-          dim, dfgLevel, dfg.getCommunicator(), dfg.returnBoundaryFlags(),
-          dfg.getParallelization(), true, dfg.getDecomposition());
+          dim, dfgLevel, dfg.getCommunicator(), dfg.returnBoundaryFlags(), dfg.getParallelization(),
+          true, dfg.getDecomposition());
       for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
         dfgCopyOne.getData()[li] = dfg.getData()[li];
         dfgCopyTwo.getData()[li] = dfg.getData()[li];
@@ -534,7 +540,7 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
       }
     }
   }
-
+#endif  // not DISCOTEC_USE_PALIWA
   BOOST_CHECK(!TestHelper::testStrayMessages(comm));
 }
 
@@ -544,7 +550,8 @@ void checkHierarchizationParaboloid(LevelVector& levels, std::vector<int>& procs
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     const auto dim = static_cast<DimType>(levels.size());
-    OwningDistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
+    OwningDistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs,
+                                                        forward);
     auto f = ParaboloidFn<std::complex<double>>(&dfg);
     // run test with value check
     checkHierarchization<decltype(f)>(f, dfg, checkValues, lmin);
@@ -571,8 +578,8 @@ IndexVector checkExtentsOfDFG(const DistributedFullGrid<FG_ELEMENT>& dfg) {
 BOOST_FIXTURE_TEST_SUITE(hierarchization, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(340))
 
 BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(100)) {
-  for (auto procs : std::vector<std::vector<int>>{
-           {1, 4, 1, 2, 1, 1}, {1, 8, 1, 1, 1, 1}, {1, 2, 1, 2, 2, 1}}) {
+  for (auto procs :
+       std::vector<std::vector<int>>{{1, 4, 1, 2, 1, 1}, {1, 8, 1, 1, 1, 1}, {1, 2, 1, 2, 2, 1}}) {
     auto dimensionality = static_cast<DimType>(procs.size());
     LevelVector levels = {1, 10, 1, 6, 2, 1};
     LevelVector lzero(dimensionality, 0);
@@ -1386,6 +1393,8 @@ BOOST_AUTO_TEST_CASE(test_p_44) {
 BOOST_AUTO_TEST_CASE(momentum) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
   DimType dim = 3;
+
+#ifndef DISCOTEC_USE_PALIWA
   std::vector<int> procs(dim, 1);
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
@@ -1438,6 +1447,7 @@ BOOST_AUTO_TEST_CASE(momentum) {
       BOOST_TEST(momentum == std::pow(0.5, dim) * 11., boost::test_tools::tolerance(5e-2));
     }
   }
+#endif  // not def DISCOTEC_USE_PALIWA
 }
 
 #ifdef NDEBUG
@@ -1456,7 +1466,8 @@ BOOST_AUTO_TEST_CASE(test_timing_parallel) {
       for (LevelVector lmin : std::vector<LevelVector>({lzero, lhalf, levels})) {
         auto forward = false;
         TestFn_1 testFn(levels);
-        OwningDistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
+        OwningDistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs,
+                                                            forward);
         MPI_Barrier(comm);
         auto start = std::chrono::high_resolution_clock::now();
         checkHierarchization(testFn, dfg, false, lmin);

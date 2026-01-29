@@ -85,7 +85,6 @@ target_compile_options(discotec PUBLIC $<$<CXX_COMPILER_ID:Intel>:-fp-model=prec
 # Defining options
 include(CMakeDependentOption)
 
-option(DISCOTEC_BUILD_MISSING_DEPS "Automatic fetch and build first layer of missing dependencies" ON)
 option(DISCOTEC_TIMING "Build with high-resolution timing" ON)
 if (DISCOTEC_TIMING)
     target_compile_definitions(discotec PUBLIC TIMING)
@@ -135,6 +134,15 @@ if(DISCOTEC_WITH_COMPRESSION)
     target_link_libraries(discotec PUBLIC ${LZ4_LIBRARIES})
     target_compile_definitions(discotec PUBLIC DISCOTEC_USE_LZ4)
 endif()
+option(DISCOTEC_USE_PALIWA "Use paliwa library for lifting transforms" OFF) # use with `spack load paliwa` and `discotec@main +paliwa`
+if(DISCOTEC_USE_PALIWA)
+    find_package(Paliwa REQUIRED)
+    find_package(DDC REQUIRED QUIET)
+    find_package(Kokkos REQUIRED COMPONENTS CXX)
+    target_include_directories(discotec PUBLIC ${PALIWA_INCLUDE_DIRS})
+    target_link_libraries(discotec PUBLIC paliwa::core)
+    target_compile_definitions(discotec PUBLIC DISCOTEC_USE_PALIWA)
+endif()
 
 set(DISCOTEC_COMPILE_ARCH "native" CACHE STRING "Microarchitecture to compile for (-march)")
 if(NOT ${DISCOTEC_COMPILE_ARCH} STREQUAL "")
@@ -162,9 +170,9 @@ target_link_libraries(discotec PUBLIC MPI::MPI_CXX)
 
 include(FetchContent)
 
-find_package(Boost REQUIRED COMPONENTS serialization program_options unit_test_framework system filesystem date_time)
+find_package(Boost REQUIRED COMPONENTS serialization program_options unit_test_framework filesystem date_time)
 
-target_link_libraries(discotec PRIVATE Boost::serialization Boost::program_options Boost::system Boost::date_time)
+target_link_libraries(discotec PRIVATE Boost::serialization Boost::program_options Boost::date_time)
 
 find_package(GLPK REQUIRED)
 target_link_libraries(discotec PUBLIC ${GLPK_LIBRARIES})
