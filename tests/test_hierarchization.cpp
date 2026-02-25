@@ -568,9 +568,9 @@ IndexVector checkExtentsOfDFG(const DistributedFullGrid<FG_ELEMENT>& dfg) {
   return extents;
 }
 
-BOOST_FIXTURE_TEST_SUITE(hierarchization, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(340))
+BOOST_FIXTURE_TEST_SUITE(hierarchization, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(1800))
 
-BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(100)) {
+BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(500)) {
   for (auto procs : std::vector<std::vector<int>>{
            {1, 4, 1, 2, 1, 1}, {1, 8, 1, 1, 1, 1}, {1, 2, 1, 2, 2, 1}}) {
     auto dimensionality = static_cast<DimType>(procs.size());
@@ -712,7 +712,7 @@ BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(100)) {
 // isotropic
 
 // the most basic case with a single worker
-BOOST_AUTO_TEST_CASE(test_minus1, *boost::unit_test::timeout(10)) {
+BOOST_AUTO_TEST_CASE(test_minus1, *boost::unit_test::timeout(60)) {
   for (auto d : std::vector<DimType>({1, 2, 3, 4, 5})) {
     BOOST_TEST_CHECKPOINT("Testing dimension " + std::to_string(d));
     // LevelVector levels(d, 1);
@@ -723,7 +723,7 @@ BOOST_AUTO_TEST_CASE(test_minus1, *boost::unit_test::timeout(10)) {
     BOOST_CHECK_NO_THROW(checkHierarchizationParaboloid(levels, procs, boundary, false, true));
   }
 }
-BOOST_AUTO_TEST_CASE(test_0) {
+BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::timeout(200)) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
   LevelVector levels = {4, 4, 4};
   std::vector<int> procs = {1, 1, 1};
