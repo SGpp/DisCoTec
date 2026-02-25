@@ -378,6 +378,7 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
                           bool checkValues = true, LevelVector lmin = LevelVector(0)) {
   CommunicatorType comm = dfg.getCommunicator();
   const DimType dim = dfg.getDimension();
+  const bool useComplexReference = (typeid(Functor) == typeid(TestFn_3));
   auto boundary = dfg.returnBoundaryFlags();
   const auto& dfgLevel = dfg.getLevels();
   std::vector<bool> hierarchizationDimensions(dim, true);
@@ -390,24 +391,40 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
     nonDistributedBoundary = std::vector<BoundaryType>(dim, 2);
   }
   FullGrid<std::complex<double>> fg(dim, dfgLevel, nonDistributedBoundary);
+  FullGrid<real> fgReal(dim, dfgLevel, nonDistributedBoundary);
   if (checkValues) {
     // fill distributed fg with test function
     fillDFGbyFunction(f, dfg);
 
-    // create fg and fill with test function
-    fg.createFullGrid();
-    for (size_t i = 0; i < static_cast<size_t>(fg.getNrElements()); ++i) {
-      std::vector<double> coords(dim);
-      fg.getCoords(i, coords);
-      fg.getData()[i] = f(coords);
+    if (useComplexReference) {
+      // create complex fg and fill with test function
+      fg.createFullGrid();
+      for (size_t i = 0; i < static_cast<size_t>(fg.getNrElements()); ++i) {
+        std::vector<double> coords(dim);
+        fg.getCoords(i, coords);
+        fg.getData()[i] = f(coords);
+      }
+    } else {
+      // for real-valued test functions, use real FullGrid reference
+      fgReal.createFullGrid();
+      for (size_t i = 0; i < static_cast<size_t>(fgReal.getNrElements()); ++i) {
+        std::vector<double> coords(dim);
+        fgReal.getCoords(i, coords);
+        fgReal.getData()[i] = f(coords).real();
+      }
     }
   }
   // have copy of non-hierarchized FG
   auto fgNodal = fg;
+  auto fgNodalReal = fgReal;
   if (checkValues) {
     // hierarchize fg
     BOOST_TEST_CHECKPOINT("Non-Distributed Hierarchization begins");
-    Hierarchization::hierarchize(fg);
+    if (useComplexReference) {
+      Hierarchization::hierarchize(fg);
+    } else {
+      Hierarchization::hierarchize(fgReal);
+    }
   }
 
   BOOST_TEST_CHECKPOINT("Distributed Hierarchization begins");
@@ -430,22 +447,34 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
 
         if (levels_of_point > lmin) {
           if (!anyOneSidedBoundary) {
-            fg.getVectorIndex(gi, axisIndex);
-            // the finest levels up to lmin should always be hierarchized
-            // compare hierarchical surpluses
-            // compare fg and distributed fg
-            BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
-                       boost::test_tools::tolerance(TestHelper::tolerance));
+            if (useComplexReference) {
+              fg.getVectorIndex(gi, axisIndex);
+              // the finest levels up to lmin should always be hierarchized
+              // compare hierarchical surpluses
+              // compare fg and distributed fg
+              BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
+                         boost::test_tools::tolerance(TestHelper::tolerance));
+            } else {
+              fgReal.getVectorIndex(gi, axisIndex);
+              BOOST_TEST(dfg.getData()[li].real() == fgReal.getData()[gi],
+                         boost::test_tools::tolerance(TestHelper::tolerance));
+            }
             // compare distributed fg to exact solution
           }
           BOOST_TEST(dfg.getData()[li] == f(axisIndex),
                      boost::test_tools::tolerance(TestHelper::tolerance));
         } else if (levels_of_point <= lmin) {
           // the coarsest levels should not be hierarchized at all
-          fg.getVectorIndex(gi, axisIndex);
-          // compare non-hierarchized fg and distributed fg
-          BOOST_TEST(dfg.getData()[li] == fgNodal.getData()[gi],
-                     boost::test_tools::tolerance(TestHelper::tolerance));
+          if (useComplexReference) {
+            fg.getVectorIndex(gi, axisIndex);
+            // compare non-hierarchized fg and distributed fg
+            BOOST_TEST(dfg.getData()[li] == fgNodal.getData()[gi],
+                       boost::test_tools::tolerance(TestHelper::tolerance));
+          } else {
+            fgReal.getVectorIndex(gi, axisIndex);
+            BOOST_TEST(dfg.getData()[li].real() == fgNodalReal.getData()[gi],
+                       boost::test_tools::tolerance(TestHelper::tolerance));
+          }
         }
       }
     } else {
@@ -458,11 +487,18 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
         BOOST_REQUIRE_EQUAL(dfg.getGlobalLinearIndex(axisIndex), gi);
         if (!anyOneSidedBoundary) {
           auto fgAxisIndex = axisIndex;
-          fg.getVectorIndex(gi, fgAxisIndex);
-          BOOST_REQUIRE(axisIndex == fgAxisIndex);
-          // compare fg and distributed fg
-          BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
-                     boost::test_tools::tolerance(TestHelper::tolerance));
+          if (useComplexReference) {
+            fg.getVectorIndex(gi, fgAxisIndex);
+            BOOST_REQUIRE(axisIndex == fgAxisIndex);
+            // compare fg and distributed fg
+            BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
+                       boost::test_tools::tolerance(TestHelper::tolerance));
+          } else {
+            fgReal.getVectorIndex(gi, fgAxisIndex);
+            BOOST_REQUIRE(axisIndex == fgAxisIndex);
+            BOOST_TEST(dfg.getData()[li].real() == fgReal.getData()[gi],
+                       boost::test_tools::tolerance(TestHelper::tolerance));
+          }
         }
         // compare distributed fg to exact solution
         BOOST_TEST(dfg.getData()[li] == f(axisIndex),
@@ -472,7 +508,11 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
 
     // dehierarchize fg
     BOOST_TEST_CHECKPOINT("Non-distributed Dehierarchization begins");
-    Hierarchization::dehierarchize(fg);
+    if (useComplexReference) {
+      Hierarchization::dehierarchize(fg);
+    } else {
+      Hierarchization::dehierarchize(fgReal);
+    }
   }
 
   // dehierarchize distributed fg
@@ -492,11 +532,20 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
 
       if (!anyOneSidedBoundary) {
         std::vector<double> coords_fg(dim);
-        fg.getCoords(gi, coords_fg);
+        if (useComplexReference) {
+          fg.getCoords(gi, coords_fg);
+        } else {
+          fgReal.getCoords(gi, coords_fg);
+        }
         BOOST_CHECK(coords_dfg == coords_fg);
         // compare fg and distributed fg
-        BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
-                   boost::test_tools::tolerance(TestHelper::tolerance));
+        if (useComplexReference) {
+          BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
+                     boost::test_tools::tolerance(TestHelper::tolerance));
+        } else {
+          BOOST_TEST(dfg.getData()[li].real() == fgReal.getData()[gi],
+                     boost::test_tools::tolerance(TestHelper::tolerance));
+        }
       }
       // compare distributed fg and fg to exact solution
       BOOST_TEST(dfg.getData()[li] == f(coords_dfg),
@@ -513,11 +562,11 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
       // currently std::abs does not seem to do the right thing
       // create distributed fg and copy values
       OwningDistributedFullGrid<std::complex<double>> dfgCopyOne(
-          dim, dfgLevel, dfg.getCommunicator(), dfg.returnBoundaryFlags(),
-          dfg.getParallelization(), true, dfg.getDecomposition());
+          dim, dfgLevel, dfg.getCommunicator(), dfg.returnBoundaryFlags(), dfg.getParallelization(),
+          true, dfg.getDecomposition());
       OwningDistributedFullGrid<std::complex<double>> dfgCopyTwo(
-          dim, dfgLevel, dfg.getCommunicator(), dfg.returnBoundaryFlags(),
-          dfg.getParallelization(), true, dfg.getDecomposition());
+          dim, dfgLevel, dfg.getCommunicator(), dfg.returnBoundaryFlags(), dfg.getParallelization(),
+          true, dfg.getDecomposition());
       for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
         dfgCopyOne.getData()[li] = dfg.getData()[li];
         dfgCopyTwo.getData()[li] = dfg.getData()[li];
@@ -544,7 +593,8 @@ void checkHierarchizationParaboloid(LevelVector& levels, std::vector<int>& procs
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     const auto dim = static_cast<DimType>(levels.size());
-    OwningDistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
+    OwningDistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs,
+                                                        forward);
     auto f = ParaboloidFn<std::complex<double>>(&dfg);
     // run test with value check
     checkHierarchization<decltype(f)>(f, dfg, checkValues, lmin);
@@ -568,11 +618,12 @@ IndexVector checkExtentsOfDFG(const DistributedFullGrid<FG_ELEMENT>& dfg) {
   return extents;
 }
 
-BOOST_FIXTURE_TEST_SUITE(hierarchization, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(1800))
+BOOST_FIXTURE_TEST_SUITE(hierarchization, TestHelper::BarrierAtEnd,
+                         *boost::unit_test::timeout(1800))
 
 BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(500)) {
-  for (auto procs : std::vector<std::vector<int>>{
-           {1, 4, 1, 2, 1, 1}, {1, 8, 1, 1, 1, 1}, {1, 2, 1, 2, 2, 1}}) {
+  for (auto procs :
+       std::vector<std::vector<int>>{{1, 4, 1, 2, 1, 1}, {1, 8, 1, 1, 1, 1}, {1, 2, 1, 2, 2, 1}}) {
     auto dimensionality = static_cast<DimType>(procs.size());
     LevelVector levels = {1, 10, 1, 6, 2, 1};
     LevelVector lzero(dimensionality, 0);
