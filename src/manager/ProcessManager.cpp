@@ -1,6 +1,8 @@
 #include "manager/ProcessManager.hpp"
 #include <algorithm>
 #include <iostream>
+#include <stdexcept>
+#include <string>
 
 #include <boost/asio.hpp>
 
@@ -26,7 +28,12 @@ bool ProcessManager::runfirst(bool doInitDSGUs) {
   // sort instances in decreasing order
   sortTasks();
 
-  assert(tasks_.size() >= pgroups_.size());
+  if (tasks_.size() < pgroups_.size()) {
+    throw std::runtime_error(
+        "runfirst requires at least as many tasks as process groups, but got " +
+        std::to_string(tasks_.size()) + " tasks for " + std::to_string(pgroups_.size()) +
+        " groups");
+  }
 
   for (size_t i = 0; i < tasks_.size(); ++i) {
     // wait for available process group
