@@ -644,7 +644,7 @@ BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel_large) {
   }
   BOOST_CHECK(std::is_sorted(downSet.begin(), downSet.end()));
   BOOST_CHECK(std::is_sorted(created.begin(), created.end()));
-  
+
   start = std::chrono::high_resolution_clock::now();
   auto downSetGenerator = HypercubeDownSetGenerator(lmax);
   auto previousFind = downSet.begin();
@@ -696,7 +696,8 @@ BOOST_AUTO_TEST_CASE(test_reduceSubspaceSizesFileBased) {
 
     {  // register full grid
       auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<combigrid::DimType>>(
-          new OwningDistributedFullGrid<combigrid::DimType>(dim, lfull, comm, boundary, procs, false));
+          new OwningDistributedFullGrid<combigrid::DimType>(dim, lfull, comm, boundary, procs,
+                                                            false));
       uniDSG->registerDistributedFullGrid(*uniDFG);
     }
 
@@ -742,19 +743,24 @@ BOOST_AUTO_TEST_CASE(test_reduceSubspaceSizesFileBased) {
 }
 
 BOOST_AUTO_TEST_CASE(test_writeOneFile) {
-  std::vector<int> procs = {3, 1, 3, 1, 1, 1};
+  std::vector<int> procs = {3, 1, 3, 1};
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     DimType dim = static_cast<DimType>(procs.size());
-    LevelVector lmin = {2, 2, 2, 2, 2, 2};
-    LevelVector lmax = {11, 11, 11, 11, 11, 11};
+    LevelVector lmin = {2, 2, 2, 2};
+    LevelVector lmax = {7, 7, 7, 7};
     std::vector<BoundaryType> boundary(dim, 2);
     auto decomposition = combigrid::getStandardDecomposition(lmax, procs);
     auto uniDSG = std::unique_ptr<DistributedSparseGridUniform<combigrid::real>>(
         new DistributedSparseGridUniform<combigrid::real>(dim, lmax, lmin, comm));
-    // iterate main diagonal of combi scheme and register to populate all subspaces
+    // register only the top shell of the sparse-grid levels:
+    // keeps this test's file size bounded while still exercising write/readOneFile.
+    LevelType maxLevelSum = 0;
     for (const auto& level : uniDSG->getAllLevelVectors()) {
-      if (levelSum(level) == 21) {
+      maxLevelSum = std::max(maxLevelSum, levelSum(level));
+    }
+    for (const auto& level : uniDSG->getAllLevelVectors()) {
+      if (levelSum(level) >= maxLevelSum) {
         auto dfgDecomposition =
             combigrid::downsampleDecomposition(decomposition, lmax, level, boundary);
         auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<combigrid::real>>(
@@ -768,7 +774,8 @@ BOOST_AUTO_TEST_CASE(test_writeOneFile) {
     size_t totalNumPoints = uniDSG->getRawDataSize();
     MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<size_t>());
     MPI_Allreduce(MPI_IN_PLACE, &totalNumPoints, 1, dtype, MPI_SUM, comm);
-    BOOST_CHECK_EQUAL(totalNumPoints, 1050968065);
+    BOOST_TEST_MESSAGE("test_writeOneFile total points: " << totalNumPoints);
+    BOOST_CHECK_EQUAL(totalNumPoints, 222209);
     MPI_Barrier(comm);
 
     auto start = std::chrono::high_resolution_clock::now();
