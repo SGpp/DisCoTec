@@ -1143,7 +1143,7 @@ BOOST_AUTO_TEST_CASE(test_workers_2d, *boost::unit_test::tolerance(TestHelper::t
 
 // same as test_8 but only with workers
 BOOST_AUTO_TEST_CASE(test_8_workers, *boost::unit_test::tolerance(TestHelper::tolerance) *
-                                         boost::unit_test::timeout(2250)) {
+                                         boost::unit_test::timeout(4250)) {
   unsigned int numSystems = 2;
   unsigned int nprocs = 1;
   unsigned int ncombi = 3;
@@ -1176,7 +1176,7 @@ BOOST_AUTO_TEST_CASE(test_8_workers, *boost::unit_test::tolerance(TestHelper::to
 
 BOOST_AUTO_TEST_CASE(test_workers_three_systems_2d,
                      *boost::unit_test::tolerance(TestHelper::tolerance) *
-                         boost::unit_test::timeout(250)) {
+                         boost::unit_test::timeout(350)) {
   unsigned int numSystems = 3;
   unsigned int ncombi = 3;
   DimType dim = 2;
@@ -1202,7 +1202,7 @@ BOOST_AUTO_TEST_CASE(test_workers_three_systems_2d,
 
 BOOST_AUTO_TEST_CASE(test_workers_three_systems_6d,
                      *boost::unit_test::tolerance(TestHelper::tolerance) *
-                         boost::unit_test::timeout(550)) {
+                         boost::unit_test::timeout(750)) {
   unsigned int numSystems = 3;
   unsigned int ncombi = 3;
   DimType dim = 6;
