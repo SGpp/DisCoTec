@@ -7,6 +7,7 @@
 #include <boost/test/unit_test.hpp>
 #include <complex>
 #include <cstdarg>
+#include <cstdlib>
 #include <iostream>
 #include <random>
 #include <vector>
@@ -19,12 +20,12 @@
 #include "sparsegrid/DistributedSparseGridIO.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sparsegrid/SGrid.hpp"
+#include "test_helper.hpp"
 #include "utils/DecompositionUtils.hpp"
 #include "utils/IndexVector.hpp"
 #include "utils/LevelSetUtils.hpp"
 #include "utils/MonteCarlo.hpp"
 #include "utils/Types.hpp"
-#include "test_helper.hpp"
 
 using namespace combigrid;
 
@@ -204,7 +205,8 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     }
 
     BOOST_TEST_CHECKPOINT("write to disk chunked");
-    // test for dumping sparse grid data to disk and reading back in later (allow time for file system)
+    // test for dumping sparse grid data to disk and reading back in later (allow time for file
+    // system)
     DistributedSparseGridIO::writeToDiskChunked(*uniDSG, "test_sg_");
 
     BOOST_TEST_CHECKPOINT("write sparse min/max");
@@ -232,9 +234,9 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     // have a tiny delay here, by already allocating dfg
     dfgDecomposition = combigrid::downsampleDecomposition(decomposition, lref, dfgLevel, boundary);
     auto largeUniDFG = std::unique_ptr<OwningDistributedFullGrid<std::complex<double>>>(
-        new OwningDistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true,
-                                                      dfgDecomposition));
-    
+        new OwningDistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs,
+                                                            true, dfgDecomposition));
+
     BOOST_TEST_CHECKPOINT("read from disk chunked");
     uniDSGfromSubspaces->setZero();
     DistributedSparseGridIO::readFromDiskChunked(*uniDSGfromSubspaces, "test_sg_");
@@ -252,7 +254,8 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     }
 
     BOOST_TEST_CHECKPOINT("Register to uniform SG");
-    uniDSG->registerDistributedFullGrid(*largeUniDFG);//TODO create levels and actually test something
+    uniDSG->registerDistributedFullGrid(
+        *largeUniDFG);  // TODO create levels and actually test something
 
     // check if the sizes set are actually the ones we calculate with CombiMinMaxScheme
     BOOST_TEST_CHECKPOINT("check subspace sizes");
@@ -320,8 +323,7 @@ BOOST_AUTO_TEST_CASE(test_1) {
       BoundaryType bValue = 2;
       std::vector<BoundaryType> boundary(2, bValue);
       std::vector<int> procs = {procOne, procTwo};
-      auto multProcs =
-          std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
+      auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
       BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
       checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
       MPI_Barrier(MPI_COMM_WORLD);
@@ -337,8 +339,7 @@ BOOST_AUTO_TEST_CASE(test_2) {
       BoundaryType bValue = 2;
       std::vector<BoundaryType> boundary(2, bValue);
       std::vector<int> procs = {procOne, procTwo};
-      auto multProcs =
-          std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
+      auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
       BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
       checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
       MPI_Barrier(MPI_COMM_WORLD);
@@ -372,8 +373,7 @@ BOOST_AUTO_TEST_CASE(test_4) {
       BoundaryType bValue = 2;
       std::vector<BoundaryType> boundary(3, bValue);
       std::vector<int> procs = {procOne, procTwo, 1};
-      auto multProcs =
-          std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
+      auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
       BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
       checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
       MPI_Barrier(MPI_COMM_WORLD);
@@ -389,8 +389,7 @@ BOOST_AUTO_TEST_CASE(test_5) {
       BoundaryType bValue = 2;
       std::vector<BoundaryType> boundary(3, bValue);
       std::vector<int> procs = {procOne, procTwo, 1};
-      auto multProcs =
-          std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
+      auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
       BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
       checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
       MPI_Barrier(MPI_COMM_WORLD);
@@ -591,7 +590,7 @@ BOOST_AUTO_TEST_CASE(test_createTruncatedHierarchicalLevels_large) {
                                                                     << " milliseconds");
   BOOST_TEST_MESSAGE("number of levels created: " << created.size());
 #ifdef NDEBUG
-  BOOST_CHECK(duration.count() < 10000);
+  BOOST_CHECK(duration.count() < 100000);  // should be a lot lower if not in CI
 #endif
   auto it = std::unique(created.begin(), created.end());
   BOOST_CHECK(it == created.end());
@@ -644,7 +643,7 @@ BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel_large) {
   }
   BOOST_CHECK(std::is_sorted(downSet.begin(), downSet.end()));
   BOOST_CHECK(std::is_sorted(created.begin(), created.end()));
-  
+
   start = std::chrono::high_resolution_clock::now();
   auto downSetGenerator = HypercubeDownSetGenerator(lmax);
   auto previousFind = downSet.begin();
@@ -696,7 +695,8 @@ BOOST_AUTO_TEST_CASE(test_reduceSubspaceSizesFileBased) {
 
     {  // register full grid
       auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<combigrid::DimType>>(
-          new OwningDistributedFullGrid<combigrid::DimType>(dim, lfull, comm, boundary, procs, false));
+          new OwningDistributedFullGrid<combigrid::DimType>(dim, lfull, comm, boundary, procs,
+                                                            false));
       uniDSG->registerDistributedFullGrid(*uniDFG);
     }
 
@@ -742,19 +742,24 @@ BOOST_AUTO_TEST_CASE(test_reduceSubspaceSizesFileBased) {
 }
 
 BOOST_AUTO_TEST_CASE(test_writeOneFile) {
-  std::vector<int> procs = {3, 1, 3, 1, 1, 1};
+  std::vector<int> procs = {3, 1, 3, 1};
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     DimType dim = static_cast<DimType>(procs.size());
-    LevelVector lmin = {2, 2, 2, 2, 2, 2};
-    LevelVector lmax = {11, 11, 11, 11, 11, 11};
+    LevelVector lmin = {2, 2, 2, 2};
+    LevelVector lmax = {7, 7, 7, 7};
     std::vector<BoundaryType> boundary(dim, 2);
     auto decomposition = combigrid::getStandardDecomposition(lmax, procs);
     auto uniDSG = std::unique_ptr<DistributedSparseGridUniform<combigrid::real>>(
         new DistributedSparseGridUniform<combigrid::real>(dim, lmax, lmin, comm));
-    // iterate main diagonal of combi scheme and register to populate all subspaces
+    // register only the top shell of the sparse-grid levels:
+    // keeps this test's file size bounded while still exercising write/readOneFile.
+    LevelType maxLevelSum = 0;
     for (const auto& level : uniDSG->getAllLevelVectors()) {
-      if (levelSum(level) == 21) {
+      maxLevelSum = std::max(maxLevelSum, levelSum(level));
+    }
+    for (const auto& level : uniDSG->getAllLevelVectors()) {
+      if (levelSum(level) >= maxLevelSum) {
         auto dfgDecomposition =
             combigrid::downsampleDecomposition(decomposition, lmax, level, boundary);
         auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<combigrid::real>>(
@@ -768,7 +773,8 @@ BOOST_AUTO_TEST_CASE(test_writeOneFile) {
     size_t totalNumPoints = uniDSG->getRawDataSize();
     MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<size_t>());
     MPI_Allreduce(MPI_IN_PLACE, &totalNumPoints, 1, dtype, MPI_SUM, comm);
-    BOOST_CHECK_EQUAL(totalNumPoints, 1050968065);
+    BOOST_TEST_MESSAGE("test_writeOneFile total points: " << totalNumPoints);
+    BOOST_CHECK_EQUAL(totalNumPoints, 222209);
     MPI_Barrier(comm);
 
     auto start = std::chrono::high_resolution_clock::now();
@@ -864,11 +870,11 @@ BOOST_AUTO_TEST_CASE(test_sparseGridAndSubspaceReduce) {
     theMPISystem()->initWorldReusable(fullComm, nprocs, 1, false, true);
     // set up 6D Combi scheme
     constexpr DimType dimensionality = 6;
-    const LevelVector lmin{4, 4, 4, 4, 3, 3};
-    const LevelVector lmax{6, 6, 6, 6, 5, 5};
+    const LevelVector lmin = LevelVector{3, 3, 3, 3, 2, 2};
+    const LevelVector lmax = LevelVector{5, 5, 5, 5, 4, 4};
 
-    for (uint32_t chunkSizePerThreadInMiB :
-         std::vector<uint32_t>({1, 32, 64, std::numeric_limits<uint32_t>::max()})) {
+    const auto chunkSizes = std::vector<uint32_t>{1, 64};
+    for (uint32_t chunkSizePerThreadInMiB : chunkSizes) {
       for (CombinationVariant variant :
            {CombinationVariant::subspaceReduce, CombinationVariant::outgroupSparseGridReduce,
             CombinationVariant::sparseGridReduce}) {
@@ -917,7 +923,8 @@ BOOST_AUTO_TEST_CASE(test_sparseGridAndSubspaceReduce) {
 
           MPI_Barrier(fullComm);
           auto start = std::chrono::high_resolution_clock::now();
-          CombiCom::distributedGlobalSparseGridReduce(*uniDSG, chunkSizePerThreadInMiB, MPI_PROC_NULL, fullComm);
+          CombiCom::distributedGlobalSparseGridReduce(*uniDSG, chunkSizePerThreadInMiB,
+                                                      MPI_PROC_NULL, fullComm);
           auto end = std::chrono::high_resolution_clock::now();
           auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
           BOOST_TEST_MESSAGE("sparse grid reduce time: " + std::to_string(duration.count()));

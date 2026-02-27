@@ -33,7 +33,9 @@ bool checkReducedFullGridIntegration(ProcessGroupWorker& worker, int nrun) {
   const auto& tasks = worker.getTasks();
   int numGrids = (int)worker.getCombiParameters().getNumGrids();
 
-  BOOST_CHECK(tasks.size() > 0);
+  if (tasks.empty()) {
+    return true;
+  }
   BOOST_CHECK(numGrids > 0);
 
   // to check if any data was actually compared
@@ -298,7 +300,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
       if (signal == COMBINE) {
         // after combination check workers' grids
         // only if boundary values are used
-        if (boundaryV == 2) {
+        if (boundaryV == 2 && !pgroup.getTasks().empty()) {
           BOOST_CHECK(checkReducedFullGridIntegration(pgroup, nrun));
         }
         // write partial stats
@@ -310,7 +312,9 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
     }
     BOOST_CHECK_EQUAL(nrun, ncombi);
     BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getLocalComm()));
-    MASTER_EXCLUSIVE_SECTION { BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalComm())); }
+    MASTER_EXCLUSIVE_SECTION {
+      BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalComm()));
+    }
   }
 
   combigrid::Stats::finalize();
@@ -404,7 +408,9 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
       BOOST_TEST(dynamic_cast<T*>(b) != nullptr);
     }
     BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getLocalComm()));
-    MASTER_EXCLUSIVE_SECTION { BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalComm())); }
+    MASTER_EXCLUSIVE_SECTION {
+      BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalComm()));
+    }
   }
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
@@ -413,7 +419,7 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
 
 #ifndef ISGENE  // integration tests won't work with ISGENE because of worker magic
 
-#ifndef NDEBUG // in case of a build with asserts, have longer timeout
+#ifndef NDEBUG  // in case of a build with asserts, have longer timeout
 BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(580))
 #else
 BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(480))

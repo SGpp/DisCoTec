@@ -64,7 +64,7 @@ typedef int RankType;
 // it is easily enough to fit the largest subspace (19,1,1,1,1,1) in the current scenario
 // (= 2^19 * 3 * 3 * 3 * 3 * 3 = 2^19 * 3^5 = 127401984)
 typedef uint32_t SubspaceSizeType;
-  }  // namespace combigrid
+}  // namespace combigrid
 
 namespace abstraction {
 
@@ -164,10 +164,19 @@ inline MPI_Datatype getMPIDatatype(abstraction::DataType type) {
       return MPI_LONG_DOUBLE;
 
     case abstraction::type_double_complex:
+#ifdef MPI_C_DOUBLE_COMPLEX
+      // Use the C complex datatype for std::complex interoperability in C++ code.
+      return MPI_C_DOUBLE_COMPLEX;
+#else
       return MPI_DOUBLE_COMPLEX;
+#endif
 
     case abstraction::type_float_complex:
+#ifdef MPI_C_FLOAT_COMPLEX
+      return MPI_C_FLOAT_COMPLEX;
+#else
       return MPI_COMPLEX;
+#endif
 
     case abstraction::type_long_long:
       return MPI_LONG_LONG;

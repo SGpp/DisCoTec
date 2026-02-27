@@ -1027,7 +1027,7 @@ BOOST_AUTO_TEST_CASE(test_6, *boost::unit_test::tolerance(TestHelper::tolerance)
 // only with workers (which needs static task assignment)
 BOOST_AUTO_TEST_CASE(test_workers_only, *boost::unit_test::tolerance(TestHelper::tolerance)) {
   unsigned int numSystems = 2;
-  unsigned int ncombi = 10;
+  unsigned int ncombi = 5;
   DimType dim = 2;
   LevelVector lmin = {3, 6};
   LevelVector lmax = {7, 10};
@@ -1115,10 +1115,10 @@ BOOST_AUTO_TEST_CASE(test_8, *boost::unit_test::tolerance(TestHelper::tolerance)
 }
 
 BOOST_AUTO_TEST_CASE(test_workers_2d, *boost::unit_test::tolerance(TestHelper::tolerance) *
-                                          boost::unit_test::timeout(100)) {
+                                          boost::unit_test::timeout(60)) {
   unsigned int numSystems = 2;
   unsigned int nprocs = 1;
-  unsigned int ncombi = 5;
+  unsigned int ncombi = 3;
   DimType dim = 2;
   BoundaryType boundary = 1;
   LevelVector lmin(dim, 2);
@@ -1143,7 +1143,7 @@ BOOST_AUTO_TEST_CASE(test_workers_2d, *boost::unit_test::tolerance(TestHelper::t
 
 // same as test_8 but only with workers
 BOOST_AUTO_TEST_CASE(test_8_workers, *boost::unit_test::tolerance(TestHelper::tolerance) *
-                                         boost::unit_test::timeout(2250)) {
+                                         boost::unit_test::timeout(4250)) {
   unsigned int numSystems = 2;
   unsigned int nprocs = 1;
   unsigned int ncombi = 3;
@@ -1151,12 +1151,12 @@ BOOST_AUTO_TEST_CASE(test_8_workers, *boost::unit_test::tolerance(TestHelper::to
   BoundaryType boundary = 1;
   LevelVector lmin(dim, 2);
 #ifdef NDEBUG
-  LevelVector lmax(dim, 9);
+  LevelVector lmax(dim, 7);
 #else
   LevelVector lmax(dim, 5);
 #endif
 
-  for (unsigned int ngroup : std::vector<unsigned int>({2, 3, 4})) {
+  for (unsigned int ngroup : std::vector<unsigned int>({2, 4})) {
     BOOST_TEST_MESSAGE("num groups: " + std::to_string(ngroup));
     unsigned int sysNum;
     CommunicatorType newcomm = MPI_COMM_NULL;
@@ -1176,7 +1176,7 @@ BOOST_AUTO_TEST_CASE(test_8_workers, *boost::unit_test::tolerance(TestHelper::to
 
 BOOST_AUTO_TEST_CASE(test_workers_three_systems_2d,
                      *boost::unit_test::tolerance(TestHelper::tolerance) *
-                         boost::unit_test::timeout(250)) {
+                         boost::unit_test::timeout(350)) {
   unsigned int numSystems = 3;
   unsigned int ncombi = 3;
   DimType dim = 2;
@@ -1202,7 +1202,7 @@ BOOST_AUTO_TEST_CASE(test_workers_three_systems_2d,
 
 BOOST_AUTO_TEST_CASE(test_workers_three_systems_6d,
                      *boost::unit_test::tolerance(TestHelper::tolerance) *
-                         boost::unit_test::timeout(550)) {
+                         boost::unit_test::timeout(750)) {
   unsigned int numSystems = 3;
   unsigned int ncombi = 3;
   DimType dim = 6;

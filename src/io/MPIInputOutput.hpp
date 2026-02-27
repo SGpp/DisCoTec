@@ -139,11 +139,14 @@ class [[nodiscard]] MPIFileConsecutive {
       std::cerr << getMpiErrorString(err) << std::endl;
     }
 #ifndef NDEBUG
-    int numWritten = 0;
-    MPI_Get_count(&status, dataType, &numWritten);
-    if (numWritten != numValues) {
-      std::cout << "not written enough: " << numWritten << " instead of " << numValues << std::endl;
-      err = ~MPI_SUCCESS;
+    if (err == MPI_SUCCESS) {
+      int numWritten = 0;
+      MPI_Get_count(&status, dataType, &numWritten);
+      if (numWritten != numValues) {
+        std::cout << "not written enough: " << numWritten << " instead of " << numValues
+                  << std::endl;
+        err = ~MPI_SUCCESS;
+      }
     }
 #endif  // !NDEBUG
     return (err == MPI_SUCCESS) ? static_cast<int>(numValues) : 0;
