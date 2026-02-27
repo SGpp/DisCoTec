@@ -103,6 +103,7 @@ jobs:
             export MPI_RUN_COMMAND="mpiexec "
           fi
 
+          export OMP_NUM_THREADS=2
           set -x # echo commands that are executed
           OMPI_ALLOW_RUN_AS_ROOT=1 \
             ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=mpisystem         
