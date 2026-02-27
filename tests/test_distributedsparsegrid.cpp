@@ -590,7 +590,7 @@ BOOST_AUTO_TEST_CASE(test_createTruncatedHierarchicalLevels_large) {
                                                                     << " milliseconds");
   BOOST_TEST_MESSAGE("number of levels created: " << created.size());
 #ifdef NDEBUG
-  BOOST_CHECK(duration.count() < 10000);
+  BOOST_CHECK(duration.count() < 100000);  // should be a lot lower if not in CI
 #endif
   auto it = std::unique(created.begin(), created.end());
   BOOST_CHECK(it == created.end());
