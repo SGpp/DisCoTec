@@ -2,7 +2,6 @@
 
 #include <iostream>
 
-#include "manager/ProcessGroupManager.hpp"
 #include "mpi/OpenMPUtils.hpp"
 #include "utils/Stats.hpp"
 
@@ -717,8 +716,7 @@ void MPISystem::deleteCommFTAndCcomm(simft::Sim_FT_MPI_Comm* commFT) {
 }
 
 bool MPISystem::recoverCommunicators(bool groupAlive,
-                                     std::vector<std::shared_ptr<ProcessGroupManager>>
-                                         failedGroups) {  // toDo fix multiple failed groups
+                                     size_t numFailedGroups) {  // toDo fix multiple failed groups
   assert(ENABLE_FT && "this funtion is only availabe if FT enabled!");
   // std::cout << "start recovery \n";
   // revoke commmworld
@@ -767,9 +765,9 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
     int numFailedRanks = sizeOld - sizeNew;
     std::vector<RankType> failedRanks =
         getFailedRanks(numFailedRanks);  // has to be solved differently with ULFM
-    std::cout << "nprocs - numFailed " << failedGroups.size() * nprocs_ - numFailedRanks << "\n";
+    std::cout << "nprocs - numFailed " << numFailedGroups * nprocs_ - numFailedRanks << "\n";
     newReusableRanks =
-        getReusableRanks(static_cast<int>(failedGroups.size() * nprocs_ - numFailedRanks));
+        getReusableRanks(static_cast<int>(numFailedGroups * nprocs_ - numFailedRanks));
     getReusableRanksSpare(reusableRanks_);  // update ranks of reusable ranks
     // toDO reusableRanks might be outdated due to new failures there
     bool enoughSpareProcs = sizeSpare - sizeNew >= numFailedRanks;

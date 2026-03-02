@@ -745,17 +745,18 @@ void DistributedSparseGridUniform<FG_ELEMENT>::accumulateMinMaxCoefficients() {
                   this->getCurrentlyAllocatedSubspaces().cend());
 #pragma omp parallel for default(none) schedule(guided) \
     shared(currentlyAllocatedSubspaceIndices, smaller_real)
-  for (size_t iAllocated = 0; iAllocated < currentlyAllocatedSubspaceIndices.size();
-       ++iAllocated) {
+  for (size_t iAllocated = 0; iAllocated < currentlyAllocatedSubspaceIndices.size(); ++iAllocated) {
     SubspaceIndexType i = currentlyAllocatedSubspaceIndices[iAllocated];
     if (this->getSubspaceDataSizes()[i] > 0) {
       auto first = this->getData(i);
       auto last = first + this->getSubspaceDataSizes()[i];
       auto it = std::min_element(first, last, smaller_real);
-      minCoefficientPerSubspace_[i] = std::min(minCoefficientPerSubspace_[i], std::real(*it));
+      minCoefficientPerSubspace_[i] =
+          std::min(minCoefficientPerSubspace_[i], static_cast<double>(std::real(*it)));
       first = this->getData(i);
       it = std::max_element(first, last, smaller_real);
-      maxCoefficientPerSubspace_[i] = std::max(maxCoefficientPerSubspace_[i], std::real(*it));
+      maxCoefficientPerSubspace_[i] =
+          std::max(maxCoefficientPerSubspace_[i], static_cast<double>(std::real(*it)));
     }
   }
 }
@@ -847,9 +848,10 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
       }
 #endif  // NDEBUG
       subspaceIndices = std::move(dfg.getFGPointsOfSubspace(level));
-// #pragma omp simd linear(sPointer, kPointer : 1)
+      // #pragma omp simd linear(sPointer, kPointer : 1)
       for (size_t fIndex = 0; fIndex < subspaceIndices.size(); ++fIndex) {
-        FG_ELEMENT summand = coeff * dfg.getData()[subspaceIndices[fIndex]];
+        FG_ELEMENT summand =
+            static_cast<FG_ELEMENT>(coeff) * dfg.getData()[subspaceIndices[fIndex]];
         // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
         FG_ELEMENT y = summand - *kPointer;  // TODO check if these should be volatile
         FG_ELEMENT t = *sPointer + y;

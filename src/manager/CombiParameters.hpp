@@ -191,7 +191,7 @@ class CombiParameters {
                   const LevelVector& reduceCombinationDimsLmin = LevelVector(0),
                   const LevelVector& reduceCombinationDimsLmax = LevelVector(0),
                   uint32_t sizeForChunkedCommunicationInMebibyte = 64,
-                  bool forwardDecomposition = !isGENE, const std::string& thirdLevelHost = "",
+                  bool forwardDecomposition = true, const std::string& thirdLevelHost = "",
                   unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
       : dim_(dim),
         lmin_(lmin),
@@ -479,12 +479,7 @@ class CombiParameters {
    */
   inline const std::vector<IndexVector>& getDecomposition() const { return decomposition_; }
 
-  inline bool getForwardDecomposition() const {
-    if (isGENE) {
-      assert(!forwardDecomposition_);
-    }
-    return forwardDecomposition_;
-  }
+  inline bool getForwardDecomposition() const { return forwardDecomposition_; }
 
  private:
   DimType dim_;

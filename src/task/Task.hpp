@@ -1,9 +1,12 @@
 #ifndef TASK_HPP_
 #define TASK_HPP_
 
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/archive/text_oarchive.hpp>
 #include <boost/serialization/access.hpp>
 #include <boost/serialization/string.hpp>
 #include <boost/serialization/vector.hpp>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -31,12 +34,13 @@ namespace combigrid {
  * functions. It should instead use the local communicator of the process group: lcomm or
  * theMPISystem()->getLocalComm() .
  */
+template <typename CombiDataType = double>
 class Task {
  protected:
   /**
    * @brief Task default constructor, required for serialization
    */
-  Task();
+  Task() : isFinished_(false) {}
 
   /**
    * @brief Task constructor
@@ -50,7 +54,18 @@ class Task {
    */
   Task(DimType dim, const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
        LoadModel* loadModel,
-       FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})));
+       FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
+      : faultCriterion_(faultCrit),
+        dim_(dim),
+        l_(l),
+        coeff_(coeff),
+        boundary_(boundary),
+        id_(count++),
+        loadModel_(loadModel),
+        isFinished_(false) {
+    assert(dim_ > 0);
+    assert(l_.size() == dim_);
+  }
 
   /**
    * @brief Task constructor
@@ -64,7 +79,8 @@ class Task {
    */
   Task(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
        LoadModel* loadModel,
-       FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})));
+       FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
+      : Task(static_cast<DimType>(l.size()), l, boundary, coeff, loadModel, faultCrit) {}
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
   // cheapest rule of 5 ever
@@ -78,42 +94,122 @@ class Task {
   FaultCriterion* faultCriterion_;
 
  public:
-  virtual ~Task();
+  virtual ~Task() { delete faultCriterion_; }
 
   /**
    * @brief receive a task from another rank
    */
-  static void receive(Task** t, RankType source, CommunicatorType comm);
+  static void receive(Task** t, RankType source, CommunicatorType comm) {
+    // receive size of message
+    MPI_Status status;
+    int bsize;
+    MPI_Probe(source, TRANSFER_TASK_TAG, comm, &status);
+    MPI_Get_count(&status, MPI_CHAR, &bsize);
+
+    // create buffer of appropriate size and receive
+    std::vector<char> buf(bsize);
+    MPI_Recv(&buf[0], bsize, MPI_CHAR, source, TRANSFER_TASK_TAG, comm, MPI_STATUS_IGNORE);
+
+    // create and open an archive for input
+    std::string s(&buf[0], bsize);
+    std::stringstream ss(s);
+    {
+      boost::archive::text_iarchive ia(ss);
+      // read class state from archive
+      ia >> *t;
+    }
+  }
 
   /**
    * @brief send a task to another rank
    */
-  static void send(const Task* const t, RankType dest, CommunicatorType comm);
+  static void send(const Task* const t, RankType dest, CommunicatorType comm) {
+    // save data to archive
+    std::stringstream ss;
+    {
+      boost::archive::text_oarchive oa(ss);
+      // write class instance to archive
+      oa << t;
+    }
+    // create mpi buffer of archive
+    std::string s = ss.str();
+    int bsize = static_cast<int>(s.size());
+    char* buf = const_cast<char*>(s.c_str());
+    MPI_Send(buf, bsize, MPI_CHAR, dest, TRANSFER_TASK_TAG, comm);
+  }
 
   /**
    * @brief broadcast a task to all ranks (typically within the same process group)
    */
-  static void broadcast(Task** t, RankType root, CommunicatorType comm);
+  static void broadcast(Task** t, RankType root, CommunicatorType comm) {
+    RankType myID;
+    MPI_Comm_rank(comm, &myID);
+
+    char* buf = NULL;
+    int bsize;
+
+    // root writes object data into buffer
+    std::string s;
+
+    if (myID == root) {
+      // save data to archive
+      std::stringstream ss;
+      {
+        boost::archive::text_oarchive oa(ss);
+        // write class instance to archive
+        oa << *t;
+      }
+      // create mpi buffer of archive
+      s = ss.str();
+      bsize = static_cast<int>(s.size());
+      buf = const_cast<char*>(s.c_str());
+    }
+
+    // root broadcasts object size
+    MPI_Bcast(&bsize, 1, MPI_INT, root, comm);
+
+    // non-root procs create buffer which is large enough
+    std::vector<char> tmp(bsize);
+
+    if (myID != root) {
+      buf = &tmp[0];
+    }
+
+    // broadcast of buffer
+    MPI_Bcast(buf, bsize, MPI_CHAR, root, comm);
+
+    // non-root procs write buffer to object
+    if (myID != root) {
+      // create and open an archive for input
+      std::string s(buf, bsize);
+      std::stringstream ss(s);
+      {
+        boost::archive::text_iarchive ia(ss);
+        // read class state from archive
+        ia >> *t;
+      }
+    }
+  }
 
   /**
    * @brief get the dimensionality of the task's domain
    */
-  inline DimType getDim() const;
+  inline DimType getDim() const { return dim_; }
 
   /**
    * @brief get the level vector of the task
    */
-  inline const LevelVector& getLevelVector() const;
+  inline const LevelVector& getLevelVector() const { return l_; }
 
   /**
    * @brief get the unique ID of the task
    */
-  inline size_t getID() const;
+  inline size_t getID() const { return id_; }
 
   /**
    * @brief get the combination coefficient of the task
    */
-  inline real getCoefficient() const;
+  inline real getCoefficient() const { return coeff_; }
 
   /**
    * @brief explicitly set a new ID for the task;
@@ -123,7 +219,7 @@ class Task {
    *
    * make sure ID is continuous and unique!
    */
-  inline void setID(size_t ID);
+  inline void setID(size_t id) { id_ = id; }
 
   /**
    * @brief run the task
@@ -159,12 +255,12 @@ class Task {
    *
    * useful for concurrent setups, needs setFinished() to be called at the end of run()
    */
-  inline bool isFinished() const;
+  inline bool isFinished() const { return isFinished_; }
 
   /**
    * @brief set the finished flag
    */
-  inline void setFinished(bool finished);
+  inline void setFinished(bool finished) { isFinished_ = finished; }
 
   /**
    * @brief gathers the entire full grid on a single process
@@ -177,7 +273,9 @@ class Task {
    * @param n index of the distributed full grid to gather
    */
   virtual void getFullGrid(FullGrid<CombiDataType>& fg, RankType lroot, CommunicatorType lcomm,
-                           int n = 0);
+                           int n = 0) {
+    this->getDistributedFullGrid(n).gatherFullGrid(fg, lroot);
+  }
 
   /**
    * @brief get the DistributedFullGrid of the task
@@ -190,7 +288,9 @@ class Task {
    */
   virtual DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) = 0;
 
-  virtual const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n) const;
+  virtual const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n) const {
+    throw std::runtime_error("const getDistributedFullGrid called but not implemented");
+  }
 
   /**
    * @brief set all DistributedFullGrid values to zero
@@ -221,7 +321,7 @@ class Task {
    */
   virtual CombiDataType analyticalSolution(const std::vector<real>& coords, int n = 0) const {
     std::cout << "No analytical solution for this task! \n";
-    return -0.;
+    return CombiDataType{};
   }
 
   /**
@@ -233,7 +333,10 @@ class Task {
    */
   virtual std::vector<IndexVector> getDecomposition() { return std::vector<IndexVector>(); }
 
-  inline virtual bool isInitialized();
+  inline virtual bool isInitialized() {
+    std::cout << "Not implemented!!!";
+    return false;
+  }
 
   /**
    * @brief do task-specific postprocessing
@@ -254,7 +357,7 @@ class Task {
   /**
    * @brief get the task's boundary flags
    */
-  inline const std::vector<BoundaryType>& getBoundary() const;
+  inline const std::vector<BoundaryType>& getBoundary() const { return boundary_; }
 
  private:
   friend class boost::serialization::access;
@@ -271,10 +374,17 @@ class Task {
    *
    * @param ar archive to serialize to
    * @param version version of the serialization
-
    */
   template <class Archive>
-  void serialize(Archive& ar, const unsigned int version);
+  void serialize(Archive& ar, const unsigned int version) {
+    ar & faultCriterion_;
+    ar & dim_;
+    ar & id_;
+    ar & l_;
+    ar & coeff_;
+    ar & boundary_;
+    ar & isFinished_;
+  }
 
  protected:
   DimType dim_;
@@ -294,48 +404,21 @@ class Task {
   bool isFinished_;
 };
 
-typedef std::vector<Task*> TaskContainer;
+template <typename CombiDataType>
+size_t Task<CombiDataType>::count = 0;
 
-inline const LevelVector& getLevelVectorFromTaskID(const TaskContainer& tasks, size_t task_id) {
+template <typename CombiDataType = double>
+using TaskContainer = std::vector<Task<CombiDataType>*>;
+
+template <typename CombiDataType = double>
+inline const LevelVector& getLevelVectorFromTaskID(const TaskContainer<CombiDataType>& tasks,
+                                                   size_t task_id) {
   auto task = std::find_if(tasks.begin(), tasks.end(),
-                           [task_id](Task* t) { return t->getID() == task_id; });
+                           [task_id](Task<CombiDataType>* t) { return t->getID() == task_id; });
   assert(task != tasks.end());
   return (*task)->getLevelVector();
 }
 
-template <class Archive>
-void Task::serialize(Archive& ar, const unsigned int version) {
-  ar & faultCriterion_;
-  ar & dim_;
-  ar & id_;
-  ar & l_;
-  ar & coeff_;
-  ar & boundary_;
-  ar & isFinished_;
-}
-
-inline DimType Task::getDim() const { return dim_; }
-
-inline const LevelVector& Task::getLevelVector() const { return l_; }
-
-inline const std::vector<BoundaryType>& Task::getBoundary() const { return boundary_; }
-
-inline size_t Task::getID() const { return id_; }
-
-inline real Task::getCoefficient() const { return coeff_; }
-
-inline void Task::setID(size_t id) { id_ = id; }
-
-inline bool Task::isFinished() const { return isFinished_; }
-
-inline void Task::setFinished(bool finished) { isFinished_ = finished; }
-
-inline bool Task::isInitialized() {
-  std::cout << "Not implemented!!!";
-  return false;
-}
-
-// inline real Task::estimateRuntime() const { return loadModel_->eval(l_); }
 } /* namespace combigrid */
 
 #endif /* TASK_HPP_ */

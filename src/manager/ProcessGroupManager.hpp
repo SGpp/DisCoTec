@@ -24,7 +24,9 @@ namespace combigrid {
  * Through the use of non-blocking operations in the ProcessGroupManager, the ProcessManager can
  * instruct multiple process groups at once.
  */
+template <typename CombiDataType = double>
 class ProcessGroupManager {
+  template <typename>
   friend class ProcessManager;
 
  public:
@@ -50,7 +52,7 @@ class ProcessGroupManager {
   /**
    * @brief signal the process group to initalize and run the task \p t
    */
-  bool runfirst(Task* t);
+  bool runfirst(Task<CombiDataType>* t);
 
   /**
    * @brief signal the process group to run a time step on all of its tasks
@@ -80,14 +82,14 @@ class ProcessGroupManager {
   /**
    * @brief get a collection of all tasks currently assigned to this group
    */
-  inline const TaskContainer& getTaskContainer() const;
+  inline const TaskContainer<CombiDataType>& getTaskContainer() const;
 
   /**
    * @brief remove a task from the process group
    *
    * this does not change the state in the workers!
    */
-  inline void removeTask(Task* t);
+  inline void removeTask(Task<CombiDataType>* t);
 
   /**
    * @brief signal to perform a system-wide combination
@@ -157,8 +159,8 @@ class ProcessGroupManager {
   /**
    * @brief assign a task to the process group
    */
-  bool addTask(Task*);
-  bool refreshTask(Task*);
+  bool addTask(Task<CombiDataType>*);
+  bool refreshTask(Task<CombiDataType>*);
 
   /**
    * @brief signal to delete all tasks in the process group
@@ -172,7 +174,7 @@ class ProcessGroupManager {
    *
    * used for fault tolerance; the task will be re-initialized from the current sparse grid solution
    */
-  bool recompute(Task* t);
+  bool recompute(Task<CombiDataType>* t);
 
   /**
    * @brief signal to recover the communicator ranks of the process group
@@ -243,7 +245,7 @@ class ProcessGroupManager {
    * @param task The task to add.
    * @returns If task was successfully added.
    */
-  bool rescheduleAddTask(Task* task);
+  bool rescheduleAddTask(Task<CombiDataType>* task);
 
   /**
    * Removes a task from the process group. To be used for rescheduling.
@@ -252,14 +254,15 @@ class ProcessGroupManager {
    * @returns If successful the removed task or a nullptr if no task with the
    *          given level vector is found.
    */
-  Task* rescheduleRemoveTask(const LevelVector& lvlVec);
+  Task<CombiDataType>* rescheduleRemoveTask(const LevelVector& lvlVec);
 
   /**
    * @brief returns true if the group is currently assigned the task with the given \p taskID
    */
   bool hasTask(size_t taskID) {
-    auto foundIt = std::find_if(tasks_.begin(), tasks_.end(),
-                                [taskID](Task* t) { return ((t->getID()) == taskID); });
+    auto foundIt = std::find_if(tasks_.begin(), tasks_.end(), [taskID](Task<CombiDataType>* t) {
+      return ((t->getID()) == taskID);
+    });
     return foundIt != tasks_.end();
   }
 
@@ -291,12 +294,12 @@ class ProcessGroupManager {
    *
    * Does not change the state in the workers!
    */
-  void storeTaskReference(Task* t);
+  void storeTaskReference(Task<CombiDataType>* t);
 
  private:
   RankType pgroupRootID_;  // rank in GlobalComm of the master process of this group
 
-  TaskContainer tasks_;
+  TaskContainer<CombiDataType> tasks_;
 
   StatusType status_;
 
@@ -313,9 +316,9 @@ class ProcessGroupManager {
   inline void setStatus(StatusType status);
 
   // Helper functions for Communication with ProcessGroups
-  bool storeTaskReferenceAndSendTaskToProcessGroup(Task* t, SignalType signal);
+  bool storeTaskReferenceAndSendTaskToProcessGroup(Task<CombiDataType>* t, SignalType signal);
 
-  bool sendTaskToProcessGroup(Task* t, SignalType signal);
+  bool sendTaskToProcessGroup(Task<CombiDataType>* t, SignalType signal);
 
   void sendSignalAndReceive(SignalType signal);
 
@@ -351,15 +354,19 @@ class ProcessGroupManager {
   /* sets the rank of the process group's master in global comm. should only
    * be called by ProcessManager.
    */
+  template <typename>
   friend class ProcessManager;
   inline void setMasterRank(int pGroupRootID);
   inline int getMasterRank();
 };
 
-typedef std::shared_ptr<ProcessGroupManager> ProcessGroupManagerID;
-typedef std::vector<ProcessGroupManagerID> ProcessGroupManagerContainer;
+template <typename CombiDataType = double>
+using ProcessGroupManagerID = std::shared_ptr<ProcessGroupManager<CombiDataType>>;
+template <typename CombiDataType = double>
+using ProcessGroupManagerContainer = std::vector<ProcessGroupManagerID<CombiDataType>>;
 
-inline StatusType ProcessGroupManager::getStatus() {
+template <typename CombiDataType>
+inline StatusType ProcessGroupManager<CombiDataType>::getStatus() {
   if (status_ == PROCESS_GROUP_WAIT) return PROCESS_GROUP_WAIT;
 
   if (status_ == PROCESS_GROUP_FAIL) return PROCESS_GROUP_FAIL;
@@ -387,9 +394,14 @@ inline StatusType ProcessGroupManager::getStatus() {
   assert(status_ <= 2);
   return status_;
 }
-inline void ProcessGroupManager::setStatus(StatusType status) { status_ = status; }
 
-inline StatusType ProcessGroupManager::waitStatus() {
+template <typename CombiDataType>
+inline void ProcessGroupManager<CombiDataType>::setStatus(StatusType status) {
+  status_ = status;
+}
+
+template <typename CombiDataType>
+inline StatusType ProcessGroupManager<CombiDataType>::waitStatus() {
   if (status_ == PROCESS_GROUP_WAIT) return PROCESS_GROUP_WAIT;
 
   if (status_ == PROCESS_GROUP_FAIL) return PROCESS_GROUP_FAIL;
@@ -412,10 +424,16 @@ inline StatusType ProcessGroupManager::waitStatus() {
   return status_;
 }
 
-inline const TaskContainer& ProcessGroupManager::getTaskContainer() const { return tasks_; }
+template <typename CombiDataType>
+inline const TaskContainer<CombiDataType>& ProcessGroupManager<CombiDataType>::getTaskContainer()
+    const {
+  return tasks_;
+}
 
-inline void ProcessGroupManager::removeTask(Task* t) {
-  std::vector<Task*>::iterator position = std::find(tasks_.begin(), tasks_.end(), t);
+template <typename CombiDataType>
+inline void ProcessGroupManager<CombiDataType>::removeTask(Task<CombiDataType>* t) {
+  typename std::vector<Task<CombiDataType>*>::iterator position =
+      std::find(tasks_.begin(), tasks_.end(), t);
   if (position != tasks_.end()) {  // == task_.end() means the element was not found
     tasks_.erase(position);
     std::cout << "Removing task" << t->getID() << " " << theMPISystem()->getWorldRank() << " !\n";
@@ -426,8 +444,15 @@ inline void ProcessGroupManager::removeTask(Task* t) {
   }
 }
 
-inline void ProcessGroupManager::setMasterRank(int pGroupRootID) { pgroupRootID_ = pGroupRootID; }
-inline int ProcessGroupManager::getMasterRank() { return pgroupRootID_; }
+template <typename CombiDataType>
+inline void ProcessGroupManager<CombiDataType>::setMasterRank(int pGroupRootID) {
+  pgroupRootID_ = pGroupRootID;
+}
+
+template <typename CombiDataType>
+inline int ProcessGroupManager<CombiDataType>::getMasterRank() {
+  return pgroupRootID_;
+}
 
 } /* namespace combigrid */
 

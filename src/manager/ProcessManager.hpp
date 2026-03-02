@@ -29,6 +29,7 @@ namespace combigrid {
  * All other ranks should instantiate a ProcessGroupWorker and call wait() on the worker, until an
  * exit signal is received.
  */
+template <typename CombiDataType = double>
 class ProcessManager {
  public:
   /**
@@ -42,7 +43,8 @@ class ProcessManager {
    *                    By default, the static task rescheduler is used and
    *                    therefore no rescheduling perfomed.
    */
-  ProcessManager(ProcessGroupManagerContainer& pgroups, TaskContainer& instances,
+  ProcessManager(ProcessGroupManagerContainer<CombiDataType>& pgroups,
+                 TaskContainer<CombiDataType>& instances,
                  CombiParameters& params, std::unique_ptr<LoadModel> loadModel,
                  std::unique_ptr<TaskRescheduler> rescheduler =
                      std::unique_ptr<TaskRescheduler>(new StaticTaskRescheduler{}))
@@ -244,7 +246,7 @@ class ProcessManager {
   /**
    * @brief get a pointer to the task with the given ID
    */
-  inline Task* getTask(size_t taskID);
+  inline Task<CombiDataType>* getTask(size_t taskID);
 
   /**
    * @brief signal to receive the combination parameters and send new ones
@@ -255,7 +257,7 @@ class ProcessManager {
    * @brief Computes group faults in current combi scheme step
    */
   void getGroupFaultIDs(std::vector<size_t>& faultsID,
-                        std::vector<ProcessGroupManagerID>& groupFaults);
+                        std::vector<ProcessGroupManagerID<CombiDataType>>& groupFaults);
 
   /**
    * @brief signal one group to interpolate the current solution from the current sparse grid at
@@ -335,7 +337,7 @@ class ProcessManager {
    *
    * used for fault tolerance
    */
-  void reInitializeGroup(std::vector<ProcessGroupManagerID>& taskID,
+  void reInitializeGroup(std::vector<ProcessGroupManagerID<CombiDataType>>& taskID,
                          std::vector<size_t>& tasksToIgnore);
 
   /**
@@ -345,9 +347,9 @@ class ProcessManager {
    * solution
    */
   void recompute(std::vector<size_t>& taskID, bool failedRecovery,
-                 std::vector<ProcessGroupManagerID>& recoveredGroups);
+                 std::vector<ProcessGroupManagerID<CombiDataType>>& recoveredGroups);
 
-  bool recoverCommunicators(std::vector<ProcessGroupManagerID> failedGroups);
+  bool recoverCommunicators(std::vector<ProcessGroupManagerID<CombiDataType>> failedGroups);
   /* After faults have been fixed, we need to return the combischeme
    * to the original combination technique*/
   void restoreCombischeme();
@@ -374,7 +376,7 @@ class ProcessManager {
   /**
    * @brief signal a single group to write the component grids to vtk plot file
    */
-  void writeCombigridsToVTKPlotFile(ProcessGroupManagerID pg);
+  void writeCombigridsToVTKPlotFile(ProcessGroupManagerID<CombiDataType> pg);
 
   /**
    * @brief signal all groups to write their sparse grid data structures to disk
@@ -387,9 +389,9 @@ class ProcessManager {
   void readDSGsFromDisk(const std::string& filenamePrefix);
 
  private:
-  ProcessGroupManagerContainer& pgroups_;
+  ProcessGroupManagerContainer<CombiDataType>& pgroups_;
 
-  TaskContainer& tasks_;
+  TaskContainer<CombiDataType>& tasks_;
 
   CombiParameters params_;
 
@@ -401,20 +403,21 @@ class ProcessManager {
 
   ThirdLevelUtils thirdLevel_;
 
-  ProcessGroupManagerID& thirdLevelPGroup_;
+  ProcessGroupManagerID<CombiDataType>& thirdLevelPGroup_;
 
   // periodically checks status of all process groups. returns until at least
   // one group is in WAIT state
-  inline ProcessGroupManagerID wait();
-  inline ProcessGroupManagerID waitAvoid(std::vector<ProcessGroupManagerID>& avoidGroups);
+  inline ProcessGroupManagerID<CombiDataType> wait();
+  inline ProcessGroupManagerID<CombiDataType> waitAvoid(
+      std::vector<ProcessGroupManagerID<CombiDataType>>& avoidGroups);
   bool waitAllFinished();
-  bool waitForPG(ProcessGroupManagerID pg);
+  bool waitForPG(ProcessGroupManagerID<CombiDataType> pg);
 
   void receiveDurationsOfTasksFromGroupMasters(size_t numDurationsToReceive);
 
   void sortTasks();
 
-  ProcessGroupManagerID getProcessGroupWithTaskID(size_t taskID) {
+  ProcessGroupManagerID<CombiDataType> getProcessGroupWithTaskID(size_t taskID) {
     for (size_t i = 0; i < pgroups_.size(); ++i) {
       if (pgroups_[i]->hasTask(taskID)) {
         return pgroups_[i];
@@ -422,9 +425,12 @@ class ProcessManager {
     }
     return nullptr;
   }
+
+  template <typename> friend class ProcessGroupManager;
 };
 
-inline ProcessGroupManagerID ProcessManager::wait() {
+template <typename CombiDataType>
+inline ProcessGroupManagerID<CombiDataType> ProcessManager<CombiDataType>::wait() {
   while (true) {
     for (size_t i = 0; i < pgroups_.size(); ++i) {
       StatusType status = pgroups_[i]->getStatus();
@@ -438,8 +444,9 @@ inline ProcessGroupManagerID ProcessManager::wait() {
   }
 }
 
-inline ProcessGroupManagerID ProcessManager::waitAvoid(
-    std::vector<ProcessGroupManagerID>& avoidGroups) {
+template <typename CombiDataType>
+inline ProcessGroupManagerID<CombiDataType> ProcessManager<CombiDataType>::waitAvoid(
+    std::vector<ProcessGroupManagerID<CombiDataType>>& avoidGroups) {
   while (true) {
     for (size_t i = 0; i < pgroups_.size(); ++i) {
       if (std::find(avoidGroups.begin(), avoidGroups.end(), pgroups_[i]) ==
@@ -456,7 +463,8 @@ inline ProcessGroupManagerID ProcessManager::waitAvoid(
   }
 }
 
-void ProcessManager::combine() {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::combine() {
   waitForAllGroupsToWait();
 
   // send signal to each group
@@ -468,7 +476,8 @@ void ProcessManager::combine() {
   waitAllFinished();
 }
 
-void ProcessManager::combineSystemWide() {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::combineSystemWide() {
   Stats::startEvent("manager combine local");
   // wait until all process groups are in wait state
   // after sending the exit signal checking the status might not be possible
@@ -492,7 +501,8 @@ void ProcessManager::combineSystemWide() {
   Stats::stopEvent("manager combine local");
 }
 
-void ProcessManager::combineThirdLevel() {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::combineThirdLevel() {
   // first combine local and global
   combineSystemWide();
 
@@ -517,7 +527,8 @@ void ProcessManager::combineThirdLevel() {
   waitAllFinished();
 }
 
-void ProcessManager::combineThirdLevelFileBasedWrite(
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::combineThirdLevelFileBasedWrite(
     const std::string& filenamePrefixToWrite, const std::string& writeCompleteTokenFileName) {
   // first combine local and global
   combineSystemWide();
@@ -535,7 +546,8 @@ void ProcessManager::combineThirdLevelFileBasedWrite(
   waitForPG(thirdLevelPGroup_);
 }
 
-void ProcessManager::combineThirdLevelFileBasedReadReduce(
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::combineThirdLevelFileBasedReadReduce(
     const std::string& filenamePrefixToRead, const std::string& startReadingTokenFileName) {
   // integrate the solutions
   Stats::startEvent("manager combine read");
@@ -552,10 +564,12 @@ void ProcessManager::combineThirdLevelFileBasedReadReduce(
   Stats::stopEvent("manager combine read");
 }
 
-void ProcessManager::combineThirdLevelFileBased(const std::string& filenamePrefixToWrite,
-                                                const std::string& writeCompleteTokenFileName,
-                                                const std::string& filenamePrefixToRead,
-                                                const std::string& startReadingTokenFileName) {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::combineThirdLevelFileBased(
+    const std::string& filenamePrefixToWrite,
+    const std::string& writeCompleteTokenFileName,
+    const std::string& filenamePrefixToRead,
+    const std::string& startReadingTokenFileName) {
   // first combine local and global
   combineSystemWide();
 
@@ -577,7 +591,8 @@ void ProcessManager::combineThirdLevelFileBased(const std::string& filenamePrefi
   thirdLevel_.signalReady();
 }
 
-void ProcessManager::pretendCombineThirdLevelForWorkers() {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::pretendCombineThirdLevelForWorkers() {
   // first combine local and global
   combineSystemWide();
 
@@ -592,7 +607,8 @@ void ProcessManager::pretendCombineThirdLevelForWorkers() {
   Stats::stopEvent("manager exchange no data with remote");
 }
 
-size_t ProcessManager::pretendCombineThirdLevelForBroker(
+template <typename CombiDataType>
+size_t ProcessManager<CombiDataType>::pretendCombineThirdLevelForBroker(
     std::vector<long long> numDofsToCommunicate, bool checkValues) {
   size_t numWrongValues = 0;
   // obtain instructions from third level manager
@@ -603,7 +619,7 @@ size_t ProcessManager::pretendCombineThirdLevelForBroker(
 
   Stats::startEvent("manager exchange data with remote");
   for (const auto& dsguSize : numDofsToCommunicate) {
-    std::vector<CombiDataType> dsguData(dsguSize, 0.);
+    std::vector<CombiDataType> dsguData(dsguSize, CombiDataType{});
     // combine
     if (instruction == "send_first") {
       // if sending first, initialize with random
@@ -615,7 +631,7 @@ size_t ProcessManager::pretendCombineThirdLevelForBroker(
       thirdLevel_.recvData(dsguData.data(), dsguSize);
       if (checkValues) {
         for (long long j = 0; j < dsguSize; ++j) {
-          if (dsguData[j] != initialData[j]) {
+          if (dsguData[j] != static_cast<CombiDataType>(initialData[j])) {
             ++numWrongValues;
           }
         }
@@ -633,7 +649,9 @@ size_t ProcessManager::pretendCombineThirdLevelForBroker(
   return numWrongValues;
 }
 
-size_t ProcessManager::unifySubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid) {
+template <typename CombiDataType>
+size_t ProcessManager<CombiDataType>::unifySubspaceSizesThirdLevel(
+    bool thirdLevelExtraSparseGrid) {
   if (!thirdLevelExtraSparseGrid) {
     // tell other pgroups to idle and wait for update
     for (auto& pg : pgroups_) {
@@ -676,7 +694,8 @@ size_t ProcessManager::unifySubspaceSizesThirdLevel(bool thirdLevelExtraSparseGr
   return dsguDataSize;
 }
 
-size_t ProcessManager::pretendUnifySubspaceSizesThirdLevel() {
+template <typename CombiDataType>
+size_t ProcessManager<CombiDataType>::pretendUnifySubspaceSizesThirdLevel() {
   // tell other pgroups to idle and wait for update
   for (auto& pg : pgroups_) {
     if (pg != thirdLevelPGroup_) pg->waitForThirdLevelSizeUpdate();
@@ -704,10 +723,12 @@ size_t ProcessManager::pretendUnifySubspaceSizesThirdLevel() {
   return dsguDataSize;
 }
 
-inline void ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
-                                                         std::vector<size_t>& faultsID,
-                                                         std::vector<size_t>& redistributeFaultsID,
-                                                         std::vector<size_t>& recomputeFaultsID) {
+template <typename CombiDataType>
+inline void ProcessManager<CombiDataType>::recomputeOptimumCoefficients(
+    std::string prob_name,
+    std::vector<size_t>& faultsID,
+    std::vector<size_t>& redistributeFaultsID,
+    std::vector<size_t>& recomputeFaultsID) {
   CombigridDict given_dict = params_.getCombiDict();
 
   std::map<size_t, LevelVector> IDsToLevels = params_.getLevelsDict();
@@ -767,8 +788,9 @@ inline void ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
   }
 }
 
-inline Task* ProcessManager::getTask(size_t taskID) {
-  for (Task* tmp : tasks_) {
+template <typename CombiDataType>
+inline Task<CombiDataType>* ProcessManager<CombiDataType>::getTask(size_t taskID) {
+  for (Task<CombiDataType>* tmp : tasks_) {
     if (tmp->getID() == taskID) {
       return tmp;
     }

@@ -77,8 +77,9 @@ std::vector<std::vector<real>> receiveAndBroadcastInterpolationCoords(DimType di
   MASTER_EXCLUSIVE_SECTION {
     MPI_Status status;
     status.MPI_ERROR = MPI_SUCCESS;
-    [[maybe_unused]] int result = MPI_Probe(theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
-                           theMPISystem()->getGlobalComm(), &status);
+    [[maybe_unused]] int result =
+        MPI_Probe(theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
+                  theMPISystem()->getGlobalComm(), &status);
 #ifndef NDEBUG
     assert(result == MPI_SUCCESS);
     if (status.MPI_ERROR != MPI_SUCCESS) {
@@ -129,13 +130,15 @@ std::vector<std::vector<real>> receiveAndBroadcastInterpolationCoords(DimType di
   return interpolationCoords;
 }
 
-ProcessGroupWorker::ProcessGroupWorker()
+template <typename CombiDataType>
+ProcessGroupWorker<CombiDataType>::ProcessGroupWorker()
     : status_(PROCESS_GROUP_WAIT),
       combiParameters_(),
       combiParametersSet_(false),
       currentCombi_(0) {}
 
-SignalType ProcessGroupWorker::wait() {
+template <typename CombiDataType>
+SignalType ProcessGroupWorker<CombiDataType>::wait() {
   if (status_ == PROCESS_GROUP_FAIL) {  // in this case worker got reused
     status_ = PROCESS_GROUP_WAIT;
   }
@@ -397,8 +400,9 @@ SignalType ProcessGroupWorker::wait() {
         if (this->getTaskWorker().getTasks()[i]->getID() == taskID) {
           MASTER_EXCLUSIVE_SECTION {
             // send to group master
-            Task::send(this->getTaskWorker().getTasks()[i].get(), theMPISystem()->getManagerRank(),
-                       theMPISystem()->getGlobalComm());
+            Task<CombiDataType>::send(this->getTaskWorker().getTasks()[i].get(),
+                                      theMPISystem()->getManagerRank(),
+                                      theMPISystem()->getGlobalComm());
           }
           this->getTaskWorker().removeTask(i);
           break;  // only one task has the taskID
@@ -435,14 +439,16 @@ SignalType ProcessGroupWorker::wait() {
   return signal;
 }
 
-void ProcessGroupWorker::runAllTasks() {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::runAllTasks() {
   Stats::startEvent("run");
   status_ = PROCESS_GROUP_BUSY;  // not sure if this does anything
   this->getTaskWorker().runAllTasks();
   Stats::stopEvent("run");
 }
 
-void ProcessGroupWorker::exit() {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::exit() {
   // write out tasks that were in use when the computation ended
   // (i.e. after fault tolerance or rescheduling changes)
   MASTER_EXCLUSIVE_SECTION {
@@ -454,14 +460,11 @@ void ProcessGroupWorker::exit() {
     std::string tasksString = tasksStream.str();
     // Stats::setAttribute("tasks: levels", tasksString);
   }
-  if (isGENE) {
-    if (chdir("../ginstance")) {
-    };
-  }
   this->getTaskWorker().deleteTasks();
 }
 
-void ProcessGroupWorker::initCombinedDSGVector() {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::initCombinedDSGVector() {
   assert(combiParametersSet_);
   this->getSparseGridWorker().initCombinedUniDSGVector(
       combiParameters_.getLMin(), combiParameters_.getLMax(),
@@ -469,7 +472,8 @@ void ProcessGroupWorker::initCombinedDSGVector() {
       combiParameters_.getCombinationVariant());
 }
 
-void ProcessGroupWorker::combineSystemWide() {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::combineSystemWide() {
   Stats::startEvent("hierarchize");
   this->getTaskWorker().hierarchizeFullGrids(
       combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
@@ -483,8 +487,9 @@ void ProcessGroupWorker::combineSystemWide() {
   Stats::stopEvent("reduce");
 }
 
-void ProcessGroupWorker::combineSystemWideAndWrite(const std::string& writeSparseGridFile,
-                                                   const std::string& writeSparseGridFileToken) {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::combineSystemWideAndWrite(
+    const std::string& writeSparseGridFile, const std::string& writeSparseGridFileToken) {
   Stats::startEvent("hierarchize");
   this->getTaskWorker().hierarchizeFullGrids(
       combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
@@ -496,12 +501,12 @@ void ProcessGroupWorker::combineSystemWideAndWrite(const std::string& writeSpars
     Stats::startEvent("reduce/distribute");
     OUTPUT_GROUP_EXCLUSIVE_SECTION {
       assert(!getExtraDSGVector().empty());
-      this->getSparseGridWorker().collectReduceDistribute<true>(
+      this->getSparseGridWorker().template collectReduceDistribute<true>(
           combiParameters_.getCombinationVariant(),
           combiParameters_.getChunkSizeInMebibybtePerThread());
     }
     else {
-      this->getSparseGridWorker().collectReduceDistribute<false>(
+      this->getSparseGridWorker().template collectReduceDistribute<false>(
           combiParameters_.getCombinationVariant(),
           combiParameters_.getChunkSizeInMebibybtePerThread());
     }
@@ -519,7 +524,8 @@ void ProcessGroupWorker::combineSystemWideAndWrite(const std::string& writeSpars
     this->combineThirdLevelFileBasedWrite(writeSparseGridFile, writeSparseGridFileToken);
   }
 }
-void ProcessGroupWorker::dehierarchizeAllTasks() {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::dehierarchizeAllTasks() {
   Stats::startEvent("dehierarchize");
   this->getTaskWorker().dehierarchizeFullGrids(
       combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
@@ -528,7 +534,8 @@ void ProcessGroupWorker::dehierarchizeAllTasks() {
   currentCombi_++;
 }
 
-void ProcessGroupWorker::combineAtOnce(bool collectMinMaxCoefficients) {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::combineAtOnce(bool collectMinMaxCoefficients) {
   Stats::startEvent("hierarchize");
   this->getTaskWorker().hierarchizeFullGrids(
       combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
@@ -538,7 +545,7 @@ void ProcessGroupWorker::combineAtOnce(bool collectMinMaxCoefficients) {
   if (combiParameters_.getCombinationVariant() ==
       CombinationVariant::chunkedOutgroupSparseGridReduce) {
     Stats::startEvent("reduce/distribute");
-    this->getSparseGridWorker().collectReduceDistribute<false>(
+    this->getSparseGridWorker().template collectReduceDistribute<false>(
         combiParameters_.getCombinationVariant(),
         combiParameters_.getChunkSizeInMebibybtePerThread(), collectMinMaxCoefficients);
     Stats::stopEvent("reduce/distribute");
@@ -556,7 +563,8 @@ void ProcessGroupWorker::combineAtOnce(bool collectMinMaxCoefficients) {
   this->dehierarchizeAllTasks();
 }
 
-void ProcessGroupWorker::parallelEval() {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::parallelEval() {
   if (uniformDecomposition) {
     parallelEvalUniform(receiveStringFromManagerAndBroadcastToGroup(),
                         receiveLevalAndBroadcast(combiParameters_.getDim()));
@@ -565,8 +573,9 @@ void ProcessGroupWorker::parallelEval() {
   }
 }
 
-void ProcessGroupWorker::parallelEvalUniform(const std::string& filename,
-                                             const LevelVector& leval) const {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::parallelEvalUniform(const std::string& filename,
+                                                            const LevelVector& leval) const {
   assert(uniformDecomposition);
   auto levalDecomposition = combigrid::downsampleDecomposition(combiParameters_.getDecomposition(),
                                                                combiParameters_.getLMax(), leval,
@@ -577,11 +586,13 @@ void ProcessGroupWorker::parallelEvalUniform(const std::string& filename,
       combiParameters_.getParallelization(), levalDecomposition);
 }
 
-std::vector<double> ProcessGroupWorker::getLpNorms(int p) const {
+template <typename CombiDataType>
+std::vector<double> ProcessGroupWorker<CombiDataType>::getLpNorms(int p) const {
   return this->getTaskWorker().getLpNorms(p);
 }
 
-void ProcessGroupWorker::doDiagnostics() {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::doDiagnostics() {
   // receive taskID and broadcast
   size_t taskID;
   MASTER_EXCLUSIVE_SECTION {
@@ -596,7 +607,8 @@ void ProcessGroupWorker::doDiagnostics() {
   this->doDiagnostics(taskID);
 }
 
-void ProcessGroupWorker::doDiagnostics(size_t taskID) {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::doDiagnostics(size_t taskID) {
   // call diagnostics on that Task
   for (const auto& task : this->getTaskWorker().getTasks()) {
     if (task->getID() == taskID) {
@@ -607,14 +619,16 @@ void ProcessGroupWorker::doDiagnostics(size_t taskID) {
   assert(false && "this taskID is not here");
 }
 
-std::vector<CombiDataType> ProcessGroupWorker::interpolateValues(
+template <typename CombiDataType>
+std::vector<CombiDataType> ProcessGroupWorker<CombiDataType>::interpolateValues(
     const std::vector<std::vector<real>>& interpolationCoords) const {
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
   return combigrid::interpolateValues<CombiDataType>(this->getTaskWorker().getTasks(),
                                                      interpolationCoords);
 }
 
-void ProcessGroupWorker::writeInterpolatedValuesPerGrid(
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::writeInterpolatedValuesPerGrid(
     const std::vector<std::vector<real>>& interpolationCoords,
     const std::string& fileNamePrefix) const {
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
@@ -622,7 +636,8 @@ void ProcessGroupWorker::writeInterpolatedValuesPerGrid(
                                             fileNamePrefix, currentCombi_);
 }
 
-void ProcessGroupWorker::writeInterpolatedValuesSingleFile(
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::writeInterpolatedValuesSingleFile(
     const std::vector<std::vector<real>>& interpolationCoords,
     const std::string& filenamePrefix) const {
   // all processes interpolate
@@ -631,24 +646,29 @@ void ProcessGroupWorker::writeInterpolatedValuesSingleFile(
       this->getTaskWorker().getTasks(), interpolationCoords, filenamePrefix, currentCombi_);
 }
 
-void ProcessGroupWorker::writeSparseGridMinMaxCoefficients(
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::writeSparseGridMinMaxCoefficients(
     const std::string& fileNamePrefix) const {
   this->getSparseGridWorker().writeMinMaxCoefficients(fileNamePrefix);
 }
 
-void ProcessGroupWorker::receiveAndInitializeTask() {
-  Task* t;
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::receiveAndInitializeTask() {
+  Task<CombiDataType>* t;
   // local root receives task
   MASTER_EXCLUSIVE_SECTION {
-    Task::receive(&t, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
+    Task<CombiDataType>::receive(&t, theMPISystem()->getManagerRank(),
+                                 theMPISystem()->getGlobalComm());
   }
   // broadcast task to other process of pgroup
-  Task::broadcast(&t, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+  Task<CombiDataType>::broadcast(&t, theMPISystem()->getMasterRank(),
+                                 theMPISystem()->getLocalComm());
 
-  this->initializeTask(std::unique_ptr<Task>(t));
+  this->initializeTask(std::unique_ptr<Task<CombiDataType>>(t));
 }
 
-void ProcessGroupWorker::initializeTask(std::unique_ptr<Task> t) {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::initializeTask(std::unique_ptr<Task<CombiDataType>> t) {
   auto taskDecomposition = combigrid::downsampleDecomposition(
       combiParameters_.getDecomposition(), combiParameters_.getLMax(), t->getLevelVector(),
       combiParameters_.getBoundary());
@@ -657,12 +677,13 @@ void ProcessGroupWorker::initializeTask(std::unique_ptr<Task> t) {
                                        theMPISystem()->getLocalComm());
 }
 
-void ProcessGroupWorker::setCombiParameters(CombiParameters&& combiParameters) {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::setCombiParameters(CombiParameters&& combiParameters) {
   combiParameters_ = std::move(combiParameters);
   combiParametersSet_ = true;
 
   // overwrite local comm with cartesian communicator
-  if (!isGENE && combiParameters_.isParallelizationSet()) {
+  if (combiParameters_.isParallelizationSet()) {
     // cf. https://www.rookiehpc.com/mpi/docs/mpi_cart_create.php
     // get decompositon from combi params
     auto& dims = combiParameters_.getParallelization();
@@ -691,7 +712,8 @@ void ProcessGroupWorker::setCombiParameters(CombiParameters&& combiParameters) {
   }
 }
 
-void ProcessGroupWorker::updateCombiParameters() {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::updateCombiParameters() {
   // local root receives combi parameters
   CombiParameters combiParametersReceived;
   MASTER_EXCLUSIVE_SECTION {
@@ -705,7 +727,8 @@ void ProcessGroupWorker::updateCombiParameters() {
   this->setCombiParameters(std::move(combiParametersReceived));
 }
 
-void ProcessGroupWorker::updateFullFromCombinedSparseGrids() {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::updateFullFromCombinedSparseGrids() {
   Stats::startEvent("distribute");
   this->getSparseGridWorker().distributeCombinedSolutionToTasks();
   Stats::stopEvent("distribute");
@@ -713,7 +736,8 @@ void ProcessGroupWorker::updateFullFromCombinedSparseGrids() {
   this->dehierarchizeAllTasks();
 }
 
-void ProcessGroupWorker::combineThirdLevel() {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::combineThirdLevel() {
   assert(this->getSparseGridWorker().getNumberOfGrids() != 0);
   assert(combiParametersSet_);
 
@@ -772,7 +796,8 @@ void ProcessGroupWorker::combineThirdLevel() {
   Stats::stopEvent("wait for bcasts");
 }
 
-int ProcessGroupWorker::combineThirdLevelFileBasedWrite(
+template <typename CombiDataType>
+int ProcessGroupWorker<CombiDataType>::combineThirdLevelFileBasedWrite(
     const std::string& filenamePrefixToWrite, const std::string& writeCompleteTokenFileName) {
   OUTPUT_GROUP_EXCLUSIVE_SECTION {
     assert(this->getSparseGridWorker().getNumberOfGrids() > 0);
@@ -789,7 +814,9 @@ int ProcessGroupWorker::combineThirdLevelFileBasedWrite(
   }
 }
 
-void ProcessGroupWorker::waitForTokenFile(const std::string& startReadingTokenFileName) const {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::waitForTokenFile(
+    const std::string& startReadingTokenFileName) const {
   OUTPUT_GROUP_EXCLUSIVE_SECTION {
     Stats::startEvent("wait SG");
     MASTER_EXCLUSIVE_SECTION {
@@ -801,20 +828,23 @@ void ProcessGroupWorker::waitForTokenFile(const std::string& startReadingTokenFi
     }
     MPI_Barrier(theMPISystem()->getOutputGroupComm());
     Stats::stopEvent("wait SG");
-  } else {
+  }
+  else {
     throw std::runtime_error("should only be called from output group");
   }
 }
 
-int ProcessGroupWorker::readReduce(const std::vector<std::string>& filenamePrefixesToRead,
-                                   const std::vector<std::string>& startReadingTokenFileNames,
-                                   bool overwriteInMemory) {
+template <typename CombiDataType>
+int ProcessGroupWorker<CombiDataType>::readReduce(
+    const std::vector<std::string>& filenamePrefixesToRead,
+    const std::vector<std::string>& startReadingTokenFileNames, bool overwriteInMemory) {
   return getSparseGridWorker().readReduce(filenamePrefixesToRead, startReadingTokenFileNames,
                                           this->combiParameters_.getChunkSizeInMebibybtePerThread(),
                                           overwriteInMemory);
 }
 
-void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::combineThirdLevelFileBasedReadReduce(
     const std::vector<std::string>& filenamePrefixesToRead,
     const std::vector<std::string>& startReadingTokenFileNames, bool overwriteInMemory,
     bool keepSparseGridFiles) {
@@ -845,7 +875,8 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
   assert(returnedValue == MPI_SUCCESS);
 }
 
-void ProcessGroupWorker::combineReadDistributeSystemWide(
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::combineReadDistributeSystemWide(
     const std::vector<std::string>& filenamePrefixesToRead,
     const std::vector<std::string>& startReadingTokenFileNames, bool overwriteInMemory,
     bool keepSparseGridFiles) {
@@ -866,7 +897,8 @@ void ProcessGroupWorker::combineReadDistributeSystemWide(
   }
 }
 
-void ProcessGroupWorker::combineThirdLevelFileBased(
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::combineThirdLevelFileBased(
     const std::string& filenamePrefixToWrite, const std::string& writeCompleteTokenFileName,
     const std::vector<std::string>& filenamePrefixesToRead,
     const std::vector<std::string>& startReadingTokenFileNames) {
@@ -874,13 +906,16 @@ void ProcessGroupWorker::combineThirdLevelFileBased(
   this->combineThirdLevelFileBasedReadReduce(filenamePrefixesToRead, startReadingTokenFileNames);
 }
 
-void ProcessGroupWorker::setExtraSparseGrid(bool initializeSizes) {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::setExtraSparseGrid(bool initializeSizes) {
   return this->getSparseGridWorker().setExtraSparseGrid(initializeSizes);
 }
 
 /** Reduces subspace sizes with remote.
  */
-void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid) {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::reduceSubspaceSizesThirdLevel(
+    bool thirdLevelExtraSparseGrid) {
   assert(combiParametersSet_);
   // update either old or new sparse grid
   auto& uniDSGToSet =
@@ -906,7 +941,8 @@ void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSpars
   this->getSparseGridWorker().zeroDsgsData(this->combiParameters_.getCombinationVariant());
 }
 
-void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::waitForThirdLevelSizeUpdate() {
   RankType thirdLevelPG = (RankType)combiParameters_.getThirdLevelPG();
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
 
@@ -916,15 +952,17 @@ void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
   this->getSparseGridWorker().zeroDsgsData(this->combiParameters_.getCombinationVariant());
 }
 
-int ProcessGroupWorker::reduceExtraSubspaceSizes(const std::vector<std::string>& filenamesToRead,
-                                                 bool overwrite) {
+template <typename CombiDataType>
+int ProcessGroupWorker<CombiDataType>::reduceExtraSubspaceSizes(
+    const std::vector<std::string>& filenamesToRead, bool overwrite) {
   auto numReducedSizes = this->getSparseGridWorker().reduceExtraSubspaceSizes(
       filenamesToRead, this->combiParameters_.getCombinationVariant(), overwrite);
   this->getSparseGridWorker().zeroDsgsData(this->combiParameters_.getCombinationVariant());
   return numReducedSizes;
 }
 
-int ProcessGroupWorker::reduceExtraSubspaceSizesFileBased(
+template <typename CombiDataType>
+int ProcessGroupWorker<CombiDataType>::reduceExtraSubspaceSizesFileBased(
     const std::string& filenamePrefixToWrite, const std::string& writeCompleteTokenFileName,
     const std::vector<std::string>& filenamePrefixesToRead,
     const std::vector<std::string>& startReadingTokenFileNames) {
@@ -966,7 +1004,8 @@ int ProcessGroupWorker::reduceExtraSubspaceSizesFileBased(
   return numSizesReduced;
 }
 
-void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::waitForThirdLevelCombiResult(bool fromOutputGroup) {
   assert(this->getSparseGridWorker().getExtraUniDSGVector().empty());
   RankType broadcastSender;
   if (fromOutputGroup) {
@@ -987,21 +1026,28 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
   updateFullFromCombinedSparseGrids();
 }
 
-void ProcessGroupWorker::zeroDsgsData() {
+template <typename CombiDataType>
+void ProcessGroupWorker<CombiDataType>::zeroDsgsData() {
   this->getSparseGridWorker().zeroDsgsData(combiParameters_.getCombinationVariant());
 }
 
-int ProcessGroupWorker::writeDSGsToDisk(const std::string& filenamePrefix,
-                                        const std::string& writeCompleteTokenFileName) {
+template <typename CombiDataType>
+int ProcessGroupWorker<CombiDataType>::writeDSGsToDisk(
+    const std::string& filenamePrefix, const std::string& writeCompleteTokenFileName) {
   auto numWritten = this->getSparseGridWorker().writeDSGsToDisk(
       filenamePrefix, this->getCombiParameters().getCombinationVariant());
   this->getSparseGridWorker().writeTokenFiles(writeCompleteTokenFileName);
   return numWritten;
 }
 
-int ProcessGroupWorker::readDSGsFromDisk(const std::string& filenamePrefix,
-                                         bool alwaysReadFullDSG) {
+template <typename CombiDataType>
+int ProcessGroupWorker<CombiDataType>::readDSGsFromDisk(const std::string& filenamePrefix,
+                                                        bool alwaysReadFullDSG) {
   return this->getSparseGridWorker().readDSGsFromDisk(filenamePrefix, true, alwaysReadFullDSG);
 }
+
+#include <complex>
+template class ProcessGroupWorker<double>;
+template class ProcessGroupWorker<std::complex<float>>;
 
 } /* namespace combigrid */

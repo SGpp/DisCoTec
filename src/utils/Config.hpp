@@ -62,37 +62,16 @@ typedef std::complex<real> complex;
 #ifdef UNIFORMDECOMPOSITION
 	constexpr bool uniformDecomposition = true;
 #else
-	constexpr bool uniformDecomposition = false;
+constexpr bool uniformDecomposition = false;
 #endif
 /* switch on fault tolerance functionality */
 #ifdef ENABLEFT
-	constexpr bool ENABLE_FT = true; //TODO move this switch to a more sensible place
+constexpr bool ENABLE_FT = true;  // TODO move this switch to a more sensible place
 #else
-	constexpr bool ENABLE_FT = false;
+constexpr bool ENABLE_FT = false;
 #endif
-#ifdef ISGENE
-	constexpr bool isGENE = true;    //TODO move this switch to a more sensible place
-	// running gene requires complex numbers for combination
-	static_assert(std::is_same<CombiDataType, complex>::value);
-#else
-	constexpr bool isGENE = false;
-#endif
+typedef real CombiDataType;
 
-/* set the datatype for the values stored in any type of grid. essentially you
- * have two options: real values or complex numbers. other datatypes like int
- * have not been tested and operations on the grids like evaluation or
- * hierarchization might produce unexpected results.
- */
-#ifdef ISGENE
-	typedef complex CombiDataType;
-	// this switch seems to make not much of a difference after all ;)
-	constexpr bool reverseOrderingDFGPartitions = true;
-	static_assert(false, "removed reverseOrderingDFGPartitions, but this is untested for GENE");
-#else
-	typedef real CombiDataType;
-	constexpr bool reverseOrderingDFGPartitions = false;
-#endif
-
-}
+}  // namespace combigrid
 
 #endif /* DISTRIBUTEDCOMBIGRID_SRC_SGPP_DISTRIBUTEDCOMBIGRID_UTILS_CONFIG_HPP_ */

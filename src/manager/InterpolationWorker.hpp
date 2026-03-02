@@ -7,9 +7,9 @@
 
 namespace combigrid {
 
-template <typename CombinableType>
+template <typename CombinableType, typename CombiDataType = double>
 static std::vector<CombinableType> interpolateValues(
-    const std::vector<std::unique_ptr<Task>>& tasks,
+    const std::vector<std::unique_ptr<Task<CombiDataType>>>& tasks,
     const std::vector<std::vector<real>>& interpolationCoords) {
   auto numCoordinates = interpolationCoords.size();
 
@@ -23,7 +23,7 @@ static std::vector<CombinableType> interpolateValues(
     shared(values, kahanTrailingTerm, interpolationCoords, task) schedule(dynamic)
     for (size_t i = 0; i < numCoordinates; ++i) {
       auto localValue = task->getDistributedFullGrid().evalLocal(interpolationCoords[i]);
-      auto summand = localValue * coeff;
+      auto summand = localValue * static_cast<CombinableType>(coeff);
       // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
       auto y = summand - kahanTrailingTerm[i];
       auto t = values[i] + y;
@@ -47,8 +47,9 @@ static std::vector<CombinableType> interpolateValues(
   return values;
 }
 
+template <typename CombiDataType = double>
 static void writeInterpolatedValuesPerGrid(
-    const std::vector<std::unique_ptr<Task>>& tasks,
+    const std::vector<std::unique_ptr<Task<CombiDataType>>>& tasks,
     const std::vector<std::vector<real>>& interpolationCoords, const std::string& fileNamePrefix,
     IndexType currentCombinationStep) {
   // call interpolation function on tasks and write out task-wise
@@ -66,9 +67,9 @@ static void writeInterpolatedValuesPerGrid(
   }
 }
 
-template <typename CombinableType>
+template <typename CombinableType, typename CombiDataType = double>
 static void writeInterpolatedValuesSingleFile(
-    const std::vector<std::unique_ptr<Task>>& tasks,
+    const std::vector<std::unique_ptr<Task<CombiDataType>>>& tasks,
     const std::vector<std::vector<real>>& interpolationCoords, const std::string& filenamePrefix,
     IndexType currentCombinationStep) {
   // all processes interpolate
@@ -88,8 +89,9 @@ static void writeInterpolatedValuesSingleFile(
   }
 }
 
-static void writeVTKPlotFilesOfAllTasks(const std::vector<std::unique_ptr<Task>>& tasks,
-                                        int numberOfGrids) {
+template <typename CombiDataType = double>
+static void writeVTKPlotFilesOfAllTasks(
+    const std::vector<std::unique_ptr<Task<CombiDataType>>>& tasks, int numberOfGrids) {
 #ifdef USE_VTK
   for (const auto& task : tasks) {
     for (int g = 0; g < numberOfGrids; ++g) {

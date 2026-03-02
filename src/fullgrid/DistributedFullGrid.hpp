@@ -667,7 +667,6 @@ DistributedFullGrid<FG_ELEMENT>::~DistributedFullGrid() {
   }
 }
 
-
 template <typename FG_ELEMENT>
 void DistributedFullGrid<FG_ELEMENT>::getCoordsGlobal(IndexType globalLinearIndex,
                                                       std::vector<real>& coords) const {
@@ -1159,7 +1158,7 @@ FG_ELEMENT DistributedFullGrid<FG_ELEMENT>::evalIndexAndAllUpperNeighbors(
 #endif
       assert(neighborIndex > -1);
       assert(neighborIndex < this->getNrLocalElements());
-      result += phi_c * this->getData()[neighborIndex];
+      result += static_cast<FG_ELEMENT>(phi_c) * this->getData()[neighborIndex];
     }
   }
   return result;
@@ -1373,7 +1372,7 @@ real DistributedFullGrid<FG_ELEMENT>::getLpNorm(int p) const {
     auto data = this->getData();
 #pragma omp parallel for reduction(max : max) default(none) shared(data) schedule(static)
     for (IndexType i = 0; i < this->getNrLocalElements(); ++i) {
-      max = std::max(max, std::abs(data[i]));
+      max = std::max(max, static_cast<real>(std::abs(data[i])));
     }
     real globalMax(-1);
     MPI_Allreduce(&max, &globalMax, 1, dtype, MPI_MAX, getCommunicator());
@@ -1516,7 +1515,7 @@ void DistributedFullGrid<FG_ELEMENT>::writePlotFileVTK(const char* filename) con
              << "SCALARS quantity double 1\n"
              << "LOOKUP_TABLE default\n";
   // TODO set the right data type from combidatatype, for now double by default
-  [[maybe_unused]] bool rightDataType = std::is_same<CombiDataType, double>::value;
+  [[maybe_unused]] bool rightDataType = std::is_same<FG_ELEMENT, double>::value;
   assert(rightDataType);
   auto header_string = vtk_header.str();
   auto header_size = header_string.size();
@@ -1548,12 +1547,7 @@ void DistributedFullGrid<FG_ELEMENT>::getHighestAndLowestNeighbor(DimType d, int
   lowest = MPI_PROC_NULL;
   highest = MPI_PROC_NULL;
 
-  auto d_reverse = this->getDimension() - d - 1;
-  if (!reverseOrderingDFGPartitions) {
-    d_reverse = d;
-  }
-
-  MPI_Cart_shift(this->getCommunicator(), static_cast<int>(d_reverse),
+  MPI_Cart_shift(this->getCommunicator(), static_cast<int>(d),
                  static_cast<int>(getParallelization()[d] - 1), &lowest, &highest);
 
   // assert only boundaries have those neighbors (remove in case of periodicity)
@@ -1605,13 +1599,7 @@ void DistributedFullGrid<FG_ELEMENT>::exchangeGhostLayerUpward(DimType d,
   int lower = MPI_PROC_NULL;
   int higher = MPI_PROC_NULL;
 
-  // somehow the cartesian directions in the communicator are reversed
-  // cf InitMPI(...)
-  auto d_reverse = this->getDimension() - d - 1;
-  if (!reverseOrderingDFGPartitions) {
-    d_reverse = d;
-  }
-  MPI_Cart_shift(this->getCommunicator(), static_cast<int>(d_reverse), 1, &lower, &higher);
+  MPI_Cart_shift(this->getCommunicator(), static_cast<int>(d), 1, &lower, &higher);
 
   if (this->returnBoundaryFlags()[d] == 1) {
     // if one-sided boundary, assert that everyone has neighbors

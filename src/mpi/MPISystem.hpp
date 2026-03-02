@@ -57,8 +57,6 @@ struct [[nodiscard]] MpiOnOff {
   ~MpiOnOff();
 };
 
-class ProcessGroupManager;
-
 class MPISystem;
 typedef std::shared_ptr<MPISystem> MPISystemID;
 /**
@@ -316,9 +314,7 @@ class MPISystem {
    * groupAlive indicates if the process group of the calling rank is alive
    * failedGroups is a vector of the failed process groups
    */
-  bool recoverCommunicators(bool groupAlive,
-                            std::vector<std::shared_ptr<ProcessGroupManager>> failedGroups =
-                                std::vector<std::shared_ptr<ProcessGroupManager>>(0));
+  bool recoverCommunicators(bool groupAlive, size_t numFailedGroups = 0);
 
   /**
    * This routine frees the specified fault tolerant MPI communicator

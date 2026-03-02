@@ -1,21 +1,27 @@
 #include "manager/ProcessGroupManager.hpp"
 
+#include <complex>
+
 #include "manager/CombiParameters.hpp"
 #include "mpi/MPIUtils.hpp"
 #include "mpi_fault_simulator/MPI-FT.h"
 
 namespace combigrid {
-ProcessGroupManager::ProcessGroupManager(RankType pgroupRootID)
+template <typename CombiDataType>
+ProcessGroupManager<CombiDataType>::ProcessGroupManager(RankType pgroupRootID)
     : pgroupRootID_(pgroupRootID),
       status_(PROCESS_GROUP_WAIT),
       statusRequest_(MPI_Request()),
       statusRequestFT_(nullptr) {}
 
-bool ProcessGroupManager::runfirst(Task* t) {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::runfirst(Task<CombiDataType>* t) {
   return storeTaskReferenceAndSendTaskToProcessGroup(t, RUN_FIRST);
 }
 
-bool ProcessGroupManager::storeTaskReferenceAndSendTaskToProcessGroup(Task* t, SignalType signal) {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::storeTaskReferenceAndSendTaskToProcessGroup(
+    Task<CombiDataType>* t, SignalType signal) {
   // first check status
   // tying to add a task to a busy group is an invalid operation
   // and should be avoided
@@ -25,17 +31,20 @@ bool ProcessGroupManager::storeTaskReferenceAndSendTaskToProcessGroup(Task* t, S
   return sendTaskToProcessGroup(t, signal);
 }
 
-void ProcessGroupManager::storeTaskReference(Task* t) {
+template <typename CombiDataType>
+void ProcessGroupManager<CombiDataType>::storeTaskReference(Task<CombiDataType>* t) {
   // add task to list of tasks managed by this pgroup
   tasks_.push_back(t);
 }
 
-bool ProcessGroupManager::sendTaskToProcessGroup(Task* t, SignalType signal) {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::sendTaskToProcessGroup(Task<CombiDataType>* t,
+                                                                SignalType signal) {
   // send signal to pgroup
   sendSignalToProcessGroup(signal);
 
   // send task
-  Task::send(t, pgroupRootID_, theMPISystem()->getGlobalComm());
+  Task<CombiDataType>::send(t, pgroupRootID_, theMPISystem()->getGlobalComm());
 
   setProcessGroupBusyAndReceive();
 
@@ -43,17 +52,20 @@ bool ProcessGroupManager::sendTaskToProcessGroup(Task* t, SignalType signal) {
   return true;
 }
 
-void ProcessGroupManager::sendSignalAndReceive(SignalType signal) {
+template <typename CombiDataType>
+void ProcessGroupManager<CombiDataType>::sendSignalAndReceive(SignalType signal) {
   sendSignalToProcessGroup(signal);
   setProcessGroupBusyAndReceive();
 }
 
-void ProcessGroupManager::sendSignalToProcessGroup(SignalType signal) {
+template <typename CombiDataType>
+void ProcessGroupManager<CombiDataType>::sendSignalToProcessGroup(SignalType signal) {
   MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG,
            theMPISystem()->getGlobalComm());
 }
 
-inline void ProcessGroupManager::setProcessGroupBusyAndReceive() {
+template <typename CombiDataType>
+inline void ProcessGroupManager<CombiDataType>::setProcessGroupBusyAndReceive() {
   // set status
   status_ = PROCESS_GROUP_BUSY;
 
@@ -61,7 +73,8 @@ inline void ProcessGroupManager::setProcessGroupBusyAndReceive() {
   recvStatus();
 }
 
-bool ProcessGroupManager::runnext() {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::runnext() {
   // first check status
   // trying to send a command to a busy group is an invalid operation
   // and should be avoided
@@ -74,7 +87,8 @@ bool ProcessGroupManager::runnext() {
   return true;
 }
 
-bool ProcessGroupManager::exit() {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::exit() {
   // can only send exit signal when in wait state
   if (status_ != PROCESS_GROUP_WAIT) return false;
 
@@ -82,7 +96,8 @@ bool ProcessGroupManager::exit() {
   return true;
 }
 
-bool ProcessGroupManager::combine() {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::combine() {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
@@ -91,7 +106,8 @@ bool ProcessGroupManager::combine() {
   return true;
 }
 
-bool ProcessGroupManager::initDsgus() {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::initDsgus() {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
@@ -100,8 +116,10 @@ bool ProcessGroupManager::initDsgus() {
   return true;
 }
 
-bool ProcessGroupManager::combineThirdLevel(const ThirdLevelUtils& thirdLevel,
-                                            CombiParameters& params, bool isSendingFirst) {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::combineThirdLevel(const ThirdLevelUtils& thirdLevel,
+                                                           CombiParameters& params,
+                                                           bool isSendingFirst) {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
@@ -112,10 +130,10 @@ bool ProcessGroupManager::combineThirdLevel(const ThirdLevelUtils& thirdLevel,
   return true;
 }
 
-bool ProcessGroupManager::combineThirdLevelFileBased(const std::string& filenamePrefixToWrite,
-                                                     const std::string& writeCompleteTokenFileName,
-                                                     const std::string& filenamePrefixToRead,
-                                                     const std::string& startReadingTokenFileName) {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::combineThirdLevelFileBased(
+    const std::string& filenamePrefixToWrite, const std::string& writeCompleteTokenFileName,
+    const std::string& filenamePrefixToRead, const std::string& startReadingTokenFileName) {
   assert(waitStatus() == PROCESS_GROUP_WAIT);
   sendSignalAndReceive(COMBINE_THIRD_LEVEL_FILE);
 
@@ -129,7 +147,8 @@ bool ProcessGroupManager::combineThirdLevelFileBased(const std::string& filename
   return this->waitStatus() == PROCESS_GROUP_WAIT;
 }
 
-bool ProcessGroupManager::combineThirdLevelFileBasedWrite(
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::combineThirdLevelFileBasedWrite(
     const std::string& filenamePrefixToWrite, const std::string& writeCompleteTokenFileName) {
   assert(waitStatus() == PROCESS_GROUP_WAIT);
   sendSignalAndReceive(COMBINE_WRITE_DSGS);
@@ -143,7 +162,8 @@ bool ProcessGroupManager::combineThirdLevelFileBasedWrite(
   return waiting;
 }
 
-bool ProcessGroupManager::combineThirdLevelFileBasedReadReduce(
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::combineThirdLevelFileBasedReadReduce(
     const std::string& filenamePrefixToRead, const std::string& startReadingTokenFileName) {
   assert(waitStatus() == PROCESS_GROUP_WAIT);
   sendSignalAndReceive(COMBINE_READ_DSGS_AND_REDUCE);
@@ -157,6 +177,7 @@ bool ProcessGroupManager::combineThirdLevelFileBasedReadReduce(
   return waiting;
 }
 
+template <typename CombiDataType>
 void recvDsguFromWorker(std::vector<CombiDataType>& dsguData, RankType r, CommunicatorType comm) {
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>());
   auto dsguSize = dsguData.size();
@@ -173,6 +194,7 @@ void recvDsguFromWorker(std::vector<CombiDataType>& dsguData, RankType r, Commun
            TRANSFER_DSGU_DATA_TAG, comm, MPI_STATUS_IGNORE);
 }
 
+template <typename CombiDataType>
 void sendDsguToWorker(std::vector<CombiDataType>& dsguData, RankType r, CommunicatorType comm) {
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>());
   auto dsguSize = dsguData.size();
@@ -188,7 +210,9 @@ void sendDsguToWorker(std::vector<CombiDataType>& dsguData, RankType r, Communic
            TRANSFER_DSGU_DATA_TAG, comm);
 }
 
-bool ProcessGroupManager::pretendCombineThirdLevelForWorkers(CombiParameters& params) {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::pretendCombineThirdLevelForWorkers(
+    CombiParameters& params) {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
@@ -225,9 +249,9 @@ bool ProcessGroupManager::pretendCombineThirdLevelForWorkers(CombiParameters& pa
  * the subspace sizes from all dsgs of all procs in the third level pg in a single
  * MPI_Gather call.
  */
-bool ProcessGroupManager::reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtils& thirdLevel,
-                                                            bool isSendingFirst,
-                                                            bool thirdLevelExtraSparseGrid) {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::reduceLocalAndRemoteSubspaceSizes(
+    const ThirdLevelUtils& thirdLevel, bool isSendingFirst, bool thirdLevelExtraSparseGrid) {
   // tell workers to perform reduce
   if (thirdLevelExtraSparseGrid) {
     sendSignalAndReceive(REDUCE_SUBSPACE_SIZES_TL_AND_ALLOCATE_EXTRA_SG);
@@ -302,7 +326,8 @@ bool ProcessGroupManager::reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtil
   return true;
 }
 
-bool ProcessGroupManager::pretendReduceLocalAndRemoteSubspaceSizes(
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::pretendReduceLocalAndRemoteSubspaceSizes(
     const ThirdLevelUtils& thirdLevel) {
   sendSignalAndReceive(REDUCE_SUBSPACE_SIZES_TL);
 
@@ -357,8 +382,10 @@ bool ProcessGroupManager::pretendReduceLocalAndRemoteSubspaceSizes(
   return true;
 }
 
-void ProcessGroupManager::exchangeDsgus(const ThirdLevelUtils& thirdLevel, CombiParameters& params,
-                                        bool isSendingFirst) {
+template <typename CombiDataType>
+void ProcessGroupManager<CombiDataType>::exchangeDsgus(const ThirdLevelUtils& thirdLevel,
+                                                       CombiParameters& params,
+                                                       bool isSendingFirst) {
   const std::vector<CommunicatorType>& thirdLevelComms = theMPISystem()->getThirdLevelComms();
   assert(theMPISystem()->getNumGroups() == thirdLevelComms.size() &&
          "initialisation of third level communicator failed");
@@ -393,10 +420,10 @@ void ProcessGroupManager::exchangeDsgus(const ThirdLevelUtils& thirdLevel, Combi
   }
 }
 
-bool ProcessGroupManager::collectSubspaceSizes(const ThirdLevelUtils& thirdLevel,
-                                               std::vector<SubspaceSizeType>& buff,
-                                               size_t& buffSize,
-                                               std::vector<int>& numSubspacesPerWorker) {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::collectSubspaceSizes(
+    const ThirdLevelUtils& thirdLevel, std::vector<SubspaceSizeType>& buff, size_t& buffSize,
+    std::vector<int>& numSubspacesPerWorker) {
   // prepare args of MPI_Gather
   const CommunicatorType& comm = theMPISystem()->getThirdLevelComms()[(size_t)pgroupRootID_];
   size_t nprocs = theMPISystem()->getNumProcs();
@@ -438,10 +465,10 @@ bool ProcessGroupManager::collectSubspaceSizes(const ThirdLevelUtils& thirdLevel
   return true;
 }
 
-bool ProcessGroupManager::distributeSubspaceSizes(const ThirdLevelUtils& thirdLevel,
-                                                  const std::vector<SubspaceSizeType>& buff,
-                                                  size_t buffSize,
-                                                  const std::vector<int>& numSubspacesPerWorker) {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::distributeSubspaceSizes(
+    const ThirdLevelUtils& thirdLevel, const std::vector<SubspaceSizeType>& buff, size_t buffSize,
+    const std::vector<int>& numSubspacesPerWorker) {
   // prepare args of MPI_Scatterv
   const CommunicatorType& comm = theMPISystem()->getThirdLevelComms()[(size_t)pgroupRootID_];
   RankType thirdLevelManagerRank = theMPISystem()->getThirdLevelManagerRank();
@@ -466,7 +493,8 @@ bool ProcessGroupManager::distributeSubspaceSizes(const ThirdLevelUtils& thirdLe
   return true;
 }
 
-bool ProcessGroupManager::combineSystemWide() {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::combineSystemWide() {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
@@ -474,7 +502,8 @@ bool ProcessGroupManager::combineSystemWide() {
   return true;
 }
 
-bool ProcessGroupManager::waitForThirdLevelCombiResult() {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::waitForThirdLevelCombiResult() {
   // can only send sync signal when in wait state
   assert(this->waitStatus() == PROCESS_GROUP_WAIT);
 
@@ -482,7 +511,8 @@ bool ProcessGroupManager::waitForThirdLevelCombiResult() {
   return true;
 }
 
-bool ProcessGroupManager::waitForThirdLevelSizeUpdate() {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::waitForThirdLevelSizeUpdate() {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
@@ -490,7 +520,8 @@ bool ProcessGroupManager::waitForThirdLevelSizeUpdate() {
   return true;
 }
 
-bool ProcessGroupManager::updateCombiParameters(CombiParameters& params) {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::updateCombiParameters(CombiParameters& params) {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
@@ -503,11 +534,13 @@ bool ProcessGroupManager::updateCombiParameters(CombiParameters& params) {
   return true;
 }
 
-bool ProcessGroupManager::addTask(Task* t) {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::addTask(Task<CombiDataType>* t) {
   return storeTaskReferenceAndSendTaskToProcessGroup(t, ADD_TASK);
 }
 
-bool ProcessGroupManager::refreshTask(Task* t) {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::refreshTask(Task<CombiDataType>* t) {
   // first check status
   // tying to add a task to a busy group is an invalid operation
   // and should be avoided
@@ -519,7 +552,7 @@ bool ProcessGroupManager::refreshTask(Task* t) {
   sendSignalToProcessGroup(ADD_TASK);
 
   // send task
-  Task::send(t, pgroupRootID_, theMPISystem()->getGlobalComm());
+  Task<CombiDataType>::send(t, pgroupRootID_, theMPISystem()->getGlobalComm());
 
   setProcessGroupBusyAndReceive();
 
@@ -527,7 +560,8 @@ bool ProcessGroupManager::refreshTask(Task* t) {
   return true;
 }
 
-bool ProcessGroupManager::resetTasksWorker() {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::resetTasksWorker() {
   // first check status
   // tying to reset tasks of a busy group is an invalid operation
   // and should be avoided
@@ -544,7 +578,8 @@ bool ProcessGroupManager::resetTasksWorker() {
   return true;
 }
 
-bool ProcessGroupManager::recompute(Task* t) {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::recompute(Task<CombiDataType>* t) {
   storeTaskReferenceAndSendTaskToProcessGroup(t, RECOMPUTE);
 
   // only return true if task successfully send to pgroup
@@ -557,7 +592,9 @@ void sendLevelVector(const LevelVector& leval, RankType pgroupRootID) {
            theMPISystem()->getGlobalComm());
 }
 
-bool ProcessGroupManager::parallelEval(const LevelVector& leval, const std::string& filename) {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::parallelEval(const LevelVector& leval,
+                                                      const std::string& filename) {
   // can only send sync signal when in wait state, so check first
   assert(status_ == PROCESS_GROUP_WAIT);
 
@@ -573,7 +610,9 @@ bool ProcessGroupManager::parallelEval(const LevelVector& leval, const std::stri
   return true;
 }
 
-void ProcessGroupManager::writeSparseGridMinMaxCoefficients(const std::string& filename) {
+template <typename CombiDataType>
+void ProcessGroupManager<CombiDataType>::writeSparseGridMinMaxCoefficients(
+    const std::string& filename) {
   this->sendSignalToProcessGroup(WRITE_DSG_MINMAX_COEFFICIENTS);
 
   // send filename
@@ -582,7 +621,8 @@ void ProcessGroupManager::writeSparseGridMinMaxCoefficients(const std::string& f
   this->setProcessGroupBusyAndReceive();
 }
 
-void ProcessGroupManager::doDiagnostics(size_t taskID) {
+template <typename CombiDataType>
+void ProcessGroupManager<CombiDataType>::doDiagnostics(size_t taskID) {
   [[maybe_unused]] auto status = waitStatus();
   assert(status == PROCESS_GROUP_WAIT);
   for (auto task : tasks_) {
@@ -611,7 +651,8 @@ std::vector<double> receiveThreeNorms(RankType pgroupRootID) {
   return norms;
 }
 
-void ProcessGroupManager::getLpNorms(int p, std::map<size_t, double>& norms) {
+template <typename CombiDataType>
+void ProcessGroupManager<CombiDataType>::getLpNorms(int p, std::map<size_t, double>& norms) {
   SignalType signal = GET_L1_NORM;
   if (p == 2) {
     signal = GET_L2_NORM;
@@ -639,7 +680,9 @@ void ProcessGroupManager::getLpNorms(int p, std::map<size_t, double>& norms) {
   this->setProcessGroupBusyAndReceive();
 }
 
-std::vector<double> ProcessGroupManager::evalAnalyticalOnDFG(const LevelVector& leval) {
+template <typename CombiDataType>
+std::vector<double> ProcessGroupManager<CombiDataType>::evalAnalyticalOnDFG(
+    const LevelVector& leval) {
   sendSignalToProcessGroup(EVAL_ANALYTICAL_NORM);
   sendLevelVector(leval, pgroupRootID_);
 
@@ -648,7 +691,8 @@ std::vector<double> ProcessGroupManager::evalAnalyticalOnDFG(const LevelVector& 
   return norms;
 }
 
-std::vector<double> ProcessGroupManager::evalErrorOnDFG(const LevelVector& leval) {
+template <typename CombiDataType>
+std::vector<double> ProcessGroupManager<CombiDataType>::evalErrorOnDFG(const LevelVector& leval) {
   sendSignalToProcessGroup(EVAL_ERROR_NORM);
   sendLevelVector(leval, pgroupRootID_);
 
@@ -657,9 +701,10 @@ std::vector<double> ProcessGroupManager::evalErrorOnDFG(const LevelVector& leval
   return norms;
 }
 
-void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolationCoordsSerial,
-                                            std::vector<CombiDataType>& values,
-                                            MPI_Request* request, const std::string& filenamePrefix) {
+template <typename CombiDataType>
+void ProcessGroupManager<CombiDataType>::interpolateValues(
+    const std::vector<real>& interpolationCoordsSerial, std::vector<CombiDataType>& values,
+    MPI_Request* request, const std::string& filenamePrefix) {
   assert(interpolationCoordsSerial.size() < static_cast<size_t>(std::numeric_limits<int>::max()) &&
          "needs chunking!");
   for ([[maybe_unused]] const auto& coord : interpolationCoordsSerial) {
@@ -694,7 +739,8 @@ void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolati
   setProcessGroupBusyAndReceive();
 }
 
-void ProcessGroupManager::writeInterpolatedValuesPerGrid(
+template <typename CombiDataType>
+void ProcessGroupManager<CombiDataType>::writeInterpolatedValuesPerGrid(
     const std::vector<real>& interpolationCoordsSerial, const std::string& filenamePrefix) {
   sendSignalToProcessGroup(WRITE_INTERPOLATED_VALUES_PER_GRID);
   // send filename prefix to group
@@ -708,7 +754,8 @@ void ProcessGroupManager::writeInterpolatedValuesPerGrid(
   assert(waitStatus() == PROCESS_GROUP_WAIT);
 }
 
-void ProcessGroupManager::recvStatus() {
+template <typename CombiDataType>
+void ProcessGroupManager<CombiDataType>::recvStatus() {
   // start non-blocking call to receive status
   if (ENABLE_FT) {
     simft::Sim_FT_MPI_Irecv(&status_, 1, MPI_INT, pgroupRootID_, TRANSFER_STATUS_TAG,
@@ -719,7 +766,8 @@ void ProcessGroupManager::recvStatus() {
   }
 }
 
-bool ProcessGroupManager::recoverCommunicators() {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::recoverCommunicators() {
   assert(status_ == PROCESS_GROUP_WAIT);
 
   sendSignalToProcessGroup(RECOVER_COMM);
@@ -727,22 +775,26 @@ bool ProcessGroupManager::recoverCommunicators() {
   return true;
 }
 
-bool ProcessGroupManager::rescheduleAddTask(Task* task) {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::rescheduleAddTask(Task<CombiDataType>* task) {
   return storeTaskReferenceAndSendTaskToProcessGroup(task, RESCHEDULE_ADD_TASK);
 }
 
-Task* ProcessGroupManager::rescheduleRemoveTask(const LevelVector& lvlVec) {
-  for (std::vector<Task*>::size_type i = 0; i < this->tasks_.size(); ++i) {
-    Task* currentTask = this->tasks_[i];
+template <typename CombiDataType>
+Task<CombiDataType>* ProcessGroupManager<CombiDataType>::rescheduleRemoveTask(
+    const LevelVector& lvlVec) {
+  for (typename std::vector<Task<CombiDataType>*>::size_type i = 0; i < this->tasks_.size(); ++i) {
+    Task<CombiDataType>* currentTask = this->tasks_[i];
     if (currentTask->getLevelVector() == lvlVec) {
       // if the task has been found send remove signal and return the task
-      Task* removedTask;
+      Task<CombiDataType>* removedTask;
       auto taskID = currentTask->getID();
       sendSignalToProcessGroup(RESCHEDULE_REMOVE_TASK);
       MPI_Send(&taskID, 1,
                abstraction::getMPIDatatype(abstraction::getabstractionDataType<decltype(taskID)>()),
                this->pgroupRootID_, 0, theMPISystem()->getGlobalComm());
-      Task::receive(&removedTask, this->pgroupRootID_, theMPISystem()->getGlobalComm());
+      Task<CombiDataType>::receive(&removedTask, this->pgroupRootID_,
+                                   theMPISystem()->getGlobalComm());
       setProcessGroupBusyAndReceive();
 
       tasks_.erase(tasks_.begin() + i);
@@ -754,7 +806,8 @@ Task* ProcessGroupManager::rescheduleRemoveTask(const LevelVector& lvlVec) {
   return nullptr;
 }
 
-bool ProcessGroupManager::writeCombigridsToVTKPlotFile() {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::writeCombigridsToVTKPlotFile() {
   // can only send sync signal when in wait state
   assert(waitStatus() == PROCESS_GROUP_WAIT);
 
@@ -762,18 +815,32 @@ bool ProcessGroupManager::writeCombigridsToVTKPlotFile() {
   return true;
 }
 
-bool ProcessGroupManager::writeDSGsToDisk(const std::string& filenamePrefix) {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::writeDSGsToDisk(const std::string& filenamePrefix) {
   assert(waitStatus() == PROCESS_GROUP_WAIT);
   sendSignalAndReceive(WRITE_DSGS_TO_DISK);
   MPIUtils::sendClass(&filenamePrefix, pgroupRootID_, theMPISystem()->getGlobalComm());
   return true;
 }
 
-bool ProcessGroupManager::readDSGsFromDisk(const std::string& filenamePrefix) {
+template <typename CombiDataType>
+bool ProcessGroupManager<CombiDataType>::readDSGsFromDisk(const std::string& filenamePrefix) {
   assert(waitStatus() == PROCESS_GROUP_WAIT);
   sendSignalAndReceive(READ_DSGS_FROM_DISK);
   MPIUtils::sendClass(&filenamePrefix, pgroupRootID_, theMPISystem()->getGlobalComm());
   return true;
 }
+
+// explicit instantiations
+template class ProcessGroupManager<double>;
+template class ProcessGroupManager<std::complex<float>>;
+
+template void recvDsguFromWorker<double>(std::vector<double>&, RankType, CommunicatorType);
+template void recvDsguFromWorker<std::complex<float>>(std::vector<std::complex<float>>&, RankType,
+                                                      CommunicatorType);
+
+template void sendDsguToWorker<double>(std::vector<double>&, RankType, CommunicatorType);
+template void sendDsguToWorker<std::complex<float>>(std::vector<std::complex<float>>&, RankType,
+                                                    CommunicatorType);
 
 } /* namespace combigrid */

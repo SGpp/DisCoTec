@@ -1,30 +1,32 @@
 #include "manager/ProcessManager.hpp"
+
 #include <algorithm>
+#include <boost/asio.hpp>
 #include <iostream>
 #include <stdexcept>
 #include <string>
 
-#include <boost/asio.hpp>
-
 #include "combicom/CombiCom.hpp"
 #include "io/H5InputOutput.hpp"
-#include "utils/Types.hpp"
 #include "mpi/MPIUtils.hpp"
+#include "utils/Types.hpp"
 
 namespace combigrid {
 
-void ProcessManager::sortTasks(){
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::sortTasks() {
   LoadModel* lm = loadModel_.get();
   assert(lm);
-  std::sort(tasks_.begin(), tasks_.end(),
-            [lm](const Task* instance1, const Task* instance2){
-                assert(instance1);
-                return (lm->eval(instance1->getLevelVector()) > lm->eval(instance2->getLevelVector()));
-            }
-  );
+  std::sort(
+      tasks_.begin(), tasks_.end(),
+      [lm](const Task<CombiDataType>* instance1, const Task<CombiDataType>* instance2) {
+        assert(instance1);
+        return (lm->eval(instance1->getLevelVector()) > lm->eval(instance2->getLevelVector()));
+      });
 }
 
-bool ProcessManager::runfirst(bool doInitDSGUs) {
+template <typename CombiDataType>
+bool ProcessManager<CombiDataType>::runfirst(bool doInitDSGUs) {
   // sort instances in decreasing order
   sortTasks();
 
@@ -37,15 +39,15 @@ bool ProcessManager::runfirst(bool doInitDSGUs) {
 
   for (size_t i = 0; i < tasks_.size(); ++i) {
     // wait for available process group
-    ProcessGroupManagerID g = wait();
+    ProcessGroupManagerID<CombiDataType> g = wait();
 
     // assign instance to group
     g->runfirst(tasks_[i]);
   }
 
   bool group_failed = waitAllFinished();
-  //size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
-  //receiveDurationsOfTasksFromGroupMasters(0);
+  // size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
+  // receiveDurationsOfTasksFromGroupMasters(0);
 
   if (doInitDSGUs) {
     // initialize dsgus
@@ -56,18 +58,20 @@ bool ProcessManager::runfirst(bool doInitDSGUs) {
   return !group_failed;
 }
 
-void ProcessManager::receiveDurationsOfTasksFromGroupMasters(size_t numDurationsToReceive = 0){
-  if (numDurationsToReceive == 0){
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::receiveDurationsOfTasksFromGroupMasters(
+    size_t numDurationsToReceive) {
+  if (numDurationsToReceive == 0) {
     numDurationsToReceive = pgroups_.size();
   }
   for (size_t i = 0; i < numDurationsToReceive; ++i) {
     DurationInformation recvbuf;
-    for([[maybe_unused]] const auto& t : pgroups_[i]->getTaskContainer()){
+    for ([[maybe_unused]] const auto& t : pgroups_[i]->getTaskContainer()) {
       // this assumes that the manager rank is the highest in globalComm
       MPIUtils::receiveClass(&recvbuf, i, theMPISystem()->getGlobalComm());
 
       const auto& levelVector = getLevelVectorFromTaskID(tasks_, recvbuf.task_id);
-      if(LearningLoadModel* llm = dynamic_cast<LearningLoadModel*>(loadModel_.get())){
+      if (LearningLoadModel* llm = dynamic_cast<LearningLoadModel*>(loadModel_.get())) {
         llm->addDurationInformation(recvbuf, levelVector);
       }
       levelVectorToLastTaskDuration_[levelVector] = recvbuf.duration;
@@ -75,7 +79,8 @@ void ProcessManager::receiveDurationsOfTasksFromGroupMasters(size_t numDurations
   }
 }
 
-bool ProcessManager::runnext() {
+template <typename CombiDataType>
+bool ProcessManager<CombiDataType>::runnext() {
   bool group_failed = waitAllFinished();
 
   assert(!group_failed && "runnext must not be called when there are failed groups");
@@ -85,15 +90,16 @@ bool ProcessManager::runnext() {
   }
 
   group_failed = waitAllFinished();
-  //size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
-  // if(!group_failed) {
-    // receiveDurationsOfTasksFromGroupMasters(0);
+  // size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
+  //  if(!group_failed) {
+  //  receiveDurationsOfTasksFromGroupMasters(0);
   // }
   // return true if no group failed
   return !group_failed;
 }
 
-void ProcessManager::exit() {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::exit() {
   // wait until all process groups are in wait state
   // after sending the exit signal checking the status might not be possible
   size_t numWaiting = 0;
@@ -102,8 +108,7 @@ void ProcessManager::exit() {
     numWaiting = 0;
 
     for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
-        ++numWaiting;
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT) ++numWaiting;
     }
   }
 
@@ -114,7 +119,8 @@ void ProcessManager::exit() {
   }
 }
 
-void ProcessManager::initDsgus() {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::initDsgus() {
   Stats::startEvent("manager init dsgus");
   // wait until all process groups are in wait state
   // after sending the exit signal checking the status might not be possible
@@ -138,7 +144,8 @@ void ProcessManager::initDsgus() {
   Stats::stopEvent("manager init dsgus");
 }
 
-void ProcessManager::updateCombiParameters() {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::updateCombiParameters() {
   Stats::startEvent("manager update parameters");
   {
     [[maybe_unused]] bool fail = waitAllFinished();
@@ -157,25 +164,27 @@ void ProcessManager::updateCombiParameters() {
  * Compute the group faults that occured at this combination step using the
  * fault simulator
  */
-void ProcessManager::getGroupFaultIDs(std::vector<size_t>& faultsID,
-                                      std::vector<ProcessGroupManagerID>& groupFaults) {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::getGroupFaultIDs(
+    std::vector<size_t>& faultsID, std::vector<ProcessGroupManagerID<CombiDataType>>& groupFaults) {
   for (auto p : pgroups_) {
     StatusType status = p->waitStatus();
 
     if (status == PROCESS_GROUP_FAIL) {
-      TaskContainer failedTasks = p->getTaskContainer();
+      TaskContainer<CombiDataType> failedTasks = p->getTaskContainer();
       groupFaults.push_back(p);
       for (auto task : failedTasks) faultsID.push_back(task->getID());
     }
   }
 }
 
-void ProcessManager::redistribute(std::vector<size_t>& taskID) {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::redistribute(std::vector<size_t>& taskID) {
   for (size_t i = 0; i < taskID.size(); ++i) {
     // find id in list of tasks
-    Task* t = NULL;
+    Task<CombiDataType>* t = NULL;
 
-    for (Task* tmp : tasks_) {
+    for (Task<CombiDataType>* tmp : tasks_) {
       if (tmp->getID() == taskID[i]) {
         t = tmp;
         break;
@@ -185,7 +194,7 @@ void ProcessManager::redistribute(std::vector<size_t>& taskID) {
     assert(t != NULL);
 
     // wait for available process group
-    ProcessGroupManagerID g = wait();
+    ProcessGroupManagerID<CombiDataType> g = wait();
 
     // assign instance to group
     g->addTask(t);
@@ -204,13 +213,15 @@ void ProcessManager::redistribute(std::vector<size_t>& taskID) {
   std::cout << "Redistribute finished" << std::endl;
 }
 
-void ProcessManager::reInitializeGroup(std::vector<ProcessGroupManagerID>& recoveredGroups,
-                                       std::vector<size_t>& tasksToIgnore) {
-  std::vector<Task*> removeTasks;
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::reInitializeGroup(
+    std::vector<ProcessGroupManagerID<CombiDataType>>& recoveredGroups,
+    std::vector<size_t>& tasksToIgnore) {
+  std::vector<Task<CombiDataType>*> removeTasks;
   for (auto g : recoveredGroups) {
     // erase existing tasks in group members to avoid doubled tasks
     g->resetTasksWorker();
-    for (Task* t : g->getTaskContainer()) {
+    for (Task<CombiDataType>* t : g->getTaskContainer()) {
       assert(t != NULL);
       if (std::find(tasksToIgnore.begin(), tasksToIgnore.end(), t->getID()) ==
           tasksToIgnore.end()) {  // ignore tasks that are recomputed
@@ -226,7 +237,7 @@ void ProcessManager::reInitializeGroup(std::vector<ProcessGroupManagerID>& recov
         removeTasks.push_back(t);
       }
     }
-    for (Task* t : removeTasks) {
+    for (Task<CombiDataType>* t : removeTasks) {
       g->removeTask(t);
     }
     removeTasks.clear();
@@ -244,13 +255,15 @@ void ProcessManager::reInitializeGroup(std::vector<ProcessGroupManagerID>& recov
   std::cout << "Reinitialization finished" << std::endl;
 }
 
-void ProcessManager::recompute(std::vector<size_t>& taskID, bool failedRecovery,
-                               std::vector<ProcessGroupManagerID>& recoveredGroups) {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::recompute(
+    std::vector<size_t>& taskID, bool failedRecovery,
+    std::vector<ProcessGroupManagerID<CombiDataType>>& recoveredGroups) {
   for (size_t i = 0; i < taskID.size(); ++i) {
     // find id in list of tasks
-    Task* t = NULL;
+    Task<CombiDataType>* t = NULL;
 
-    for (Task* tmp : tasks_) {
+    for (Task<CombiDataType>* tmp : tasks_) {
       if (tmp->getID() == taskID[i]) {
         t = tmp;
         break;
@@ -261,11 +274,11 @@ void ProcessManager::recompute(std::vector<size_t>& taskID, bool failedRecovery,
 
     // wait for available process group
     if (failedRecovery) {
-      ProcessGroupManagerID g = wait();
+      ProcessGroupManagerID<CombiDataType> g = wait();
       // assign instance to group
       g->recompute(t);
     } else {
-      ProcessGroupManagerID g = waitAvoid(recoveredGroups);
+      ProcessGroupManagerID<CombiDataType> g = waitAvoid(recoveredGroups);
       // assign instance to group
       g->recompute(t);
     }
@@ -284,7 +297,9 @@ void ProcessManager::recompute(std::vector<size_t>& taskID, bool failedRecovery,
   std::cout << "Recompute finished" << std::endl;
 }
 
-bool ProcessManager::recoverCommunicators(std::vector<ProcessGroupManagerID> failedGroups) {
+template <typename CombiDataType>
+bool ProcessManager<CombiDataType>::recoverCommunicators(
+    std::vector<ProcessGroupManagerID<CombiDataType>> failedGroups) {
   if (pgroups_.size() == failedGroups.size()) {
     std::cout << "last process groups failed! Aborting! \n";
     MPI_Abort(MPI_COMM_WORLD, 1);
@@ -292,13 +307,13 @@ bool ProcessManager::recoverCommunicators(std::vector<ProcessGroupManagerID> fai
   waitAllFinished();
 
   // send recover communicators signal to alive groups
-  for (ProcessGroupManagerID g : pgroups_) {
+  for (ProcessGroupManagerID<CombiDataType> g : pgroups_) {
     if (g->getStatus() == PROCESS_GROUP_WAIT) {
       g->recoverCommunicators();
     }
   }
 
-  bool failedRecovery = theMPISystem()->recoverCommunicators(true, failedGroups);
+  bool failedRecovery = theMPISystem()->recoverCommunicators(true, failedGroups.size());
 
   // remove failed groups from group list and set new
   // todo: this is rather error prone. this relies on the previous functions
@@ -311,7 +326,7 @@ bool ProcessManager::recoverCommunicators(std::vector<ProcessGroupManagerID> fai
   }
   if (failedRecovery) {
     pgroups_.erase(std::remove_if(pgroups_.begin(), pgroups_.end(),
-                                  [](const ProcessGroupManagerID& p) {
+                                  [](const ProcessGroupManagerID<CombiDataType>& p) {
                                     return (p->getStatus() == PROCESS_GROUP_FAIL);
                                   }),
                    pgroups_.end());
@@ -323,8 +338,8 @@ bool ProcessManager::recoverCommunicators(std::vector<ProcessGroupManagerID> fai
   return failedRecovery;
 }
 
-
-void ProcessManager::restoreCombischeme() {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::restoreCombischeme() {
   LevelVector lmin = params_.getLMin();
   LevelVector lmax = params_.getLMax();
   CombiMinMaxScheme combischeme(params_.getDim(), lmin, lmax);
@@ -340,24 +355,25 @@ void ProcessManager::restoreCombischeme() {
   this->updateCombiParameters();
 }
 
-bool ProcessManager::waitAllFinished() {
+template <typename CombiDataType>
+bool ProcessManager<CombiDataType>::waitAllFinished() {
   bool group_failed = false;
   for (auto p : pgroups_) {
-    if (waitForPG(p))
-      group_failed = true;
+    if (waitForPG(p)) group_failed = true;
   }
   return group_failed;
 }
 
-bool ProcessManager::waitForPG(ProcessGroupManagerID pg) {
+template <typename CombiDataType>
+bool ProcessManager<CombiDataType>::waitForPG(ProcessGroupManagerID<CombiDataType> pg) {
   StatusType status = pg->waitStatus();
-  if (status == PROCESS_GROUP_FAIL)
-    return true;
+  if (status == PROCESS_GROUP_FAIL) return true;
   return false;
 }
 
-void ProcessManager::waitForAllGroupsToWait() const {
-// wait until all process groups are in wait state
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::waitForAllGroupsToWait() const {
+  // wait until all process groups are in wait state
   size_t numWaiting = 0;
 
   while (numWaiting != pgroups_.size()) {
@@ -369,7 +385,9 @@ void ProcessManager::waitForAllGroupsToWait() const {
   }
 }
 
-void ProcessManager::parallelEval(const LevelVector& leval, std::string& filename, size_t groupID) {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::parallelEval(const LevelVector& leval, std::string& filename,
+                                                 size_t groupID) {
   // actually it would be enough to wait for the group which does the eval
   {
     [[maybe_unused]] bool fail = waitAllFinished();
@@ -389,7 +407,8 @@ void ProcessManager::parallelEval(const LevelVector& leval, std::string& filenam
   }
 }
 
-void ProcessManager::doDiagnostics(size_t taskID) {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::doDiagnostics(size_t taskID) {
   auto g = getProcessGroupWithTaskID(taskID);
   g->doDiagnostics(taskID);
   // call manager-side diagnostics on that Task
@@ -401,7 +420,8 @@ void ProcessManager::doDiagnostics(size_t taskID) {
   }
 }
 
-std::map<size_t, double> ProcessManager::getLpNorms(int p) {
+template <typename CombiDataType>
+std::map<size_t, double> ProcessManager<CombiDataType>::getLpNorms(int p) {
   std::map<size_t, double> norms;
 
   for (const auto& pg : pgroups_) {
@@ -410,7 +430,8 @@ std::map<size_t, double> ProcessManager::getLpNorms(int p) {
   return norms;
 }
 
-double ProcessManager::getLpNorm(int p) {
+template <typename CombiDataType>
+double ProcessManager<CombiDataType>::getLpNorm(int p) {
   std::map<size_t, double> norms = this->getLpNorms(p);
 
   double norm = 0.0;
@@ -426,7 +447,8 @@ double ProcessManager::getLpNorm(int p) {
   return norm;
 }
 
-void ProcessManager::setupThirdLevel() {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::setupThirdLevel() {
   Stats::startEvent("manager connect third level");
   std::string hostnameInfo = "manager = " + boost::asio::ip::host_name();
   std::cout << hostnameInfo << std::endl;
@@ -434,7 +456,8 @@ void ProcessManager::setupThirdLevel() {
   Stats::stopEvent("manager connect third level");
 }
 
-std::vector<CombiDataType> ProcessManager::interpolateValues(
+template <typename CombiDataType>
+std::vector<CombiDataType> ProcessManager<CombiDataType>::interpolateValues(
     const std::vector<std::vector<real>>& interpolationCoords) {
   auto numValues = interpolationCoords.size();
   auto values = std::vector<CombiDataType>(numValues, std::numeric_limits<double>::quiet_NaN());
@@ -454,7 +477,8 @@ std::vector<CombiDataType> ProcessManager::interpolateValues(
   return values;
 }
 
-void ProcessManager::writeInterpolatedValuesPerGrid(
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::writeInterpolatedValuesPerGrid(
     const std::vector<std::vector<real>>& interpolationCoords, const std::string& filenamePrefix) {
   // send interpolation coords as a single array
   std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
@@ -464,7 +488,8 @@ void ProcessManager::writeInterpolatedValuesPerGrid(
   }
 }
 
-void ProcessManager::writeInterpolatedValuesSingleFile(
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::writeInterpolatedValuesSingleFile(
     const std::vector<std::vector<real>>& interpolationCoords, const std::string& filenamePrefix) {
   Stats::startEvent("manager write interpolated");
   // send interpolation coords as a single array
@@ -481,15 +506,18 @@ void ProcessManager::writeInterpolatedValuesSingleFile(
   Stats::stopEvent("manager write interpolated");
 }
 
-void ProcessManager::writeInterpolationCoordinates(
-    const std::vector<std::vector<real>>& interpolationCoords, const std::string& filenamePrefix) const {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::writeInterpolationCoordinates(
+    const std::vector<std::vector<real>>& interpolationCoords,
+    const std::string& filenamePrefix) const {
   std::string saveFilePath = filenamePrefix + "_coords.h5";
   h5io::writeValuesToH5File(interpolationCoords, saveFilePath, "manager", "coordinates");
 }
 
-void ProcessManager::monteCarloThirdLevel(size_t numPoints,
-                                          std::vector<std::vector<real>>& coordinates,
-                                          std::vector<CombiDataType>& values) {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::monteCarloThirdLevel(
+    size_t numPoints, std::vector<std::vector<real>>& coordinates,
+    std::vector<CombiDataType>& values) {
   Stats::startEvent("manager MC third level");
   coordinates = montecarlo::getRandomCoordinates(numPoints, params_.getDim());
   auto ourCoordinatesSerial = serializeInterpolationCoords(coordinates);
@@ -503,17 +531,17 @@ void ProcessManager::monteCarloThirdLevel(size_t numPoints,
     thirdLevel_.sendData(ourCoordinatesSerial.data(), ourCoordinatesSerial.size());
 #ifndef NDEBUG
     // this part is redundant but also doesn't hurt (?)
-    auto theirCoordinates = ourCoordinatesSerial; // to reserve the size
+    auto theirCoordinates = ourCoordinatesSerial;  // to reserve the size
     thirdLevel_.recvData(theirCoordinates.data(), theirCoordinates.size());
     for (size_t i = 0; i < theirCoordinates.size(); ++i) {
       assert(ourCoordinatesSerial[i] == theirCoordinates[i]);
     }
-#endif // !NDEBUG
+#endif  // !NDEBUG
   } else if (instruction == "recv_first") {
     thirdLevel_.recvData(ourCoordinatesSerial.data(), ourCoordinatesSerial.size());
 #ifndef NDEBUG
     thirdLevel_.sendData(ourCoordinatesSerial.data(), ourCoordinatesSerial.size());
-#endif // !NDEBUG
+#endif  // !NDEBUG
     coordinates = deserializeInterpolationCoords(ourCoordinatesSerial, params_.getDim());
   } else {
     throw std::runtime_error("unknown instruction: " + instruction);
@@ -540,17 +568,19 @@ void ProcessManager::monteCarloThirdLevel(size_t numPoints,
   thirdLevel_.signalReady();
 
   // add them up
-  for (size_t i = 0; i < numPoints; ++i){
+  for (size_t i = 0; i < numPoints; ++i) {
     values[i] += remoteValues[i];
   }
   Stats::stopEvent("manager MC third level");
 }
 
-void ProcessManager::writeSparseGridMinMaxCoefficients(const std::string& filename) {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::writeSparseGridMinMaxCoefficients(const std::string& filename) {
   pgroups_.back()->writeSparseGridMinMaxCoefficients(filename);
 }
 
-void ProcessManager::reschedule() {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::reschedule() {
   std::map<LevelVector, int> levelVectorToProcessGroupIndex;
   for (size_t i = 0; i < pgroups_.size(); ++i) {
     for (const auto& t : pgroups_[i]->getTaskContainer()) {
@@ -558,17 +588,15 @@ void ProcessManager::reschedule() {
     }
   }
   auto tasksToMigrate = rescheduler_->eval(levelVectorToProcessGroupIndex,
-                                           levelVectorToLastTaskDuration_,
-                                           loadModel_.get());
+                                           levelVectorToLastTaskDuration_, loadModel_.get());
   for (const auto& t : tasksToMigrate) {
     auto levelvectorToMigrate = t.first;
     auto processGroupIndexToAddTaskTo = t.second;
     auto processGroupIndexToRemoveTaskFrom =
-      levelVectorToProcessGroupIndex.at(levelvectorToMigrate);
+        levelVectorToProcessGroupIndex.at(levelvectorToMigrate);
 
-    Task *removedTask =
-      pgroups_[processGroupIndexToRemoveTaskFrom]->rescheduleRemoveTask(
-          levelvectorToMigrate);
+    Task<CombiDataType>* removedTask =
+        pgroups_[processGroupIndexToRemoveTaskFrom]->rescheduleRemoveTask(levelvectorToMigrate);
     waitAllFinished();
     assert(removedTask != nullptr);
     pgroups_[processGroupIndexToAddTaskTo]->rescheduleAddTask(removedTask);
@@ -584,7 +612,9 @@ void ProcessManager::reschedule() {
   }
 }
 
-void ProcessManager::writeCombigridsToVTKPlotFile(ProcessGroupManagerID pg) {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::writeCombigridsToVTKPlotFile(
+    ProcessGroupManagerID<CombiDataType> pg) {
 #if defined(USE_VTK)
   pg->writeCombigridsToVTKPlotFile();
   waitForPG(pg);
@@ -593,14 +623,20 @@ void ProcessManager::writeCombigridsToVTKPlotFile(ProcessGroupManagerID pg) {
 #endif /* defined(USE_VTK) */
 }
 
-void ProcessManager::writeDSGsToDisk(const std::string& filenamePrefix) {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::writeDSGsToDisk(const std::string& filenamePrefix) {
   thirdLevelPGroup_->writeDSGsToDisk(filenamePrefix);
   waitForPG(thirdLevelPGroup_);
 }
 
-void ProcessManager::readDSGsFromDisk(const std::string& filenamePrefix) {
+template <typename CombiDataType>
+void ProcessManager<CombiDataType>::readDSGsFromDisk(const std::string& filenamePrefix) {
   thirdLevelPGroup_->readDSGsFromDisk(filenamePrefix);
   waitForPG(thirdLevelPGroup_);
 }
 
 } /* namespace combigrid */
+
+#include <complex>
+template class combigrid::ProcessManager<double>;
+template class combigrid::ProcessManager<std::complex<float>>;
