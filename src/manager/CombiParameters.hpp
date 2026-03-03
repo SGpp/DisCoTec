@@ -402,7 +402,6 @@ class CombiParameters {
    * @return const std::vector<int>& the number of processes in each dimension
    */
   inline const std::vector<int>& getParallelization() const {
-    assert(uniformDecomposition);
     return procs_;
   }
 
@@ -447,8 +446,6 @@ class CombiParameters {
    * @brief set the parallelization
    */
   inline void setParallelization(const std::vector<int>& p) {
-    assert(uniformDecomposition);
-
     procs_ = p;
   }
 
@@ -464,7 +461,6 @@ class CombiParameters {
   inline void setDecomposition(const std::vector<IndexVector>& decomposition) {
     decomposition_ = decomposition;
 #ifndef NDEBUG
-    assert(uniformDecomposition);
     for (DimType d = 0; d < dim_; ++d) {
       assert(decomposition[d][0] == 0);
       auto numPoints = combigrid::getNumDofNodal(lmax_[d], boundary_[d]);

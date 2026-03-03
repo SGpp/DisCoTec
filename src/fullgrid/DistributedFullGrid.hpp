@@ -1733,7 +1733,6 @@ void DistributedFullGrid<FG_ELEMENT>::InitMPI(MPI_Comm comm, const std::vector<i
 
   if (status == MPI_CART) {
     if (comm != cartesianUtils_.getComm()) {
-      assert(uniformDecomposition);
       cartesianUtils_ = MPICartesianUtils(comm);
     }
     if (procs != cartesianUtils_.getCartesianDimensions()) {

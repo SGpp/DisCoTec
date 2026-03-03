@@ -397,7 +397,6 @@ void MPISystem::initThirdLevelComms() {
   }
   MPI_Group_free(&worldGroup);
   // last member of group is tl manager rank == world manager
-  assert(uniformDecomposition);
   thirdLevelManagerRank_ = int(nprocs_);
 }
 
