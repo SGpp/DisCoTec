@@ -29,7 +29,7 @@ using namespace combigrid;
 // BOOST_CLASS_EXPORT(TaskCount)
 
 // declare here only, because already defined in test_integration.cpp
-bool checkReducedFullGridIntegration(ProcessGroupWorker& worker, int nrun);
+bool checkReducedFullGridIntegration(ProcessGroupWorker<>& worker, int nrun);
 
 void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundaryV = 2,
                      bool pretendThirdLevel = true) {
@@ -81,7 +81,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   combigrid::getRoundRobinLevels(combischeme, theMPISystem()->getProcessGroupNumber(), ngroup,
                                  myLevels, myCoeffs, myTaskIDs);
 
-  ProcessGroupWorker worker;
+  ProcessGroupWorker<> worker;
 
   // create combiparameters
   BOOST_TEST_CHECKPOINT("create combi parameters");
@@ -305,8 +305,6 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   BOOST_CHECK(!TestHelper::testStrayMessages(comm));
 }
 
-#ifndef ISGENE  // worker tests won't work with ISGENE because of worker magic
-
 #ifndef NDEBUG  // in case of a build with asserts, have longer timeout
 BOOST_FIXTURE_TEST_SUITE(worker, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(2000))
 #else
@@ -374,4 +372,3 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-#endif

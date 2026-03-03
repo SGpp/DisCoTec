@@ -268,8 +268,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
       auto newLmin = lmin;
       auto newLmax = lmax;
       auto newLref = lref;
-      // I think this flag may be the wrong way around...?
-      if (!reverseOrderingDFGPartitions) {
+      {
         std::reverse(newLmin.begin(), newLmin.end());
         std::reverse(newLmax.begin(), newLmax.end());
         std::reverse(newLref.begin(), newLref.end());

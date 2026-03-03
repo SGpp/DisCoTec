@@ -84,7 +84,7 @@ class TestParams {
  * Since the tasks don't evolve over time the expected result should match the
  * initial function values.
  */
-bool checkReducedFullGrid(ProcessGroupWorker& worker, int nrun) {
+bool checkReducedFullGrid(ProcessGroupWorker<>& worker, int nrun) {
   const auto& tasks = worker.getTasks();
   int numGrids = (int)worker.getCombiParameters().getNumGrids();
 
@@ -186,10 +186,10 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
   theMPISystem()->initWorldReusable(testParams.comm, testParams.ngroup, testParams.nprocs);
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
-    ProcessGroupManagerContainer pgroups;
+    ProcessGroupManagerContainer<> pgroups;
     for (size_t i = 0; i < testParams.ngroup; ++i) {
       int pgroupRootID((int)i);
-      pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
+      pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
 
     auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
@@ -214,11 +214,11 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
     //  std::cout << toString(levels[i]) << " " << coeffs[i]<< std::endl;
 
     // create Tasks
-    TaskContainer tasks;
+    TaskContainer<> tasks;
     std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel.get());
-      // Task* t = new TaskCount(2, levels[i], boundary, coeffs[i], loadmodel.get());
+      Task<>* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel.get());
+      // Task<>* t = new TaskCount(2, levels[i], boundary, coeffs[i], loadmodel.get());
 
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
@@ -234,7 +234,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
                                 false, testParams.host, testParams.port, 0);
 
     // create abstraction for Manager
-    ProcessManager manager(pgroups, tasks, combiParams, std::move(loadmodel));
+    ProcessManager<> manager(pgroups, tasks, combiParams, std::move(loadmodel));
 
     // the combiparameters are sent to all process groups before the
     // computations start
@@ -357,7 +357,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
     remove(("thirdLevel_" + std::to_string(testParams.ncombi) + "_0.raw_header").c_str());
   }
   else {
-    ProcessGroupWorker pgroup;
+    ProcessGroupWorker<> pgroup;
     SignalType signal = -1;
     signal = pgroup.wait();
     // omitting to count RUN_FIRST signal, as it is executed once for every task
@@ -475,16 +475,16 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams,
   BOOST_REQUIRE_EQUAL(levels.size(), coeffs.size());
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
-    ProcessGroupManagerContainer pgroups;
+    ProcessGroupManagerContainer<> pgroups;
     for (size_t i = 0; i < testParams.ngroup; ++i) {
       int pgroupRootID((int)i);
-      pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
+      pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
 
-    TaskContainer tasks;
+    TaskContainer<> tasks;
     std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel.get());
+      Task<>* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel.get());
 
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
@@ -499,7 +499,7 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams,
                                 false, testParams.host, testParams.port, 0);
 
     // create abstraction for Manager
-    ProcessManager manager(pgroups, tasks, combiParams, std::move(loadmodel));
+    ProcessManager<> manager(pgroups, tasks, combiParams, std::move(loadmodel));
 
     if (useStaticTaskAssignment) {
       // read in CT scheme -- again!
@@ -546,7 +546,7 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams,
     manager.exit();
   }
   else {
-    ProcessGroupWorker pgroup;
+    ProcessGroupWorker<> pgroup;
     SignalType signal = -1;
     while (signal != EXIT) {
       BOOST_TEST_CHECKPOINT("Last Successful Worker Signal " + std::to_string(signal));
@@ -637,7 +637,7 @@ void testCombineThirdLevelWithoutManagers(
   BOOST_REQUIRE_EQUAL(levels.size(), coeffs.size());
 
   WORLD_MANAGER_EXCLUSIVE_SECTION { BOOST_CHECK(false); }
-  ProcessGroupWorker worker;
+  ProcessGroupWorker<> worker;
   // parallelization needs to be the same as in TaskConstParaboloid::init()
   std::vector<int> parallelization(testParams.dim, 1);
   parallelization[1] = static_cast<int>(testParams.nprocs);
@@ -796,7 +796,7 @@ void testPretendThirdLevel(TestParams& testParams) {
   theMPISystem()->initWorldReusable(testParams.comm, testParams.ngroup, testParams.nprocs);
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
-    ProcessGroupManagerContainer pgroups;
+    ProcessGroupManagerContainer<> pgroups;
 
     auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
     std::vector<BoundaryType> boundary(testParams.dim, testParams.boundary);
@@ -815,7 +815,7 @@ void testPretendThirdLevel(TestParams& testParams) {
                                                   levels, coeffs);
 
     BOOST_REQUIRE_EQUAL(levels.size(), coeffs.size());
-    TaskContainer tasks;
+    TaskContainer<> tasks;
     std::vector<size_t> taskIDs;
     auto reduceCombinationDimsLmax = LevelVector(testParams.dim, 1);
 
@@ -830,7 +830,7 @@ void testPretendThirdLevel(TestParams& testParams) {
     auto decomposition = combigrid::getStandardDecomposition(testParams.lmax, parallelization);
     combiParams.setDecomposition(decomposition);
     // create abstraction for Manager
-    ProcessManager manager(pgroups, tasks, combiParams, std::move(loadmodel));
+    ProcessManager<> manager(pgroups, tasks, combiParams, std::move(loadmodel));
 
     // the combiparameters are sent to all process groups before the
     // computations start

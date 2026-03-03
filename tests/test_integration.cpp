@@ -29,7 +29,7 @@ using namespace combigrid;
 // omitted here, because already defined in test_thirdLevel.cpp
 // BOOST_CLASS_EXPORT(TaskCount)
 
-bool checkReducedFullGridIntegration(ProcessGroupWorker& worker, int nrun) {
+bool checkReducedFullGridIntegration(ProcessGroupWorker<>& worker, int nrun) {
   const auto& tasks = worker.getTasks();
   int numGrids = (int)worker.getCombiParameters().getNumGrids();
 
@@ -101,10 +101,10 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
     BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getGlobalComm()), ngroup + 1);
     BOOST_CHECK_EQUAL(getCommRank(theMPISystem()->getGlobalComm()), ngroup);
 
-    ProcessGroupManagerContainer pgroups;
+    ProcessGroupManagerContainer<> pgroups;
     for (int i = 0; i < ngroup; ++i) {
       int pgroupRootID(i);
-      pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
+      pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
 
     auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
@@ -118,16 +118,16 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
     std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
 
     // create Tasks
-    TaskContainer tasks;
+    TaskContainer<> tasks;
     std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskCount(levels[i], boundary, coeffs[i], loadmodel.get());
+      Task<>* t = new TaskCount(levels[i], boundary, coeffs[i], loadmodel.get());
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
 
     // why are there duplicate task IDs over different calls to this function??
-    // ah its because different ranks will be master, so there are different Task::count instances
+    // ah its because different ranks will be master, so there are different Task<>::count instances
     // std::cout << "taskIDs " << taskIDs << std::endl;
 
     // create combiparameters
@@ -145,7 +145,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
     }
 
     // create abstraction for Manager
-    ProcessManager manager{pgroups, tasks, params, std::move(loadmodel)};
+    ProcessManager<> manager{pgroups, tasks, params, std::move(loadmodel)};
 
     // the combiparameters are sent to all process groups before the
     // computations start
@@ -285,7 +285,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
     }
     BOOST_TEST_CHECKPOINT("Worker starts");
     BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getLocalComm()));
-    ProcessGroupWorker pgroup;
+    ProcessGroupWorker<> pgroup;
     SignalType signal = -1;
     // omitting to count RUN_FIRST signal, as it is executed once for every task
     int nrun = 1;
@@ -350,10 +350,10 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
   LevelVector lmax(dim, 5);
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
-    ProcessGroupManagerContainer pgroups;
+    ProcessGroupManagerContainer<> pgroups;
     for (int i = 0; i < ngroup; ++i) {
       int pgroupRootID(i);
-      pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
+      pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
 
     auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
@@ -365,10 +365,10 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
     [[maybe_unused]] auto numDOF = printCombiDegreesOfFreedom(levels, boundary);
 
     // create Tasks
-    TaskContainer tasks;
+    TaskContainer<> tasks;
     std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskCount(levels[i], boundary, coeffs[i], loadmodel.get());
+      Task<>* t = new TaskCount(levels[i], boundary, coeffs[i], loadmodel.get());
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -379,7 +379,7 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
     setCombiParametersHierarchicalBasesUniform<T>(params);
 
     // create abstraction for Manager
-    ProcessManager manager{pgroups, tasks, params, std::move(loadmodel)};
+    ProcessManager<> manager{pgroups, tasks, params, std::move(loadmodel)};
 
     // the combiparameters are sent to all process groups before the
     // computations start
@@ -396,7 +396,7 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
   }
   else {
     BOOST_TEST_CHECKPOINT("Worker starts");
-    ProcessGroupWorker pgroup;
+    ProcessGroupWorker<> pgroup;
     SignalType signal = -1;
     // omitting to count RUN_FIRST signal, as it is executed once for every task
     while (signal != EXIT) {

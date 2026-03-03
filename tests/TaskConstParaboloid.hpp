@@ -51,11 +51,11 @@ class ParaboloidFn {
 
 /* simple task class to set all values on the grid to $levelVector_1 / levelVector_2$
  */
-class TaskConstParaboloid : public combigrid::Task {
+class TaskConstParaboloid : public combigrid::Task<> {
  public:
   TaskConstParaboloid(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
                       LoadModel* loadModel)
-      : Task(l, boundary, coeff, loadModel), dfg_(nullptr) {
+      : Task<>(l, boundary, coeff, loadModel), dfg_(nullptr) {
     BOOST_TEST_CHECKPOINT("TaskConstParaboloid constructor");
   }
 
@@ -139,10 +139,10 @@ class TaskConstParaboloid : public combigrid::Task {
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
-    ar& boost::serialization::base_object<Task>(*this);
+    ar& boost::serialization::base_object<Task<>>(*this);
     // ar& nprocs_;
-    ar& nsteps_;
+    ar & nsteps_;
   }
 };
 
-#endif // def TASKCONSTPARABOLOID_HPP_    BOOST_CHECK(true);
+#endif  // def TASKCONSTPARABOLOID_HPP

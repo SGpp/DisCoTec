@@ -69,11 +69,11 @@ class TestingTaskRescheduler : public TaskRescheduler {
 
 /* simple task class to set all values on the grid to $levelVector_1 / levelVector_2$
  */
-class TestingTask : public combigrid::Task {
+class TestingTask : public combigrid::Task<> {
  public:
   TestingTask(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
               LoadModel* loadModel)
-      : Task(l, boundary, coeff, loadModel) {
+      : Task<>(l, boundary, coeff, loadModel) {
     assert(l.size() == 2);
   }
 
@@ -133,14 +133,14 @@ class TestingTask : public combigrid::Task {
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
-    ar & boost::serialization::base_object<Task>(*this);
+    ar& boost::serialization::base_object<Task<>>(*this);
     ar & valueToPersist_;
   }
 };
 
 BOOST_CLASS_EXPORT(TestingTask)
 
-bool tasksContainSameValue(const std::vector<std::unique_ptr<Task>>& tasks) {
+bool tasksContainSameValue(const std::vector<std::unique_ptr<Task<>>>& tasks) {
   // std::cout << "task size" << tasks.size() << "\n";
   if (tasks.size() <= 1) {
     return true;
@@ -171,10 +171,10 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
   // theMPISystem()->init(ngroup, nprocs);
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
-    ProcessGroupManagerContainer pgroups;
+    ProcessGroupManagerContainer<> pgroups;
     for (int i = 0; i < ngroup; ++i) {
       int pgroupRootID(i);
-      pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
+      pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
 
     auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
@@ -194,10 +194,10 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
     std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
 
     // create Tasks
-    TaskContainer tasks;
+    TaskContainer<> tasks;
     std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TestingTask(levels[i], boundary, coeffs[i], loadmodel.get());
+      Task<>* t = new TestingTask(levels[i], boundary, coeffs[i], loadmodel.get());
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -210,7 +210,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
 
 
     // create abstraction for Manager
-    ProcessManager manager{pgroups, tasks, params, std::move(loadmodel), std::move(rescheduler)};
+    ProcessManager<> manager{pgroups, tasks, params, std::move(loadmodel), std::move(rescheduler)};
 
     // the combiparameters are sent to all process groups before the
     // computations start
@@ -238,7 +238,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
   }
   else {
     BOOST_TEST_CHECKPOINT("Worker startet");
-    ProcessGroupWorker pgroup;
+    ProcessGroupWorker<> pgroup;
     SignalType signal = -1;
     while (signal != EXIT){ 
       BOOST_TEST_CHECKPOINT("Last Successful Worker Signal " + std::to_string(signal));

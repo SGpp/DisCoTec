@@ -29,11 +29,11 @@ using namespace combigrid;
 
 /* simple task class to set all values on the grid to $levelVector_1 / levelVector_2$
  */
-class TaskConst : public combigrid::Task {
+class TaskConst : public combigrid::Task<> {
  public:
   TaskConst(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
             LoadModel* loadModel)
-      : Task(l, boundary, coeff, loadModel) {
+      : Task<>(l, boundary, coeff, loadModel) {
     assert(l.size() == 2);
   }
 
@@ -105,7 +105,7 @@ class TaskConst : public combigrid::Task {
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
-    ar& boost::serialization::base_object<Task>(*this);
+    ar& boost::serialization::base_object<Task<>>(*this);
     // ar& nprocs_;
   }
 };
@@ -127,10 +127,10 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
   // theMPISystem()->init(ngroup, nprocs);
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
-    ProcessGroupManagerContainer pgroups;
+    ProcessGroupManagerContainer<> pgroups;
     for (int i = 0; i < static_cast<int>(ngroup); ++i) {
       int pgroupRootID(i);
-      pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
+      pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
 
     auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
@@ -161,10 +161,10 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
     BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(static_cast<int>(size)));
 
     // create Tasks
-    TaskContainer tasks;
+    TaskContainer<> tasks;
     std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskConst(levels[i], boundary, coeffs[i], loadmodel.get());
+      Task<>* t = new TaskConst(levels[i], boundary, coeffs[i], loadmodel.get());
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -175,7 +175,7 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
     params.setParallelization(parallelization); //TODO why??
 
     // create abstraction for Manager
-    ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
+    ProcessManager<> manager(pgroups, tasks, params, std::move(loadmodel));
 
     // the combiparameters are sent to all process groups before the
     // computations start
@@ -201,7 +201,7 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
     manager.exit();
   }
   else {
-    ProcessGroupWorker pgroup;
+    ProcessGroupWorker<> pgroup;
     SignalType signal = -1;
     while (signal != EXIT) {
       signal = pgroup.wait();

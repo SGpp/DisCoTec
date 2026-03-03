@@ -4,16 +4,17 @@
 #define BOOST_TEST_DYN_LINK
 
 #include <boost/serialization/export.hpp>
+
 #include "task/Task.hpp"
 
 using namespace combigrid;
 
 /* simple task class to set all values on the grid to $levelVector_1 / levelVector_2$
  */
-class TaskConst : public combigrid::Task {
+class TaskConst : public combigrid::Task<> {
  public:
   TaskConst(LevelVector& l, std::vector<bool>& boundary, real coeff, LoadModel* loadModel)
-      : Task(l, boundary, coeff, loadModel) {
+      : Task<>(l, boundary, coeff, loadModel) {
     assert(l.size() == 2);
   }
 
@@ -83,9 +84,9 @@ class TaskConst : public combigrid::Task {
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
-    ar& boost::serialization::base_object<Task>(*this);
+    ar& boost::serialization::base_object<Task<>>(*this);
     // ar& nprocs_;
   }
 };
 
-#endif // def TASKCONST_HPP_    BOOST_CHECK(true);
+#endif  // def TASKCONST_HPP_

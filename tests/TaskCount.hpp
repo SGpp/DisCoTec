@@ -28,11 +28,11 @@ class TestFnCount {
 
 /* simple task class to set all values on the grid to n_timestep * sum( (d_i + 1) * x_i)
  */
-class TaskCount : public combigrid::Task {
+class TaskCount : public combigrid::Task<> {
  public:
-  TaskCount(const LevelVector& l, const std::vector<BoundaryType>& boundary,
-            real coeff, LoadModel* loadModel)
-      : Task(l, boundary, coeff, loadModel), dfg_(nullptr), nrun_(0) {
+  TaskCount(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
+            LoadModel* loadModel)
+      : Task<>(l, boundary, coeff, loadModel), dfg_(nullptr), nrun_(0) {
     BOOST_TEST_CHECKPOINT("TaskCount constructor");
   }
 
@@ -58,7 +58,6 @@ class TaskCount : public combigrid::Task {
   }
 
   void run(CommunicatorType lcomm) override {
-
     // std::cout << "run " << getCommRank(lcomm) << std::endl;
 
     // increase each value by sum( (d_i+1) * x_i)
@@ -119,7 +118,7 @@ class TaskCount : public combigrid::Task {
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
-    ar& boost::serialization::base_object<Task>(*this);
+    ar& boost::serialization::base_object<Task<>>(*this);
     // ar& nprocs_;
   }
 };
