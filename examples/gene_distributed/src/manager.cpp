@@ -49,13 +49,13 @@ inline std::vector<bool>& operator>>(std::string str, std::vector<bool>& vec) {
 }
 
 // recovery in case of faults
-void recoverPreprocessing(ProcessManager& manager, int nsteps, size_t i, bool doOnlyRecompute = false){
-
-  //vector with IDs of faulted tasks (=component grids)
+void recoverPreprocessing(ProcessManager<>& manager, int nsteps, size_t i,
+                          bool doOnlyRecompute = false) {
+  // vector with IDs of faulted tasks (=component grids)
   std::vector<size_t> faultsID;
 
-  //vector with pointers to managers of failed groups
-  std::vector< ProcessGroupManagerID> groupFaults;
+  // vector with pointers to managers of failed groups
+  std::vector<ProcessGroupManagerID<>> groupFaults;
   manager.getGroupFaultIDs(faultsID, groupFaults);
 
   /* call optimization code to find new coefficients */
@@ -182,14 +182,12 @@ int main(int argc, char** argv) {
     * a pgroup is identified by the ID in gcomm
     */
   
-  ProcessGroupManagerContainer pgroups;
+  ProcessGroupManagerContainer<> pgroups;
   //create vector containing the different process groups
   for (size_t i=0; i<ngroup; ++i) {
     // todo: order of ranks in new group?
     int pgroupRootID(i);
-    pgroups.emplace_back(
-        std::make_shared< ProcessGroupManager > ( pgroupRootID )
-    );
+    pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
   }
 
   /* generate a list of levelvectors and coefficients
@@ -325,7 +323,7 @@ int main(int argc, char** argv) {
   }
 
   // create Tasks
-  TaskContainer tasks;
+  TaskContainer<> tasks;
   std::vector<size_t> taskIDs;
 
   //initialize individual tasks (component grids)
@@ -350,11 +348,10 @@ int main(int argc, char** argv) {
       assert(false && "writing load data is not compatible with actual faults yet!");
     }
 
-    IndexType numSpecies = numGrids; //generate one grid per species
-    Task* t = new GeneTask(dim, levels[i], boundary, coeffs[i],
-                              loadmodel.get(), path, dt, combitime, nsteps,
-                              shat, lx, ky0_ind, p, faultCrit,
-                              numSpecies, GENE_Global,GENE_Linear, checkpointFrequency, offset);
+    IndexType numSpecies = numGrids;  // generate one grid per species
+    Task<>* t = new GeneTask(dim, levels[i], boundary, coeffs[i], loadmodel.get(), path, dt,
+                             combitime, nsteps, shat, lx, ky0_ind, p, faultCrit, numSpecies,
+                             GENE_Global, GENE_Linear, checkpointFrequency, offset);
     tasks.push_back(t);
     taskIDs.push_back( t->getID() );
 
@@ -364,7 +361,7 @@ int main(int argc, char** argv) {
                           coeffs, hierarchizationDims, taskIDs, ncombi, numGrids, p, reduceCombinationDimsLmin, reduceCombinationDimsLmax);
 
   // create Manager with process groups
-  ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
+  ProcessManager<> manager(pgroups, tasks, params, std::move(loadmodel));
 
   bool success = true; //indicates if computation was sucessfull -> false means fault occured
 

@@ -8,14 +8,13 @@
 #ifndef TASKEXAMPLE_HPP_
 #define TASKEXAMPLE_HPP_
 
+#include "fault_tolerance/FTUtils.hpp"
 #include "fullgrid/DistributedFullGrid.hpp"
 #include "task/Task.hpp"
-#include "fault_tolerance/FTUtils.hpp"
 
 namespace combigrid {
 
-class TaskExample: public Task {
-
+class TaskExample : public Task<> {
  public:
   /* if the constructor of the base task class is not sufficient we can provide an
    * own implementation. here, we add dt, nsteps, p as a new parameters.
@@ -33,7 +32,8 @@ class TaskExample: public Task {
         combiStep_(0),
         dfg_(NULL) {}
 
-  void init(CommunicatorType lcomm, const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) {
+  void init(CommunicatorType lcomm,
+            const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) {
     assert(!initialized_);
     assert(dfg_ == NULL);
 
@@ -74,8 +74,7 @@ class TaskExample: public Task {
         p[dimMaxRatio] *= 2;
         prod_p = 1;
 
-        for (DimType k = 0; k < dim; ++k)
-          prod_p *= p[k];
+        for (DimType k = 0; k < dim; ++k) prod_p *= p[k];
       }
     } else {
       p = p_;
@@ -115,7 +114,7 @@ class TaskExample: public Task {
     auto elements = dfg_->getData();
 
     for (size_t step = stepsTotal_; step < stepsTotal_ + nsteps_; ++step) {
-      real time = (step + 1)* dt_;
+      real time = (step + 1) * dt_;
 
       for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
         IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
@@ -138,17 +137,14 @@ class TaskExample: public Task {
    * solution on one process and then converting it to the full grid representation.
    * the DistributedFullGrid class offers a convenient function to do this.
    */
-  void getFullGrid(FullGrid<CombiDataType>& fg, RankType r,
-                   CommunicatorType lcomm, int n = 0) {
+  void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) {
     assert(fg.getLevels() == dfg_->getLevels());
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n) override {
-    return *dfg_;
-  }
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n) override { return *dfg_; }
 
-  const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n) const override{
+  const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n) const override {
     assert(n == 0);
     return *dfg_;
   }
@@ -156,8 +152,7 @@ class TaskExample: public Task {
   static real myfunction(std::vector<real>& coords, real t) {
     real u = std::cos(M_PI * t);
 
-    for ( size_t d = 0; d < coords.size(); ++d )
-      u *= std::cos( 2.0 * M_PI * coords[d] );
+    for (size_t d = 0; d < coords.size(); ++d) u *= std::cos(2.0 * M_PI * coords[d]);
 
     return u;
 
@@ -172,15 +167,12 @@ class TaskExample: public Task {
     */
   }
 
- inline void setStepsTotal( size_t stepsTotal );
+  inline void setStepsTotal(size_t stepsTotal);
 
- inline void setZero(){
-
- }
+  inline void setZero() {}
 
   ~TaskExample() {
-    if (dfg_ != NULL)
-      delete dfg_;
+    if (dfg_ != NULL) delete dfg_;
   }
 
  protected:
@@ -189,9 +181,7 @@ class TaskExample: public Task {
    * this constructor before overwriting the variables that are set by the
    * manager. here we need to set the initialized variable to make sure it is
    * set to false. */
-  TaskExample() :
-    initialized_(false), combiStep_(0), dfg_(NULL) {
-  }
+  TaskExample() : initialized_(false), combiStep_(0), dfg_(NULL) {}
 
  private:
   friend class boost::serialization::access;
@@ -206,8 +196,6 @@ class TaskExample: public Task {
   bool initialized_;
   size_t combiStep_;
 
-
-
   OwningDistributedFullGrid<CombiDataType>* dfg_;
 
   /**
@@ -218,57 +206,50 @@ class TaskExample: public Task {
    * For serialization of the parent class members, the class must be
    * registered with the BOOST_CLASS_EXPORT macro.
    */
-  template<class Archive>
+  template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
     // handles serialization of base class
-    ar& boost::serialization::base_object<Task>(*this);
+    ar& boost::serialization::base_object<Task<>>(*this);
 
     // add our new variables
-    ar& dt_;
-    ar& nsteps_;
-    ar& stepsTotal_;
-    ar& p_;
+    ar & dt_;
+    ar & nsteps_;
+    ar & stepsTotal_;
+    ar & p_;
   }
 
-  void decideToKill(){ //toDo check if combiStep should be included in task and sent to process groups in case of reassignment
+  void decideToKill() {  // toDo check if combiStep should be included in task and sent to process
+                         // groups in case of reassignment
     using namespace std::chrono;
 
     int globalRank = theMPISystem()->getGlobalRank();
     // MPI_Comm_rank(lcomm, &lrank);
     // MPI_Comm_rank(MPI_COMM_WORLD, &globalRank);
-    //theStatsContainer()->setTimerStop("computeIterationRank" + std::to_string(globalRank));
-    //duration<real> dur = high_resolution_clock::now() - startTimeIteration_;
-    //real t_iter = dur.count();
-    //std::cout << "Current iteration took " << t_iter << "\n";
+    // theStatsContainer()->setTimerStop("computeIterationRank" + std::to_string(globalRank));
+    // duration<real> dur = high_resolution_clock::now() - startTimeIteration_;
+    // real t_iter = dur.count();
+    // std::cout << "Current iteration took " << t_iter << "\n";
 
-    //theStatsContainer()->setTimerStart("computeIterationRank" + std::to_string(globalRank));
+    // theStatsContainer()->setTimerStart("computeIterationRank" + std::to_string(globalRank));
 
-
-    //check if killing necessary
-    //std::cout << "failNow result " << failNow(globalRank) << " at rank: " << globalRank <<" at step " << combiStep_ << "\n" ;
-    //real t = dt_ * nsteps_ * combiStep_;
-    if (combiStep_ != 0 && faultCriterion_->failNow(combiStep_, -1.0, globalRank)){
-          std::cout<<"Rank "<< globalRank <<" failed at iteration "<<combiStep_<<std::endl;
-          StatusType status=PROCESS_GROUP_FAIL;
-          MASTER_EXCLUSIVE_SECTION{
-            simft::Sim_FT_MPI_Send( &status, 1, MPI_INT,  theMPISystem()->getManagerRank(), TRANSFER_STATUS_TAG,
-                              theMPISystem()->getGlobalCommFT() );
-          }
-          theMPISystem()->sendFailedSignal();
-          simft::Sim_FT_kill_me();
+    // check if killing necessary
+    // std::cout << "failNow result " << failNow(globalRank) << " at rank: " << globalRank <<" at
+    // step " << combiStep_ << "\n" ; real t = dt_ * nsteps_ * combiStep_;
+    if (combiStep_ != 0 && faultCriterion_->failNow(combiStep_, -1.0, globalRank)) {
+      std::cout << "Rank " << globalRank << " failed at iteration " << combiStep_ << std::endl;
+      StatusType status = PROCESS_GROUP_FAIL;
+      MASTER_EXCLUSIVE_SECTION {
+        simft::Sim_FT_MPI_Send(&status, 1, MPI_INT, theMPISystem()->getManagerRank(),
+                               TRANSFER_STATUS_TAG, theMPISystem()->getGlobalCommFT());
+      }
+      theMPISystem()->sendFailedSignal();
+      simft::Sim_FT_kill_me();
     }
   }
-
 };
 
+inline void TaskExample::setStepsTotal(size_t stepsTotal) { stepsTotal_ = stepsTotal; }
 
-
-
-
-inline void TaskExample::setStepsTotal( size_t stepsTotal ) {
-  stepsTotal_ = stepsTotal;
-}
-
-} // namespace combigrid
+}  // namespace combigrid
 
 #endif /* TASKEXAMPLE_HPP_ */

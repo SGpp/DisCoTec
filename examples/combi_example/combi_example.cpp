@@ -60,10 +60,10 @@ int main(int argc, char** argv) {
     /* create an abstraction of the process groups for the manager's view
      * a pgroup is identified by the ID in gcomm
      */
-    ProcessGroupManagerContainer pgroups;
+    ProcessGroupManagerContainer<> pgroups;
     for (size_t i = 0; i < ngroup; ++i) {
       int pgroupRootID(i);
-      pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
+      pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
 
     // create load model
@@ -108,10 +108,10 @@ int main(int argc, char** argv) {
     std::cout << combischeme << std::endl;
 
     // create Tasks
-    TaskContainer tasks;
+    TaskContainer<> tasks;
     std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskExample(levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
+      Task<>* t = new TaskExample(levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -121,7 +121,7 @@ int main(int argc, char** argv) {
                            CombinationVariant::sparseGridReduce, p);
 
     // create abstraction for Manager
-    ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
+    ProcessManager<> manager(pgroups, tasks, params, std::move(loadmodel));
 
     std::cout << "set up component grids and run until first combination point" << std::endl;
 
@@ -171,7 +171,7 @@ int main(int argc, char** argv) {
   // this code is only execute by the worker processes
   else {
     // create abstraction of the process group from the worker's view
-    ProcessGroupWorker pgroup;
+    ProcessGroupWorker<> pgroup;
 
     SignalType signal = -1;
 

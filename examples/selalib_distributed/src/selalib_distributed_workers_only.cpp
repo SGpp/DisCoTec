@@ -183,7 +183,7 @@ int main(int argc, char** argv) {
     }
   }
   {
-    ProcessGroupWorker worker;
+    ProcessGroupWorker<> worker;
 
     // create combiparamters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, hierarchizationDims,
@@ -201,7 +201,7 @@ int main(int argc, char** argv) {
     for (size_t i = 0; i < levels.size(); i++) {
       // path to task folder
       std::string path = baseFolder + std::to_string(taskNumbers[i]);
-      worker.initializeTask(std::unique_ptr<Task>(
+      worker.initializeTask(std::unique_ptr<Task<>>(
           new SelalibTask(levels[i], boundary, coeffs[i], loadmodel.get(), path, dt, nsteps, p)));
     }
     // worker.initializeAllTasks<SelalibTask>(levels, coeffs, taskNumbers, loadmodel.get(), dt,

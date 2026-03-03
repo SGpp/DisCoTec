@@ -35,7 +35,6 @@ using namespace combigrid;
 #include "utils/BoostExports.hpp"
 BOOST_CLASS_EXPORT(TaskAdvection)
 
-
 namespace shellCommand {
   // cf. https://stackoverflow.com/questions/478898/how-do-i-execute-a-command-and-get-the-output-of-the-command-within-c-using-po
   void exec(const char* cmd) {
@@ -47,7 +46,7 @@ namespace shellCommand {
   }
 }
 
-void managerMonteCarlo(ProcessManager& manager, DimType dim, double time) {
+void managerMonteCarlo(ProcessManager<>& manager, DimType dim, double time) {
   // 100000 was tested to be sufficient for the 6D Gaussian blob
   size_t numValues = 100000;
   Stats::startEvent("manager monte carlo");
@@ -119,10 +118,10 @@ int main(int argc, char** argv) {
     /* create an abstraction of the process groups for the manager's view
      * a pgroup is identified by the ID in gcomm
      */
-    ProcessGroupManagerContainer pgroups;
+    ProcessGroupManagerContainer<> pgroups;
     for (size_t i = 0; i < ngroup; ++i) {
       int pgroupRootID(i);
-      pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
+      pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
 
     /* read in parameters from ctparam */
@@ -173,13 +172,10 @@ int main(int argc, char** argv) {
     for (const LevelVector& level : levels) std::cout << level << std::endl;
 
     // create Tasks
-    TaskContainer tasks;
+    TaskContainer<> tasks;
     std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskAdvection(levels[i], boundary, coeffs[i], loadmodel.get(), dt,
-                                  nsteps, p);
-
-      static_assert(!isGENE, "isGENE");
+      Task<>* t = new TaskAdvection(levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
 
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
@@ -194,7 +190,7 @@ int main(int argc, char** argv) {
     params.setParallelization(p);
 
     // create abstraction for Manager
-    ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
+    ProcessManager<> manager(pgroups, tasks, params, std::move(loadmodel));
 
     manager.updateCombiParameters();
     std::cout << "set up component grids and run until first combination point" << std::endl;
@@ -270,7 +266,7 @@ int main(int argc, char** argv) {
   // this code is only executed by the worker processes
   else {
     // create abstraction of the process group from the worker's view
-    ProcessGroupWorker pgroup;
+    ProcessGroupWorker<> pgroup;
 
     // wait for instructions from manager
     SignalType signal = -1;

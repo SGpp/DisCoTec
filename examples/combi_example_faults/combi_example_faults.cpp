@@ -65,14 +65,11 @@ int main(int argc, char** argv) {
     /* create an abstraction of the process groups for the manager's view
      * a pgroup is identified by the ID in gcomm
      */
-    ProcessGroupManagerContainer pgroups;
+    ProcessGroupManagerContainer<> pgroups;
     for (size_t i = 0; i < ngroup; ++i) {
       int pgroupRootID(i);
-      pgroups.emplace_back(
-          std::make_shared< ProcessGroupManager > ( pgroupRootID )
-                          );
+      pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
-
 
     /* create load model */
     std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LinearLoadModel>(new LinearLoadModel());
@@ -94,7 +91,7 @@ int main(int argc, char** argv) {
     std::cout << combischeme;
 
     /* create Tasks */
-    TaskContainer tasks;
+    TaskContainer<> tasks;
     std::vector<size_t> taskIDs;
 
     for (size_t i = 0; i < levels.size(); i++) {
@@ -110,10 +107,10 @@ int main(int argc, char** argv) {
         //if numFaults = 0 there are no faults
         faultCrit = new StaticFaults(faultsInfo);
       }
-      Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i],
-                                loadmodel.get() , dt, nsteps, p, faultCrit);
+      Task<>* t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps,
+                                  p, faultCrit);
       tasks.push_back(t);
-      taskIDs.push_back( t->getID() );
+      taskIDs.push_back(t->getID());
     }
 
     /* create combi parameters */
@@ -121,7 +118,7 @@ int main(int argc, char** argv) {
                            CombinationVariant::sparseGridReduce, p);
 
     /* create Manager with process groups */
-    ProcessManager manager( pgroups, tasks, params, std::move(loadmodel) );
+    ProcessManager<> manager(pgroups, tasks, params, std::move(loadmodel));
 
     /* distribute task according to load model and start computation for
      * the first time */
@@ -133,8 +130,8 @@ int main(int argc, char** argv) {
 
         std::vector<size_t> faultsID;
 
-        //vector with pointers to managers of failed groups
-        std::vector< ProcessGroupManagerID> groupFaults;
+        // vector with pointers to managers of failed groups
+        std::vector<ProcessGroupManagerID<>> groupFaults;
         manager.getGroupFaultIDs(faultsID, groupFaults);
 
         /* call optimization code to find new coefficients */
@@ -202,7 +199,7 @@ int main(int argc, char** argv) {
 // worker code
   else {
     // create abstraction of the process group from the worker's view
-    ProcessGroupWorker pgroup;
+    ProcessGroupWorker<> pgroup;
 
     // wait for instructions from manager
     SignalType signal = -1;

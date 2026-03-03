@@ -13,7 +13,7 @@
 
 namespace combigrid {
 
-class TaskExample : public Task {
+class TaskExample : public Task<> {
  public:
   /* if the constructor of the base task class is not sufficient we can provide an
    * own implementation. here, we add dt, nsteps, and p as a new parameters.
@@ -165,12 +165,12 @@ class TaskExample : public Task {
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
     // handles serialization of base class
-    ar& boost::serialization::base_object<Task>(*this);
+    ar& boost::serialization::base_object<Task<>>(*this);
 
     // add our new variables
-    ar& dt_;
-    ar& nsteps_;
-    ar& p_;
+    ar & dt_;
+    ar & nsteps_;
+    ar & p_;
   }
 };
 

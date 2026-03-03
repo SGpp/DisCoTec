@@ -54,7 +54,7 @@ void exec(const char* cmd) {
 }
 }  // namespace shellCommand
 
-void managerMonteCarlo(ProcessManager& manager, DimType dim, double time, bool hasThirdLevel) {
+void managerMonteCarlo(ProcessManager<>& manager, DimType dim, double time, bool hasThirdLevel) {
   // 100000 was tested to be sufficient for the 6D blob,
   // but output three times just to make sure
   std::vector<size_t> numValuesToTry{100000};
@@ -262,7 +262,7 @@ int main(int argc, char** argv) {
   // this code is only executed by the manager process
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     // set up the ssh tunnel for third level communication, if necessary
-    // todo: if this works, move to ProcessManager::setUpThirdLevel
+    // todo: if this works, move to ProcessManager<>::setUpThirdLevel
 
     std::string hostnameInfo = "manager = " + boost::asio::ip::host_name();
     std::cout << hostnameInfo << std::endl;
@@ -279,18 +279,17 @@ int main(int argc, char** argv) {
     // for (const LevelVector& level : levels) std::cout << level << std::endl;
 
     // create Tasks
-    TaskContainer tasks;
+    TaskContainer<> tasks;
     std::vector<size_t> taskIDs;
     if (!useStaticTaskAssignment) {
       // the world manager only needs to have task instances if it needs to distribute tasks
       tasks.reserve(levels.size());
       taskIDs.reserve(levels.size());
       for (size_t i = 0; i < levels.size(); i++) {
-        Task* t = new TaskAdvection(levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
-        // Task* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel);
-        // Task* t = new TaskCount(dim, levels[i], boundary, coeffs[i], loadmodel.get());
-
-        static_assert(!isGENE, "isGENE");
+        Task<>* t =
+            new TaskAdvection(levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
+        // Task<>* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel);
+        // Task<>* t = new TaskCount(dim, levels[i], boundary, coeffs[i], loadmodel.get());
 
         tasks.push_back(t);
         taskIDs.push_back(t->getID());
@@ -321,13 +320,13 @@ int main(int argc, char** argv) {
     params.setDecomposition(decomposition);
     std::cout << "manager: generated parameters" << std::endl;
 
-    ProcessGroupManagerContainer pgroups;
+    ProcessGroupManagerContainer<> pgroups;
     for (size_t i = 0; i < ngroup; ++i) {
       int pgroupRootID(i);
-      pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
+      pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
     // create abstraction for Manager
-    ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
+    ProcessManager<> manager(pgroups, tasks, params, std::move(loadmodel));
     manager.updateCombiParameters();
     auto durationParams = Stats::getDuration("manager update parameters")/ 1000.0;
     std::cout << "manager: updated parameters in " << durationParams << " seconds" << std::endl;
@@ -426,7 +425,7 @@ int main(int argc, char** argv) {
   // this code is only executed by the worker processes
   else {
     // create abstraction of the process group from the worker's view
-    ProcessGroupWorker pgroup;
+    ProcessGroupWorker<> pgroup;
 
     // wait for instructions from manager
     SignalType signal = -1;
@@ -439,7 +438,7 @@ int main(int argc, char** argv) {
         if (signal == UPDATE_COMBI_PARAMETERS) {
           // initialize all "our" tasks
           for (size_t taskIndex = 0; taskIndex < taskNumbers.size(); ++taskIndex) {
-            auto task = std::unique_ptr<Task>(new TaskAdvection(
+            auto task = std::unique_ptr<Task<>>(new TaskAdvection(
                 levels[taskIndex], boundary, coeffs[taskIndex], loadmodel.get(), dt, nsteps, p));
             task->setID(taskNumbers[taskIndex]);
             pgroup.initializeTask(std::move(task));

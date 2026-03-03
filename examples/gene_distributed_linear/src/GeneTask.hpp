@@ -28,7 +28,7 @@
 
 namespace combigrid {
 
-class GeneTask : public combigrid::Task {
+class GeneTask : public combigrid::Task<> {
  public:
   GeneTask(DimType dim, const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
            LoadModel* loadModel, std::string& path, real dt, real combitime, size_t nsteps,
@@ -325,9 +325,9 @@ private:
  // std::chrono::high_resolution_clock::time_point  startTimeIteration_;
 
   // serialize
-  template<class Archive>
-  void serialize(Archive & ar, const unsigned int version){
-    ar & boost::serialization::base_object<Task>(*this);
+  template <class Archive>
+  void serialize(Archive& ar, const unsigned int version) {
+    ar& boost::serialization::base_object<Task<>>(*this);
     ar & path_;
     ar & dt_;
     ar & combitime_;
