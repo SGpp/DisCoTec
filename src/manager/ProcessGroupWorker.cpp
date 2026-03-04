@@ -565,18 +565,13 @@ void ProcessGroupWorker<CombiDataType>::combineAtOnce(bool collectMinMaxCoeffici
 
 template <typename CombiDataType>
 void ProcessGroupWorker<CombiDataType>::parallelEval() {
-  if (uniformDecomposition) {
-    parallelEvalUniform(receiveStringFromManagerAndBroadcastToGroup(),
-                        receiveLevalAndBroadcast(combiParameters_.getDim()));
-  } else {
-    throw std::runtime_error("parallelEval not implemented for non-uniform decomposition");
-  }
+  parallelEvalUniform(receiveStringFromManagerAndBroadcastToGroup(),
+                      receiveLevalAndBroadcast(combiParameters_.getDim()));
 }
 
 template <typename CombiDataType>
 void ProcessGroupWorker<CombiDataType>::parallelEvalUniform(const std::string& filename,
                                                             const LevelVector& leval) const {
-  assert(uniformDecomposition);
   auto levalDecomposition = combigrid::downsampleDecomposition(combiParameters_.getDecomposition(),
                                                                combiParameters_.getLMax(), leval,
                                                                combiParameters_.getBoundary());
