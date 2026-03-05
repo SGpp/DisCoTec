@@ -174,7 +174,7 @@ int main(int argc, char** argv) {
     MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "read interpolation coordinates"
                                                << std::endl;
 
-    ProcessGroupWorker worker;
+    ProcessGroupWorker<> worker;
     worker.setCombiParameters(std::move(params));
 
     worker.initializeAllTasks<TaskAdvection>(levels, coeffs, taskNumbers, loadmodel.get(), dt,

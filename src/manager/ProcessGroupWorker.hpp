@@ -20,6 +20,7 @@ namespace combigrid {
  * When using a manager-worker scheme, the ProcessGroupWorker is instantiated on each worker rank;
  * else, it is instantiated on each rank.
  */
+template <typename CombiDataType = double>
 class ProcessGroupWorker {
  public:
   explicit ProcessGroupWorker();
@@ -48,7 +49,7 @@ class ProcessGroupWorker {
   /**
    * @brief get the vector of tasks
    */
-  inline const std::vector<std::unique_ptr<Task>>& getTasks() const;
+  inline const std::vector<std::unique_ptr<Task<CombiDataType>>>& getTasks() const;
 
   /**@brief  initializes all subspace sizes in the distributed sparse grid data structure */
   void initCombinedDSGVector();
@@ -334,7 +335,7 @@ class ProcessGroupWorker {
                           const std::vector<size_t>& taskNumbers, TaskArgs&&... args) {
     for (size_t taskIndex = 0; taskIndex < taskNumbers.size(); ++taskIndex) {
       assert(static_cast<DimType>(levels[taskIndex].size()) == this->getCombiParameters().getDim());
-      auto task = std::unique_ptr<Task>(
+      auto task = std::unique_ptr<Task<CombiDataType>>(
           new TaskType(levels[taskIndex], this->getCombiParameters().getBoundary(),
                        coeffs[taskIndex], std::forward<TaskArgs>(args)...));
       task->setID(taskNumbers[taskIndex]);
@@ -347,7 +348,7 @@ class ProcessGroupWorker {
    *
    * @param t pointer to a heap-allocated task, the function takes over ownership here
    */
-  void initializeTask(std::unique_ptr<Task> t);
+  void initializeTask(std::unique_ptr<Task<CombiDataType>> t);
 
   /**
    * @brief get the current number of combinations
@@ -362,17 +363,17 @@ class ProcessGroupWorker {
   /**
    * @brief get a reference to the task worker member
    */
-  const TaskWorker& getTaskWorker() const { return taskWorker_; }
+  const TaskWorker<CombiDataType>& getTaskWorker() const { return taskWorker_; }
 
   /**
    * @brief get a reference to the sparse grid worker member
    */
-  const SparseGridWorker& getSparseGridWorker() const { return sgWorker_; }
+  const SparseGridWorker<CombiDataType>& getSparseGridWorker() const { return sgWorker_; }
 
  private:
-  TaskWorker taskWorker_{};  // worker that has tasks / full grids
+  TaskWorker<CombiDataType> taskWorker_{};  // worker that has tasks / full grids
 
-  SparseGridWorker sgWorker_{taskWorker_};  // worker that has sparse grids
+  SparseGridWorker<CombiDataType> sgWorker_{taskWorker_};  // worker that has sparse grids
 
   StatusType status_;  /// current status of process group (wait -> 0; busy -> 1; fail -> 2)
 
@@ -382,9 +383,9 @@ class ProcessGroupWorker {
 
   IndexType currentCombi_;  /// current combination; increased after every combination
 
-  TaskWorker& getTaskWorker() { return taskWorker_; }
+  TaskWorker<CombiDataType>& getTaskWorker() { return taskWorker_; }
 
-  SparseGridWorker& getSparseGridWorker() { return sgWorker_; }
+  SparseGridWorker<CombiDataType>& getSparseGridWorker() { return sgWorker_; }
 
   void receiveAndInitializeTask();
 
@@ -394,13 +395,16 @@ class ProcessGroupWorker {
   void setExtraSparseGrid(bool initializeSizes = true);
 };
 
-inline CombiParameters& ProcessGroupWorker::getCombiParameters() {
+template <typename CombiDataType>
+inline CombiParameters& ProcessGroupWorker<CombiDataType>::getCombiParameters() {
   assert(combiParametersSet_);
 
   return combiParameters_;
 }
 
-inline const std::vector<std::unique_ptr<Task>>& ProcessGroupWorker::getTasks() const {
+template <typename CombiDataType>
+inline const std::vector<std::unique_ptr<Task<CombiDataType>>>&
+ProcessGroupWorker<CombiDataType>::getTasks() const {
   return this->getTaskWorker().getTasks();
 }
 

@@ -327,7 +327,7 @@ int main(int argc, char** argv) {
   // this code is only executed by the manager process
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     // set up the ssh tunnel for third level communication, if necessary
-    // todo: if this works, move to ProcessManager::setUpThirdLevel
+    // todo: if this works, move to ProcessManager<>::setUpThirdLevel
     // if (thirdLevelSSHCommand != "") {
     //   shellCommand::exec(thirdLevelSSHCommand.c_str());
     //   std::cout << thirdLevelSSHCommand << " returned " << std::endl;
@@ -372,9 +372,9 @@ int main(int argc, char** argv) {
     params.setDecomposition(decomposition);
 
     // create abstraction for Manager
-    ProcessGroupManagerContainer pgroups;
-    TaskContainer tasks;
-    ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
+    ProcessGroupManagerContainer<> pgroups;
+    TaskContainer<> tasks;
+    ProcessManager<> manager(pgroups, tasks, params, std::move(loadmodel));
     manager.updateCombiParameters();
 
     bool validateData = false;

@@ -104,14 +104,12 @@ int main(int argc, char** argv) {
     /* create an abstraction of the process groups for the manager's view
      * a pgroup is identified by the ID in gcomm
      */
-    ProcessGroupManagerContainer pgroups;
-    //create vector containing the different process groups
-    for (size_t i=0; i<ngroup; ++i) {
+    ProcessGroupManagerContainer<> pgroups;
+    // create vector containing the different process groups
+    for (size_t i = 0; i < ngroup; ++i) {
       // todo: order of ranks in new group?
       int pgroupRootID(i);
-      pgroups.emplace_back(
-          std::make_shared< ProcessGroupManager > ( pgroupRootID )
-      );
+      pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
 
     // create load model
@@ -236,7 +234,7 @@ int main(int argc, char** argv) {
     }
 
     // create Tasks
-    TaskContainer tasks;
+    TaskContainer<> tasks;
     std::vector<size_t> taskIDs;
 
     //initialize individual tasks (component grids)
@@ -258,11 +256,10 @@ int main(int argc, char** argv) {
         faultCrit = new StaticFaults(faultsInfo);
       }
 
-      IndexType numSpecies = numGrids; //generate one grid per species
-      Task* t = new GeneTask(dim, levels[i], boundary, coeffs[i],
-                                loadmodel.get(), path, dt, combitime, nsteps,
-                                shat, lx, ky0_ind, p, faultCrit,
-                                numSpecies, GENE_Global,GENE_Linear);
+      IndexType numSpecies = numGrids;  // generate one grid per species
+      Task<>* t = new GeneTask(dim, levels[i], boundary, coeffs[i], loadmodel.get(), path, dt,
+                               combitime, nsteps, shat, lx, ky0_ind, p, faultCrit, numSpecies,
+                               GENE_Global, GENE_Linear);
       tasks.push_back(t);
       taskIDs.push_back( t->getID() );
 
@@ -272,7 +269,7 @@ int main(int argc, char** argv) {
                             coeffs, hierarchizationDims, taskIDs, ncombi, numGrids, p, reduceCombinationDimsLmin, reduceCombinationDimsLmax);
 
     // create Manager with process groups
-    ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
+    ProcessManager<> manager(pgroups, tasks, params, std::move(loadmodel));
 
     bool success = true; //indicates if computation was sucessfull -> false means fault occured
     //start computation
@@ -302,8 +299,8 @@ int main(int argc, char** argv) {
         //vector with IDs of faulted tasks (=component grids)
         std::vector<size_t> faultsID;
 
-        //vector with pointers to managers of failed groups
-        std::vector< ProcessGroupManagerID> groupFaults;
+        // vector with pointers to managers of failed groups
+        std::vector<ProcessGroupManagerID<>> groupFaults;
         manager.getGroupFaultIDs(faultsID, groupFaults);
 
         /* call optimization code to find new coefficients */

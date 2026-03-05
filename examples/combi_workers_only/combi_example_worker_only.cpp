@@ -158,7 +158,7 @@ int main(int argc, char** argv) {
       }
     }
 
-    ProcessGroupWorker worker;
+    ProcessGroupWorker<> worker;
     worker.setCombiParameters(std::move(params));
 
     // create Tasks

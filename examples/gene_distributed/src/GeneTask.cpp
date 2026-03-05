@@ -22,15 +22,14 @@
 namespace combigrid
 {
 
-GeneTask::GeneTask( DimType dim, const LevelVector& l,
-                    std::vector<BoundaryType>& boundary, real coeff, LoadModel* loadModel,
-                    std::string& path, real dt, real combitime, size_t nsteps,
-                    real shat, real lx, int ky0_ind,
-                    std::vector<int> p , FaultCriterion *faultCrit,
-                    IndexType numSpecies, bool GENE_Global, bool GENE_Linear, size_t checkpointFrequency, size_t offsetForDiagnostics)
-    : Task( dim, l, boundary, coeff, loadModel, faultCrit),
-      path_( path ),
-      dt_( dt ),
+GeneTask::GeneTask(DimType dim, const LevelVector& l, std::vector<BoundaryType>& boundary,
+                   real coeff, LoadModel* loadModel, std::string& path, real dt, real combitime,
+                   size_t nsteps, real shat, real lx, int ky0_ind, std::vector<int> p,
+                   FaultCriterion* faultCrit, IndexType numSpecies, bool GENE_Global,
+                   bool GENE_Linear, size_t checkpointFrequency, size_t offsetForDiagnostics)
+    : Task<>(dim, l, boundary, coeff, loadModel, faultCrit),
+      path_(path),
+      dt_(dt),
       combitime_(combitime),
       nsteps_( nsteps ),
       stepsTotal_(0),

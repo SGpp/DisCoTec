@@ -50,7 +50,7 @@ inline std::ostream& operator<<(std::ostream& os, const SelalibTask& t);
 
 static constexpr DimType sixdimensions = 6;
 
-class SelalibTask : public combigrid::Task {
+class SelalibTask : public combigrid::Task<> {
  public:
   SelalibTask(LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
               LoadModel* loadModel, std::string& path, real dt, size_t nsteps,
@@ -136,9 +136,6 @@ class SelalibTask : public combigrid::Task {
    */
   void init(CommunicatorType lcomm,
             const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) {
-    static_assert(!reverseOrderingDFGPartitions,
-                  "BSL needs this flag to be false, "
-                  "change only if the partitioning does not match between dfg and distribution");
     assert(lcomm != MPI_COMM_NULL);
 
     auto f_lComm = MPI_Comm_c2f(lcomm);
@@ -280,13 +277,13 @@ class SelalibTask : public combigrid::Task {
   // serialize
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
-    ar& boost::serialization::base_object<Task>(*this);
-    ar& path_;
-    ar& p_;
-    ar& diagnosticsInitialized_;
-    ar& currentNumTimeStepsRun_;
-    ar& dt_;
-    ar& nsteps_;
+    ar& boost::serialization::base_object<Task<>>(*this);
+    ar & path_;
+    ar & p_;
+    ar & diagnosticsInitialized_;
+    ar & currentNumTimeStepsRun_;
+    ar & dt_;
+    ar & nsteps_;
     // ar& localDistribution_;
   }
 };

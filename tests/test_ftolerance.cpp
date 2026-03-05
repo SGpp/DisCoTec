@@ -51,12 +51,12 @@ class TestFn {
     return std::exp(exponent * 100.0) * 2;
   }
 };
-class TaskAdvFDM : public combigrid::Task {
+class TaskAdvFDM : public combigrid::Task<> {
  public:
   TaskAdvFDM(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
              LoadModel* loadModel, real dt, size_t nsteps,
              FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
-      : Task(l, boundary, coeff, loadModel, faultCrit),
+      : Task<>(l, boundary, coeff, loadModel, faultCrit),
         dt_(dt),
         nsteps_(nsteps),
         stepsTotal_(0),
@@ -163,11 +163,11 @@ class TaskAdvFDM : public combigrid::Task {
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
     // ar& boost::serialization::make_nvp(
-    // BOOST_PP_STRINGIZE(*this),boost::serialization::base_object<Task>(*this));
-    ar& boost::serialization::base_object<Task>(*this);
-    ar& dt_;
-    ar& nsteps_;
-    ar& stepsTotal_;
+    // BOOST_PP_STRINGIZE(*this),boost::serialization::base_object<Task<>>(*this));
+    ar& boost::serialization::base_object<Task<>>(*this);
+    ar & dt_;
+    ar & nsteps_;
+    ar & stepsTotal_;
   }
 
   void decideToKill(){ //toDo check if combiStep should be included in task and sent to process groups in case of reassignment
@@ -232,10 +232,10 @@ bool checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, si
   BOOST_TEST_CHECKPOINT("Initialize checkFtolerance");
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
-    ProcessGroupManagerContainer pgroups;
+    ProcessGroupManagerContainer<> pgroups;
     for (size_t i = 0; i < ngroup ; ++i) {
       auto pgroupRootID = static_cast<int>(i);
-      pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
+      pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
 
   CombiMinMaxScheme combischeme(dim, lmin, lmax);
@@ -259,7 +259,7 @@ bool checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, si
     std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LinearLoadModel>(new LinearLoadModel());
 
     /* create Tasks */
-   TaskContainer tasks;
+    TaskContainer<> tasks;
     std::vector<size_t> taskIDs;
 
     #ifdef ENABLEFT
@@ -276,8 +276,8 @@ bool checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, si
           //if numFaults = 0 there are no faults
           faultCrit = new StaticFaults(faultsInfo);
         }
-      Task* t = new TaskAdvFDM( levels[i], boundary, coeffs[i],
-                                loadmodel.get(), dt, nsteps, faultCrit);
+      Task<>* t =
+          new TaskAdvFDM(levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, faultCrit);
         tasks.push_back(t);
         taskIDs.push_back(t->getID());
       }
@@ -285,10 +285,9 @@ bool checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, si
       /* create combi parameters */
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1);
 
-
     /* create Manager with process groups */
-    //ProcessManager manager( pgroups, tasks, params );
-     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
+    // ProcessManager<> manager( pgroups, tasks, params );
+    ProcessManager<> manager(pgroups, tasks, params, std::move(loadmodel));
     /* send combi parameters to workers */
     manager.updateCombiParameters();
 
@@ -302,8 +301,8 @@ for (size_t i = 1; i < ncombi; ++i){
 
         std::vector<size_t> faultsID;
 
-        //vector with pointers to managers of failed groups
-        std::vector< ProcessGroupManagerID> groupFaults;
+        // vector with pointers to managers of failed groups
+        std::vector<ProcessGroupManagerID<>> groupFaults;
         manager.getGroupFaultIDs(faultsID, groupFaults);
 
         /* call optimization code to find new coefficients */
@@ -361,7 +360,7 @@ for (size_t i = 1; i < ncombi; ++i){
     }
     #else
       for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskAdvFDM(levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps);
+      Task<>* t = new TaskAdvFDM(levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps);
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -369,7 +368,7 @@ for (size_t i = 1; i < ncombi; ++i){
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
 
     // create abstraction for Manager
-    ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
+    ProcessManager<> manager(pgroups, tasks, params, std::move(loadmodel));
 
     // the combiparameters are sent to all process groups before the
     // computations start
@@ -417,7 +416,7 @@ for (size_t i = 1; i < ncombi; ++i){
   }
 
   else {
-    ProcessGroupWorker pgroup;
+    ProcessGroupWorker<> pgroup;
     SignalType signal = -1;
     while (signal != EXIT) {
       signal = pgroup.wait();

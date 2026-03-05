@@ -25,9 +25,7 @@ class RemoteDataSlice {
    * \param[in] lowerBounds lower bounds of the subdomain where the remote data
    *            comes from. this is required for address calculations
    */
-  RemoteDataSlice(IndexType size, IndexType keyIndex) : index1d_(keyIndex) {
-    data_.resize(size);
-  }
+  RemoteDataSlice(IndexType size, IndexType keyIndex) : index1d_(keyIndex) { data_.resize(size); }
 
   inline const FG_ELEMENT* getData(size_t idx) const { return &data_[idx]; }
 
@@ -649,11 +647,11 @@ inline void hierarchize_hat_boundary_kernel(FG_ELEMENT* data, LevelType lmax, Le
   int parentOffset = 1;
 
   for (; ll >= lmin; ll--) {
-    FG_ELEMENT parentL = 0.5 * data[offset - parentOffset];
+    FG_ELEMENT parentL = static_cast<FG_ELEMENT>(0.5) * data[offset - parentOffset];
     // #pragma omp simd // slowdown!!
     for (int ctr = 0; ctr < steps; ++ctr) {
       const int centralIndex = offset;
-      const FG_ELEMENT parentR = 0.5 * data[centralIndex + parentOffset];
+      const FG_ELEMENT parentR = static_cast<FG_ELEMENT>(0.5) * data[centralIndex + parentOffset];
       const FG_ELEMENT val1 = data[centralIndex];
       const FG_ELEMENT val2 = val1 - parentL;
       const FG_ELEMENT val3 = val2 - parentR;
@@ -693,23 +691,24 @@ inline void hierarchize_full_weighting_boundary_kernel(FG_ELEMENT* data, LevelTy
     // update f at even indices
     if (periodic) {
       // values at 0 and idxmax will be the same
-      data[0] = 0.25 * (data[0] + data[idxmax] + data[step_width] + data[idxmax - step_width]);
+      data[0] = static_cast<FG_ELEMENT>(0.25) *
+                (data[0] + data[idxmax] + data[step_width] + data[idxmax - step_width]);
       data[idxmax] = data[0];
     } else {
-      data[0] = 0.5 * (data[0] + data[step_width]);
-      data[idxmax] = 0.5 * (data[idxmax] + data[idxmax - step_width]);
+      data[0] = static_cast<FG_ELEMENT>(0.5) * (data[0] + data[step_width]);
+      data[idxmax] = static_cast<FG_ELEMENT>(0.5) * (data[idxmax] + data[idxmax - step_width]);
     }
     // todo interleave with lower loop for better cache blocking
-    auto leftParent = 0.25 * data[step_width];
+    auto leftParent = static_cast<FG_ELEMENT>(0.25) * data[step_width];
     for (int i = 2 * step_width; i < idxmax; i += 2 * step_width) {
-      const auto rightParent = 0.25 * data[i + step_width];
-      data[i] = leftParent + rightParent + 0.5 * data[i];
+      const auto rightParent = static_cast<FG_ELEMENT>(0.25) * data[i + step_width];
+      data[i] = leftParent + rightParent + static_cast<FG_ELEMENT>(0.5) * data[i];
       leftParent = rightParent;
     }
     // update alpha / hierarchical surplus at odd indices
-    leftParent = -0.5 * data[0];
+    leftParent = static_cast<FG_ELEMENT>(-0.5) * data[0];
     for (int i = step_width; i < idxmax; i += 2 * step_width) {
-      const auto rightParent = -0.5 * data[i + step_width];
+      const auto rightParent = static_cast<FG_ELEMENT>(-0.5) * data[i + step_width];
       data[i] = leftParent + (rightParent + data[i]);
       leftParent = rightParent;
     }
@@ -745,27 +744,27 @@ inline void hierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType
   for (LevelType ldiff = 0; ldiff < lmax - lmin; ++ldiff) {
     const int step_width = powerOfTwo[ldiff];
     // update alpha / hierarchical surplus at odd indices
-    auto leftParent = -0.5 * data[0];
+    auto leftParent = static_cast<FG_ELEMENT>(-0.5) * data[0];
     for (int i = step_width; i < idxmax; i += 2 * step_width) {
-      const auto rightParent = -0.5 * data[i + step_width];
+      const auto rightParent = static_cast<FG_ELEMENT>(-0.5) * data[i + step_width];
       data[i] = leftParent + (rightParent + data[i]);
       leftParent = rightParent;
     }
     // update f at even indices
     if (periodic) {
       // values at 0 and idxmax will be the same
-      data[0] =
-          0.5 * (data[0] + data[idxmax]) + 0.25 * (data[step_width] + data[idxmax - step_width]);
+      data[0] = static_cast<FG_ELEMENT>(0.5) * (data[0] + data[idxmax]) +
+                static_cast<FG_ELEMENT>(0.25) * (data[step_width] + data[idxmax - step_width]);
       data[idxmax] = data[0];
     } else {
       // mass will build up at the boundary; corresponds to 0-neumann-condition
-      data[0] = data[0] + 0.5 * data[step_width];
-      data[idxmax] = data[idxmax] + 0.5 * data[idxmax - step_width];
+      data[0] = data[0] + static_cast<FG_ELEMENT>(0.5) * data[step_width];
+      data[idxmax] = data[idxmax] + static_cast<FG_ELEMENT>(0.5) * data[idxmax - step_width];
     }
     // todo interleave with upper loop for better cache blocking
-    leftParent = 0.25 * data[step_width];
+    leftParent = static_cast<FG_ELEMENT>(0.25) * data[step_width];
     for (int i = 2 * step_width; i < idxmax; i += 2 * step_width) {
-      const auto rightParent = 0.25 * data[i + step_width];
+      const auto rightParent = static_cast<FG_ELEMENT>(0.25) * data[i + step_width];
       data[i] = leftParent + (rightParent + data[i]);
       leftParent = rightParent;
     }
@@ -782,12 +781,12 @@ inline void dehierarchize_hat_boundary_kernel(FG_ELEMENT* data, LevelType lmax,
   int stepsize = (1 << (lmaxi - lmini));
   int parentOffset = offset;
   for (LevelType ll = lmin + 1; ll <= lmax; ++ll) {
-    FG_ELEMENT parentL = 0.5 * data[offset - parentOffset];
+    FG_ELEMENT parentL = static_cast<FG_ELEMENT>(0.5) * data[offset - parentOffset];
 
     // #pragma omp simd //slowdown!
     for (int ctr = 0; ctr < steps; ++ctr) {
       const int centralIndex = offset;
-      const FG_ELEMENT parentR = 0.5 * data[centralIndex + parentOffset];
+      const FG_ELEMENT parentR = static_cast<FG_ELEMENT>(0.5) * data[centralIndex + parentOffset];
       const FG_ELEMENT val1 = data[centralIndex];
       const FG_ELEMENT val2 = val1 + parentL;
       const FG_ELEMENT val3 = val2 + parentR;
@@ -815,26 +814,27 @@ inline void dehierarchize_full_weighting_boundary_kernel(FG_ELEMENT* data, Level
   for (auto ldiff = static_cast<LevelType>(lmax - lmin - 1); ldiff >= 0; --ldiff) {
     int step_width = powerOfTwo[ldiff];
     // update alpha / hierarchical surplus at odd indices
-    auto leftParent = 0.5 * data[0];
+    auto leftParent = static_cast<FG_ELEMENT>(0.5) * data[0];
     for (int i = step_width; i < idxmax; i += 2 * step_width) {
-      const auto rightParent = 0.5 * data[i + step_width];
+      const auto rightParent = static_cast<FG_ELEMENT>(0.5) * data[i + step_width];
       data[i] = leftParent + (rightParent + data[i]);
       leftParent = rightParent;
     }
     // update f at even indices
-    leftParent = -0.5 * data[step_width];
+    leftParent = static_cast<FG_ELEMENT>(-0.5) * data[step_width];
     for (int i = 2 * step_width; i < idxmax; i += 2 * step_width) {
-      const auto rightParent = -0.5 * data[i + step_width];
-      data[i] = leftParent + rightParent + 2. * data[i];
+      const auto rightParent = static_cast<FG_ELEMENT>(-0.5) * data[i + step_width];
+      data[i] = leftParent + rightParent + static_cast<FG_ELEMENT>(2.) * data[i];
       leftParent = rightParent;
     }
     if (periodic) {
       // values at 0 and idxmax will be the same
-      data[0] = (data[0] + data[idxmax]) - 0.5 * (data[step_width] + data[idxmax - step_width]);
+      data[0] = (data[0] + data[idxmax]) -
+                static_cast<FG_ELEMENT>(0.5) * (data[step_width] + data[idxmax - step_width]);
       data[idxmax] = data[0];
     } else {
-      data[0] = 2. * data[0] - data[step_width];
-      data[idxmax] = 2. * data[idxmax] - data[idxmax - step_width];
+      data[0] = static_cast<FG_ELEMENT>(2.) * data[0] - data[step_width];
+      data[idxmax] = static_cast<FG_ELEMENT>(2.) * data[idxmax] - data[idxmax - step_width];
     }
   }
 
@@ -863,23 +863,23 @@ inline void dehierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelTy
     int step_width = powerOfTwo[ldiff];
     // update f at even indices
     if (periodic) {
-      data[0] =
-          -0.25 * (data[step_width] + data[idxmax - step_width]) + 0.5 * (data[0] + data[idxmax]);
+      data[0] = static_cast<FG_ELEMENT>(-0.25) * (data[step_width] + data[idxmax - step_width]) +
+                static_cast<FG_ELEMENT>(0.5) * (data[0] + data[idxmax]);
       data[idxmax] = data[0];
     } else {
-      data[0] = data[0] - 0.5 * data[step_width];
-      data[idxmax] = data[idxmax] - 0.5 * data[idxmax - step_width];
+      data[0] = data[0] - static_cast<FG_ELEMENT>(0.5) * data[step_width];
+      data[idxmax] = data[idxmax] - static_cast<FG_ELEMENT>(0.5) * data[idxmax - step_width];
     }
-    auto leftParent = -0.25 * data[step_width];
+    auto leftParent = static_cast<FG_ELEMENT>(-0.25) * data[step_width];
     for (int i = 2 * step_width; i < idxmax; i += 2 * step_width) {
-      const auto rightParent = -0.25 * data[i + step_width];
+      const auto rightParent = static_cast<FG_ELEMENT>(-0.25) * data[i + step_width];
       data[i] = leftParent + (rightParent + data[i]);
       leftParent = rightParent;
     }
     // update alpha / hierarchical surplus at odd indices
-    leftParent = 0.5 * data[0];
+    leftParent = static_cast<FG_ELEMENT>(0.5) * data[0];
     for (int i = step_width; i < idxmax; i += 2 * step_width) {
-      const auto rightParent = 0.5 * data[i + step_width];
+      const auto rightParent = static_cast<FG_ELEMENT>(0.5) * data[i + step_width];
       data[i] = leftParent + (rightParent + data[i]);
       leftParent = rightParent;
     }
@@ -1031,8 +1031,8 @@ void hierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
           }
 
           // do calculation
-          FG_ELEMENT buf = -0.5 * left;
-          tmp[idx] -= 0.5 * right;
+          FG_ELEMENT buf = static_cast<FG_ELEMENT>(-0.5) * left;
+          tmp[idx] -= static_cast<FG_ELEMENT>(0.5) * right;
           tmp[idx] += buf;
         }
       }
@@ -1111,8 +1111,8 @@ void dehierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
         }
 
         // do calculation
-        FG_ELEMENT buf = 0.5 * left;
-        tmp[idx] += 0.5 * right;
+        FG_ELEMENT buf = static_cast<FG_ELEMENT>(0.5) * left;
+        tmp[idx] += static_cast<FG_ELEMENT>(0.5) * right;
         tmp[idx] += buf;
       }
     }

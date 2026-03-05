@@ -80,12 +80,12 @@ int main(int argc, char** argv) {
     /* create an abstraction of the process groups for the manager's view
      * a pgroup is identified by the ID in gcomm
      */
-    ProcessGroupManagerContainer pgroups;
+    ProcessGroupManagerContainer<> pgroups;
     // create vector containing the different process groups
     for (size_t i = 0; i < ngroup; ++i) {
       // todo: order of ranks in new group?
       int pgroupRootID(i);
-      pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
+      pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
 
     /* generate a list of levelvectors and coefficients
@@ -194,7 +194,7 @@ int main(int argc, char** argv) {
     }
 
     // create Tasks
-    TaskContainer tasks;
+    TaskContainer<> tasks;
     std::vector<size_t> taskIDs;
 
     std::string baseFolder = "./" + basename;
@@ -202,12 +202,12 @@ int main(int argc, char** argv) {
     for (size_t i = 0; i < levels.size(); i++) {
       // path to task folder
       std::string path = baseFolder + std::to_string(i);
-      Task* t =
+      Task<>* t =
           new SelalibTask(levels[i], boundary, coeffs[i], loadmodel.get(), path, dt, nsteps, p);
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
-    Task* levalTask;
+    Task<>* levalTask;
     if (haveDiagnosticsTask) {
       assert(reduceCombinationDimsLmax == LevelVector(dim, 0));
       // initialize diagnostics task
@@ -238,7 +238,7 @@ int main(int argc, char** argv) {
     params.setParallelization(p);
 
     // create Manager with process groups
-    ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
+    ProcessManager<> manager(pgroups, tasks, params, std::move(loadmodel));
 
     // combiparameters need to be set before starting the computation
     Stats::startEvent("update combi parameters");
@@ -303,7 +303,7 @@ int main(int argc, char** argv) {
   // this code is only execute by the worker processes
   else {
     // create abstraction of the process group from the worker's view
-    ProcessGroupWorker pgroup;
+    ProcessGroupWorker<> pgroup;
 
     // wait for instructions from manager
     SignalType signal = -1;

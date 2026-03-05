@@ -92,10 +92,6 @@ if (DISCOTEC_TIMING)
 endif ()
 
 option(DISCOTEC_USE_HIGHFIVE "Interpolation output with HighFive/HDF5" ON)
-option(DISCOTEC_UNIFORMDECOMPOSITION "Use uniform decomposition" ON) # TODO: @polinta: does not compile if off
-if (DISCOTEC_UNIFORMDECOMPOSITION)
-    target_compile_definitions(discotec PUBLIC UNIFORMDECOMPOSITION) # has to be PUBLIC for tests, rename to DISCOTEC_UNIFORMDECOMPOSITION?
-endif ()
 option(DISCOTEC_GENE "Build for GENE (as task library)" OFF) #TODO: handle
 if (DISCOTEC_GENE)
     message(FATAL_ERROR "Building with GENE is not supported yet")
@@ -142,17 +138,6 @@ if(NOT ${DISCOTEC_COMPILE_ARCH} STREQUAL "")
 endif()
 
 #TODO: find or fetch GENE if enabled
-
-option(DISCOTEC_OMITREADYSIGNAL "Omit ready signal" OFF)
-if (DISCOTEC_OMITREADYSIGNAL)
-    target_compile_definitions(discotec PRIVATE OMITREADYSIGNAL)
-endif ()
-
-option(DISCOTEC_USENONBLOCKINGMPICOLLECTIVE "Use non-blocking MPI collective operations" OFF)
-if (DISCOTEC_USENONBLOCKINGMPICOLLECTIVE)
-    target_compile_definitions(discotec PRIVATE USENONBLOCKINGMPICOLLECTIVE)
-endif ()
-
 #ISGENE #TODO: handle if access to GENE
 
 # Handle dependencies
