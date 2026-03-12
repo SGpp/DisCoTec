@@ -242,7 +242,7 @@ class DistributedFullGrid {
 
   /** get the number of elements in the local partition */
   inline IndexType getNrLocalElements() const {
-    return static_cast<IndexType>(localTensor_.size());
+    return static_cast<IndexType>(localIndexer_.size());
   }
 
   /** get vector extents of the local grid */
@@ -258,10 +258,10 @@ class DistributedFullGrid {
   inline const BoundaryFlagsType& returnBoundaryFlags() const { return hasBoundaryPoints_; }
 
   /** get pointer to the beginning of the local data */
-  inline FG_ELEMENT* getData() { return localTensor_.getData(); }
+  inline FG_ELEMENT* getData() { return localData_; }
 
   /** get const pointer to the beginning of the local data */
-  inline const FG_ELEMENT* getData() const { return localTensor_.getData(); }
+  inline const FG_ELEMENT* getData() const { return localData_; }
 
   /** zero out all values in the local storage
    *
@@ -547,7 +547,7 @@ class DistributedFullGrid {
 
  protected:
   /** set the data pointer, data needs to be allocated outside */
-  inline void setData(FG_ELEMENT* newData) { return localTensor_.setData(newData); }
+  inline void setData(FG_ELEMENT* newData) { localData_ = newData; }
 
  private:
   /**
@@ -818,7 +818,7 @@ IndexType DistributedFullGrid<FG_ELEMENT, DIM>::getGlobalLinearIndex(IndexType l
 template <typename FG_ELEMENT, DimType DIM>
 IndexType DistributedFullGrid<FG_ELEMENT, DIM>::getLocalLinearIndex(
     const IndexVector& locAxisIndex) const {
-  return localTensor_.sequentialIndex(locAxisIndex);
+  return localIndexer_.sequentialIndex(locAxisIndex);
 }
 
 template <typename FG_ELEMENT, DimType DIM>
