@@ -12,7 +12,7 @@
 
 namespace combigrid {
 // forward declarations
-template <typename FG_ELEMENT>
+template <typename FG_ELEMENT, DimType DIM>
 class DistributedFullGrid;
 
 template <typename FG_ELEMENT>
@@ -336,7 +336,8 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
    * overwrites this' subspace sizes for all subspaces contained in the full grid, but does not
    * allocate memory
    */
-  inline void registerDistributedFullGrid(const DistributedFullGrid<FG_ELEMENT>& dfg);
+  template <DimType DIM>
+  inline void registerDistributedFullGrid(const DistributedFullGrid<FG_ELEMENT, DIM>& dfg);
 
   /**
    * @brief add a DistributedFullGrid to this DistributedSparseGridUniform
@@ -348,8 +349,8 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
    * @param coeff the coefficient to multiply the data with
    * @tparam sparseGridFullyAllocated if true, assumes that all subspaces are allocated here
    */
-  template <bool sparseGridFullyAllocated = true>
-  inline void addDistributedFullGrid(const DistributedFullGrid<FG_ELEMENT>& dfg,
+  template <bool sparseGridFullyAllocated = true, DimType DIM>
+  inline void addDistributedFullGrid(const DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                                      combigrid::real coeff);
 
   /**
@@ -771,8 +772,9 @@ void DistributedSparseGridUniform<FG_ELEMENT>::accumulateMinMaxCoefficients() {
  * @param dfg the DFG to register
  */
 template <typename FG_ELEMENT>
+template <DimType DIM>
 inline void DistributedSparseGridUniform<FG_ELEMENT>::registerDistributedFullGrid(
-    const DistributedFullGrid<FG_ELEMENT>& dfg) {
+    const DistributedFullGrid<FG_ELEMENT, DIM>& dfg) {
   assert(dfg.getDimension() == dim_);
   // all the hierarchical subspaces contained in the full grid
   const auto downwardClosedSet = combigrid::getDownSet(dfg.getLevels());
@@ -810,9 +812,9 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::registerDistributedFullGri
  * @param coeff the coefficient that gets multiplied to all entries in DFG
  */
 template <typename FG_ELEMENT>
-template <bool sparseGridFullyAllocated>
+template <bool sparseGridFullyAllocated, DimType DIM>
 inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
-    const DistributedFullGrid<FG_ELEMENT>& dfg, combigrid::real coeff) {
+    const DistributedFullGrid<FG_ELEMENT, DIM>& dfg, combigrid::real coeff) {
   assert(this->isSubspaceDataCreated());
   if (this->subspacesDataContainer_.kahanData_.empty() ||
       this->subspacesDataContainer_.kahanDataBegin_.empty()) {

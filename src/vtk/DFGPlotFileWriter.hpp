@@ -17,10 +17,10 @@ namespace combigrid {
   /** Helper class to generate vtk ImageData (.vti/.pvti) plot file(s)
    *  of a given distributed full grid.
    */
-  template <typename FG_ELEMENT>
+  template <typename FG_ELEMENT, DimType DIM>
   class DFGPlotFileWriter {
     public:
-      DFGPlotFileWriter(DistributedFullGrid<FG_ELEMENT>& dfg,
+      DFGPlotFileWriter(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                         IndexType speciesId,
                         std::string outputDirectory = "./vtk/");
 
@@ -35,7 +35,7 @@ namespace combigrid {
       std::string filenamePrefixWithoutDirectory_;
 
       /** The distributed full grid which will be written out */
-      DistributedFullGrid<FG_ELEMENT>& dfg_;
+      DistributedFullGrid<FG_ELEMENT, DIM>& dfg_;
 
       /** Identifies the species of the dfg */
       IndexType speciesId_;
@@ -83,9 +83,9 @@ namespace combigrid {
   };
 
 
-  template <typename FG_ELEMENT>
-  DFGPlotFileWriter<FG_ELEMENT>::DFGPlotFileWriter(
-      DistributedFullGrid<FG_ELEMENT>& dfg,
+  template <typename FG_ELEMENT, DimType DIM>
+  DFGPlotFileWriter<FG_ELEMENT, DIM>::DFGPlotFileWriter(
+      DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
       IndexType speciesId,
       std::string outputDirectory) : dfg_ {dfg}, speciesId_ {speciesId},
                                      outputDirectory_ {outputDirectory},
@@ -98,8 +98,8 @@ namespace combigrid {
   }
 
 
-  template <typename FG_ELEMENT>
-  inline void DFGPlotFileWriter<FG_ELEMENT>::writePlotFile() {
+  template <typename FG_ELEMENT, DimType DIM>
+  inline void DFGPlotFileWriter<FG_ELEMENT, DIM>::writePlotFile() {
     DimType dim = dfg_.getDimension();
     assert(dim < 4 && "Vtk does not support image domains with more than 3 "
                       "dimensions");
@@ -122,22 +122,18 @@ namespace combigrid {
     */
   }
 
-  template <typename FG_ELEMENT>
+  template <typename FG_ELEMENT, DimType DIM>
   inline vtkSmartPointer<vtkImageData>
-    DFGPlotFileWriter<FG_ELEMENT>::writePieceFile(const std::string& filename) {
-    assert(false && "Only implemented for double so far");
-  }
-
-
-  /* TODO remove copy of grid values */
-  template <>
-  inline vtkSmartPointer<vtkImageData> DFGPlotFileWriter<real>::writePieceFile(
-                                                  const std::string& filename) {
+    DFGPlotFileWriter<FG_ELEMENT, DIM>::writePieceFile(const std::string& filename) {
+    if constexpr (!std::is_same_v<FG_ELEMENT, real>) {
+      assert(false && "Only implemented for double so far");
+      return {};
+    } else {
     // set data (correct order of dimensions in dfg)
     vtkNew<vtkDoubleArray> pointValues;
     pointValues->SetName("GridValues");
-    IndexVector localOffsets = dfg_.getLocalOffsets();
-    IndexVector nrLocalPoints = dfg_.getLocalSizes();
+    const auto& localOffsets = dfg_.getLocalOffsets();
+    const auto& nrLocalPoints = dfg_.getLocalSizes();
     DimType dim = dfg_.getDimension();
     switch (dim) {
       case 1:
@@ -182,6 +178,7 @@ namespace combigrid {
     writer->Write();
 
     return imageData;
+    } // else (is real)
   }
 
   /**
@@ -194,8 +191,8 @@ namespace combigrid {
    *  overlap once: e.g. in 1D with 2 procs and m points the extents/indices
    *  must be [0, n] in piece 1 and [n, m-1] in piece 2.
    */
-  template <typename FG_ELEMENT>
-  void DFGPlotFileWriter<FG_ELEMENT>::writeMasterFile(
+  template <typename FG_ELEMENT, DimType DIM>
+  void DFGPlotFileWriter<FG_ELEMENT, DIM>::writeMasterFile(
                                       vtkSmartPointer<vtkImageData> pieceData) {
     size_t groupSize = theMPISystem()->getNumProcs();
     MASTER_EXCLUSIVE_SECTION {
@@ -265,10 +262,10 @@ namespace combigrid {
     }
   }
 
-  template <typename FG_ELEMENT>
-  void DFGPlotFileWriter<FG_ELEMENT>::setFilenamePrefixWithoutDirectory() {
+  template <typename FG_ELEMENT, DimType DIM>
+  void DFGPlotFileWriter<FG_ELEMENT, DIM>::setFilenamePrefixWithoutDirectory() {
     DimType dim = dfg_.getDimension();
-    const LevelVector& level = dfg_.getLevels();
+    const auto& level = dfg_.getLevels();
 
     std::stringstream filenamePrefix;
     filenamePrefix <<  "dfg_l";
@@ -279,16 +276,16 @@ namespace combigrid {
     filenamePrefixWithoutDirectory_ = filenamePrefix.str();
   }
 
-  template <typename FG_ELEMENT>
+  template <typename FG_ELEMENT, DimType DIM>
   std::string
-  DFGPlotFileWriter<FG_ELEMENT>::createPieceFilenameWithoutDirectory(
+  DFGPlotFileWriter<FG_ELEMENT, DIM>::createPieceFilenameWithoutDirectory(
       size_t pieceId) {
     return filenamePrefixWithoutDirectory_ + "_" + std::to_string(pieceId)
            + ".vti";
   }
 
-  template <typename FG_ELEMENT>
-  void DFGPlotFileWriter<FG_ELEMENT>::setGlobalExtent() {
+  template <typename FG_ELEMENT, DimType DIM>
+  void DFGPlotFileWriter<FG_ELEMENT, DIM>::setGlobalExtent() {
     std::vector<int> dimensionsGlob { dfg_.getGlobalSizes().begin(),
                                       dfg_.getGlobalSizes().end() };
     dimensionsGlob.resize(3, 1);
@@ -296,8 +293,8 @@ namespace combigrid {
                       dimensionsGlob[2]-1 };
   }
 
-  template <typename FG_ELEMENT>
-  void DFGPlotFileWriter<FG_ELEMENT>::setLocalExtent() {
+  template <typename FG_ELEMENT, DimType DIM>
+  void DFGPlotFileWriter<FG_ELEMENT, DIM>::setLocalExtent() {
     DimType dim = dfg_.getDimension();
     IndexVector minExtend(dim);
     IndexVector maxExtend(dim);
@@ -315,8 +312,8 @@ namespace combigrid {
                      static_cast<int>(maxExtend[2]) };
   }
 
-  template <typename FG_ELEMENT>
-  void DFGPlotFileWriter<FG_ELEMENT>::setSpacing() {
+  template <typename FG_ELEMENT, DimType DIM>
+  void DFGPlotFileWriter<FG_ELEMENT, DIM>::setSpacing() {
     std::vector<double> spacing {dfg_.getGlobalSizes().begin(),
                                  dfg_.getGlobalSizes().end() };
     std::for_each(spacing.begin(), spacing.end(),

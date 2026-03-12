@@ -22,7 +22,8 @@ static std::vector<CombinableType> interpolateValues(
 #pragma omp parallel for default(none) firstprivate(numCoordinates, coeff) \
     shared(values, kahanTrailingTerm, interpolationCoords, task) schedule(dynamic)
     for (size_t i = 0; i < numCoordinates; ++i) {
-      auto localValue = task->getDistributedFullGrid().evalLocal(interpolationCoords[i]);
+      auto localValue = task->visitDistributedFullGrid(
+          [&](const auto& dfg) { return dfg.evalLocal(interpolationCoords[i]); });
       auto summand = localValue * static_cast<CombinableType>(coeff);
       // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
       auto y = summand - kahanTrailingTerm[i];
@@ -54,7 +55,8 @@ static void writeInterpolatedValuesPerGrid(
     IndexType currentCombinationStep) {
   // call interpolation function on tasks and write out task-wise
   for (size_t i = 0; i < tasks.size(); ++i) {
-    auto taskVals = tasks[i]->getDistributedFullGrid().getInterpolatedValues(interpolationCoords);
+    auto taskVals = tasks[i]->visitDistributedFullGrid(
+        [&](const auto& dfg) { return dfg.getInterpolatedValues(interpolationCoords); });
     // cycle through ranks to write
     if (i % (theMPISystem()->getNumProcs()) == theMPISystem()->getLocalRank()) {
       std::string saveFilePath =
@@ -95,9 +97,12 @@ static void writeVTKPlotFilesOfAllTasks(
 #ifdef USE_VTK
   for (const auto& task : tasks) {
     for (int g = 0; g < numberOfGrids; ++g) {
-      DistributedFullGrid<CombiDataType>& dfg = task->getDistributedFullGrid(g);
-      DFGPlotFileWriter<CombiDataType> writer{dfg, g};
-      writer.writePlotFile();
+      task->visitDistributedFullGrid(
+          [&](auto& dfg) {
+            DFGPlotFileWriter<CombiDataType> writer{dfg, g};
+            writer.writePlotFile();
+          },
+          static_cast<size_t>(g));
     }
   }
 #else

@@ -32,11 +32,10 @@ DistributedSparseGridUniform<CombiDataType>* schemeFileToSparseGridAndSizesFile(
   // register levels from other CT scheme
   for (const auto& l : allLevels) {
     auto dfgDecomposition = combigrid::downsampleDecomposition(decomposition, lmax, l, boundary);
-    auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<CombiDataType>>(
-        new OwningDistributedFullGrid<CombiDataType>(dim, l, theMPISystem()->getLocalComm(),
-                                                     boundary, p, false, dfgDecomposition));
+    auto uniDFG = makeOwningDistributedFullGrid<CombiDataType>(
+        dim, l, theMPISystem()->getLocalComm(), boundary, p, false, dfgDecomposition);
     // MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "registering " << l << std::endl;
-    uniDSG->registerDistributedFullGrid(*uniDFG);
+    std::visit([&](auto& dfg) { uniDSG->registerDistributedFullGrid(dfg); }, uniDFG);
   }
   auto numDOF =
       std::accumulate(uniDSG->getSubspaceDataSizes().begin(), uniDSG->getSubspaceDataSizes().end(),
