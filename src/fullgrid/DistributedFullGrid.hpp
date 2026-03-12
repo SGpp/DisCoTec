@@ -8,6 +8,8 @@
 #include <iostream>
 #include <numeric>
 #include <string>
+#include <type_traits>
+#include <variant>
 #include <vector>
 
 #include "fullgrid/FullGrid.hpp"
@@ -51,9 +53,19 @@ namespace combigrid {
  *
  * @tparam FG_ELEMENT the data type to be stored on the grid (e.g. double, complex, etc.)
  */
-template <typename FG_ELEMENT>
+template <typename FG_ELEMENT, DimType DIM>
 class DistributedFullGrid {
  public:
+  static_assert(DIM > 0 && DIM <= 6, "DIM must be between 1 and 6");
+
+  using LevelsType = LevelArray<DIM>;
+  using BoundaryFlagsType = BoundaryArray<DIM>;
+  using SpacingType = std::array<double, DIM>;
+  using DimIndexType = IndexArray<DIM>;
+  using IndexerType = TensorIndexerDim<DIM>;
+  using TensorType = TensorDim<FG_ELEMENT, DIM>;
+  using DecompositionType = std::array<IndexVector, DIM>;
+
   /** DistributedFullGrid constructor
    *
    * @param dim the dimensionality of the full grid (may become a template parameter in future
@@ -181,13 +193,13 @@ class DistributedFullGrid {
   inline bool isGlobalIndexHere(IndexType globLinIndex) const;
 
   /** get the dimension of the full grid */
-  inline DimType getDimension() const { return dim_; }
+  static constexpr DimType getDimension() { return DIM; }
 
   /** get the strides per dimension for global vector index conversion */
-  inline const IndexVector& getOffsets() const { return globalIndexer_.getOffsetsVector(); }
+  inline const IndexArray<DIM>& getOffsets() const { return globalIndexer_.getOffsets(); }
 
   /** get the strides per dimension for local vector index conversion */
-  inline const IndexVector& getLocalOffsets() const { return localTensor_.getOffsetsVector(); }
+  inline const IndexArray<DIM>& getLocalOffsets() const { return localTensor_.getOffsets(); }
 
   /** get the sizes, subsizes, and starts vectors of the local data
    *
@@ -197,14 +209,14 @@ class DistributedFullGrid {
   getSizesSubsizesStartsOfSubtensor() const;
 
   /** get the level vector */
-  inline const LevelVector& getLevels() const { return levels_; }
+  inline const LevelsType& getLevels() const { return levels_; }
 
   /** get the grid spacing (sometimes called h)
    *
    * @return the distance between points in each dimension, assuming equidistant grid on unit
    * hypercube
    */
-  inline const std::vector<double>& getGridSpacing() const { return gridSpacing_; }
+  inline const SpacingType& getGridSpacing() const { return gridSpacing_; }
 
   /** get the inverse grid spacing (1/h) for a given dimension
    *
@@ -234,16 +246,16 @@ class DistributedFullGrid {
   }
 
   /** get vector extents of the local grid */
-  inline const IndexVector& getLocalSizes() const { return localTensor_.getExtentsVector(); }
+  inline const IndexArray<DIM>& getLocalSizes() const { return localTensor_.getExtents(); }
 
   /** get vector extents of the global grid */
-  inline const IndexVector& getGlobalSizes() const { return globalIndexer_.getExtentsVector(); }
+  inline const IndexArray<DIM>& getGlobalSizes() const { return globalIndexer_.getExtents(); }
 
   /** number of points per dimension i */
   inline IndexType globalNumPointsInDimension(DimType i) const { return this->getGlobalSizes()[i]; }
 
   /** get vector of flags to show how many boundary points this dimension has */
-  inline const std::vector<BoundaryType>& returnBoundaryFlags() const { return hasBoundaryPoints_; }
+  inline const BoundaryFlagsType& returnBoundaryFlags() const { return hasBoundaryPoints_; }
 
   /** get pointer to the beginning of the local data */
   inline FG_ELEMENT* getData() { return localTensor_.getData(); }
@@ -267,7 +279,7 @@ class DistributedFullGrid {
   inline RankType getRank() const { return this->getCartesianUtils().getCommunicatorRank(); }
 
   /** get lower global vector bounds of the local data in this process */
-  inline const IndexVector& getLowerBounds() const;
+  inline const DimIndexType& getLowerBounds() const;
 
   /** get lower global vector bounds of the local data in rank r */
   inline IndexVector getLowerBounds(RankType r) const;
@@ -276,7 +288,7 @@ class DistributedFullGrid {
   inline real getLowerBoundsCoord(DimType inDimension) const;
 
   /** get upper global vector bounds of the local data in this process */
-  inline const IndexVector& getUpperBounds() const;
+  inline const DimIndexType& getUpperBounds() const;
 
   /** get upper global vector bounds of the local data in rank r */
   inline IndexVector getUpperBounds(RankType r) const;
@@ -472,7 +484,7 @@ class DistributedFullGrid {
    *
    * @return the decomposition vector of length this->getDimension()
    */
-  const std::vector<IndexVector>& getDecomposition() const { return decomposition_; }
+  const DecompositionType& getDecomposition() const { return decomposition_; }
 
   /**
    * @brief get the ranks of the highest and lowest "neighbor" rank in dimension d
@@ -568,30 +580,28 @@ class DistributedFullGrid {
 
   std::vector<MPI_Datatype> getDownwardSubarrays();
 
-  /** dimension of the full grid */
-  const DimType dim_;
+  // DIM is the template parameter — no runtime dim_ member needed
 
   /** level for each dimension */
-  const LevelVector levels_;
+  const LevelsType levels_;
 
   /** the grid spacing h for each dimension */
-  std::vector<double> gridSpacing_;
+  SpacingType gridSpacing_;
 
-  // TODO: make these normal templates, and SomeDistributedFullGrid a std::variant ?
-  /** TensorIndexer , only populated for the used dimensionality**/
-  TensorIndexer globalIndexer_{};
+  /** TensorIndexer: array-based when DIM>0, vector-based when DIM==0 */
+  IndexerType globalIndexer_{};
 
-  // /** Tensor -- only populated for the used dimensionality**/
-  Tensor<FG_ELEMENT> localTensor_{};
+  /** Tensor: array-based when DIM>0, vector-based when DIM==0 */
+  TensorType localTensor_{};
 
   /** flag to show if the dimension has boundary points*/
-  const std::vector<BoundaryType> hasBoundaryPoints_;
+  const BoundaryFlagsType hasBoundaryPoints_;
 
   /** my partition's lower bounds in global vector coordinates */
-  IndexVector myPartitionsLowerBounds_;
+  DimIndexType myPartitionsLowerBounds_;
 
   /** my partition's upper bounds in global vector coordinates */
-  IndexVector myPartitionsUpperBounds_;
+  DimIndexType myPartitionsUpperBounds_;
 
   /** my partition's lower global linear bound */
   IndexType myPartitionsFirstGlobalIndex_;
@@ -601,7 +611,7 @@ class DistributedFullGrid {
    * contains (for every dimension) the grid point indices at
    * which a process boundary is assumed
    */
-  std::vector<IndexVector> decomposition_;
+  DecompositionType decomposition_;
 
   /** utility to get info about cartesian communicator  */
   static MPICartesianUtils cartesianUtils_;
@@ -611,27 +621,25 @@ class DistributedFullGrid {
   std::vector<MPI_Datatype> upwardSubarrays_;
 };
 
-template <typename FG_ELEMENT>
-DistributedFullGrid<FG_ELEMENT>::DistributedFullGrid(DimType dim, const LevelVector& levels,
-                                                     CommunicatorType const& comm,
-                                                     const std::vector<BoundaryType>& hasBdrPoints,
-                                                     FG_ELEMENT* dataPointer,
-                                                     const std::vector<int>& procs,
-                                                     bool forwardDecomposition,
-                                                     const std::vector<IndexVector>& decomposition)
-    : dim_(dim), levels_(levels), hasBoundaryPoints_(hasBdrPoints) {
-  assert(levels_.size() == dim);
-  assert(hasBoundaryPoints_.size() == dim);
-  assert(procs.size() == dim);
+template <typename FG_ELEMENT, DimType DIM>
+DistributedFullGrid<FG_ELEMENT, DIM>::DistributedFullGrid(
+    DimType dim, const LevelVector& levels, CommunicatorType const& comm,
+    const std::vector<BoundaryType>& hasBdrPoints, FG_ELEMENT* dataPointer,
+    const std::vector<int>& procs, bool forwardDecomposition,
+    const std::vector<IndexVector>& decomposition)
+    : levels_(toArray<DIM>(levels)), hasBoundaryPoints_(toArray<DIM>(hasBdrPoints)) {
+  assert(dim == DIM);
+  assert(levels.size() == DIM);
+  assert(hasBdrPoints.size() == DIM);
+  assert(procs.size() == DIM);
 
   InitMPI(comm, procs);
 
-  IndexVector nrPoints(dim_);
-  gridSpacing_.resize(dim_);
+  IndexVector nrPoints(DIM);
 
   // set global num of elements and offsets
   IndexType nrElements = 1;
-  for (DimType j = 0; j < dim_; j++) {
+  for (DimType j = 0; j < DIM; j++) {
     nrPoints[j] = combigrid::getNumDofNodal(levels_[j], hasBoundaryPoints_[j]);
     nrElements = nrElements * nrPoints[j];
     if (hasBoundaryPoints_[j] == 1) {
@@ -647,18 +655,23 @@ DistributedFullGrid<FG_ELEMENT>::DistributedFullGrid(DimType dim, const LevelVec
   } else {
     setDecomposition(decomposition);
   }
-  globalIndexer_ = TensorIndexer(std::move(nrPoints));
-  myPartitionsLowerBounds_ = getLowerBounds(this->getRank());
+
+  globalIndexer_ = TensorIndexerDim<DIM>(toArray<DIM>(nrPoints));
+
+  myPartitionsLowerBounds_ = toArray<DIM>(getLowerBounds(this->getRank()));
   myPartitionsFirstGlobalIndex_ = globalIndexer_.sequentialIndex(myPartitionsLowerBounds_);
-  myPartitionsUpperBounds_ = getUpperBounds(this->getRank());
+  myPartitionsUpperBounds_ = toArray<DIM>(getUpperBounds(this->getRank()));
 
   // set local elements and local offsets
-  auto nrLocalPoints = getUpperBounds() - getLowerBounds();
-  localTensor_ = Tensor<FG_ELEMENT>(dataPointer, std::move(nrLocalPoints));
+  IndexArray<DIM> nrLocalPoints;
+  for (DimType j = 0; j < DIM; j++) {
+    nrLocalPoints[j] = myPartitionsUpperBounds_[j] - myPartitionsLowerBounds_[j];
+  }
+  localTensor_ = TensorDim<FG_ELEMENT, DIM>(dataPointer, nrLocalPoints);
 }
 
-template <typename FG_ELEMENT>
-DistributedFullGrid<FG_ELEMENT>::~DistributedFullGrid() {
+template <typename FG_ELEMENT, DimType DIM>
+DistributedFullGrid<FG_ELEMENT, DIM>::~DistributedFullGrid() {
   for (size_t i = 0; i < upwardSubarrays_.size(); ++i) {
     MPI_Type_free(&upwardSubarrays_[i]);
   }
@@ -667,15 +680,15 @@ DistributedFullGrid<FG_ELEMENT>::~DistributedFullGrid() {
   }
 }
 
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::getCoordsGlobal(IndexType globalLinearIndex,
-                                                      std::vector<real>& coords) const {
+template <typename FG_ELEMENT, DimType DIM>
+void DistributedFullGrid<FG_ELEMENT, DIM>::getCoordsGlobal(IndexType globalLinearIndex,
+                                                           std::vector<real>& coords) const {
   IndexType ind = 0;
   IndexType tmp_add = 0;
 
-  coords.resize(dim_);
+  coords.resize(DIM);
 
-  for (DimType j = 0; j < dim_; j++) {
+  for (DimType j = 0; j < DIM; j++) {
     ind = globalLinearIndex % this->getGlobalSizes()[j];
     globalLinearIndex = globalLinearIndex / this->getGlobalSizes()[j];
     // set the coordinate based on if we have boundary points
@@ -684,9 +697,9 @@ void DistributedFullGrid<FG_ELEMENT>::getCoordsGlobal(IndexType globalLinearInde
   }
 }
 
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::getCoordsLocal(IndexType localLinearIndex,
-                                                     std::vector<real>& coords) const {
+template <typename FG_ELEMENT, DimType DIM>
+void DistributedFullGrid<FG_ELEMENT, DIM>::getCoordsLocal(IndexType localLinearIndex,
+                                                          std::vector<real>& coords) const {
   // todo: probably very inefficient implementation, if crucial for
   // performance implement more direct way of computing the coordinates
   assert(localLinearIndex < getNrLocalElements());
@@ -696,19 +709,19 @@ void DistributedFullGrid<FG_ELEMENT>::getCoordsLocal(IndexType localLinearIndex,
   getCoordsGlobal(globalLinearIndex, coords);
 }
 
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::getGlobalLI(IndexType elementIndex, LevelVector& levels,
-                                                  IndexVector& indices) const {
+template <typename FG_ELEMENT, DimType DIM>
+void DistributedFullGrid<FG_ELEMENT, DIM>::getGlobalLI(IndexType elementIndex, LevelVector& levels,
+                                                       IndexVector& indices) const {
   IndexType startindex, tmp_val;
 
   assert(elementIndex < this->getNrElements());
-  levels.resize(dim_);
-  indices.resize(dim_);
+  levels.resize(DIM);
+  indices.resize(DIM);
 
   tmp_val = elementIndex;
 
   // first calculate intermediary indices
-  for (DimType k = 0; k < dim_; k++) {
+  for (DimType k = 0; k < DIM; k++) {
     startindex = (hasBoundaryPoints_[k] > 0) ? 0 : 1;
     indices[k] = tmp_val % this->getGlobalSizes()[k] + startindex;
     tmp_val = tmp_val / this->getGlobalSizes()[k];
@@ -719,7 +732,7 @@ void DistributedFullGrid<FG_ELEMENT>::getGlobalLI(IndexType elementIndex, LevelV
   // until we obtain an impair number for the index, thus obtaining the level and index in the
   // hierarchical basis (Aliz Nagy)
   // ...
-  for (DimType k = 0; k < dim_; k++) {
+  for (DimType k = 0; k < DIM; k++) {
     tmp_val = levels_[k];
 
     if (indices[k] != 0) {
@@ -736,33 +749,39 @@ void DistributedFullGrid<FG_ELEMENT>::getGlobalLI(IndexType elementIndex, LevelV
   }
 }
 
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::getGlobalVectorIndex(IndexType globLinIndex,
-                                                           IndexVector& globAxisIndex) const {
+template <typename FG_ELEMENT, DimType DIM>
+void DistributedFullGrid<FG_ELEMENT, DIM>::getGlobalVectorIndex(IndexType globLinIndex,
+                                                                IndexVector& globAxisIndex) const {
   assert(globLinIndex < this->getNrElements());
-  assert(globAxisIndex.size() == dim_);
+  assert(globAxisIndex.size() == DIM);
 
-  globAxisIndex = this->globalIndexer_.getVectorIndex(globLinIndex);
+  auto arr = this->globalIndexer_.getVectorIndex(globLinIndex);
+  globAxisIndex.assign(arr.begin(), arr.end());
 }
 
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::getGlobalVectorIndex(const IndexVector& locAxisIndex,
-                                                           IndexVector& globAxisIndex) const {
-  assert(locAxisIndex.size() == dim_);
+template <typename FG_ELEMENT, DimType DIM>
+void DistributedFullGrid<FG_ELEMENT, DIM>::getGlobalVectorIndex(const IndexVector& locAxisIndex,
+                                                                IndexVector& globAxisIndex) const {
+  assert(locAxisIndex.size() == DIM);
 
-  globAxisIndex = this->getLowerBounds() + locAxisIndex;
+  const auto& lb = this->getLowerBounds();
+  globAxisIndex.resize(DIM);
+  for (DimType d = 0; d < DIM; ++d) {
+    globAxisIndex[d] = lb[d] + locAxisIndex[d];
+  }
 }
 
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::getLocalVectorIndex(IndexType locLinIndex,
-                                                          IndexVector& locAxisIndex) const {
-  locAxisIndex = this->localTensor_.getVectorIndex(locLinIndex);
+template <typename FG_ELEMENT, DimType DIM>
+void DistributedFullGrid<FG_ELEMENT, DIM>::getLocalVectorIndex(IndexType locLinIndex,
+                                                               IndexVector& locAxisIndex) const {
+  auto arr = this->localTensor_.getVectorIndex(locLinIndex);
+  locAxisIndex.assign(arr.begin(), arr.end());
 }
 
-template <typename FG_ELEMENT>
-bool DistributedFullGrid<FG_ELEMENT>::getLocalVectorIndex(const IndexVector& globAxisIndex,
-                                                          IndexVector& locAxisIndex) const {
-  assert(globAxisIndex.size() == dim_);
+template <typename FG_ELEMENT, DimType DIM>
+bool DistributedFullGrid<FG_ELEMENT, DIM>::getLocalVectorIndex(const IndexVector& globAxisIndex,
+                                                               IndexVector& locAxisIndex) const {
+  assert(globAxisIndex.size() == DIM);
 
   if (this->isGlobalIndexHere(globAxisIndex)) {
     locAxisIndex.assign(globAxisIndex.begin(), globAxisIndex.end());
@@ -774,19 +793,19 @@ bool DistributedFullGrid<FG_ELEMENT>::getLocalVectorIndex(const IndexVector& glo
   }
 }
 
-template <typename FG_ELEMENT>
-IndexType DistributedFullGrid<FG_ELEMENT>::getGlobalLinearIndex(
+template <typename FG_ELEMENT, DimType DIM>
+IndexType DistributedFullGrid<FG_ELEMENT, DIM>::getGlobalLinearIndex(
     const IndexVector& globAxisIndex) const {
   return globalIndexer_.sequentialIndex(globAxisIndex);
 }
 
-template <typename FG_ELEMENT>
-IndexType DistributedFullGrid<FG_ELEMENT>::getGlobalLinearIndex(IndexType locLinIndex) const {
+template <typename FG_ELEMENT, DimType DIM>
+IndexType DistributedFullGrid<FG_ELEMENT, DIM>::getGlobalLinearIndex(IndexType locLinIndex) const {
   assert(locLinIndex < this->getNrLocalElements());
 
   // convert to local vector index
-  static thread_local IndexVector locAxisIndex(dim_);
-  locAxisIndex.resize(dim_);
+  static thread_local IndexVector locAxisIndex(DIM);
+  locAxisIndex.resize(DIM);
   getLocalVectorIndex(locLinIndex, locAxisIndex);
 
   // convert to global linear index
@@ -796,19 +815,19 @@ IndexType DistributedFullGrid<FG_ELEMENT>::getGlobalLinearIndex(IndexType locLin
   return globLinIndex;
 }
 
-template <typename FG_ELEMENT>
-IndexType DistributedFullGrid<FG_ELEMENT>::getLocalLinearIndex(
+template <typename FG_ELEMENT, DimType DIM>
+IndexType DistributedFullGrid<FG_ELEMENT, DIM>::getLocalLinearIndex(
     const IndexVector& locAxisIndex) const {
   return localTensor_.sequentialIndex(locAxisIndex);
 }
 
-template <typename FG_ELEMENT>
-IndexType DistributedFullGrid<FG_ELEMENT>::getLocalLinearIndex(IndexType globLinIndex) const {
+template <typename FG_ELEMENT, DimType DIM>
+IndexType DistributedFullGrid<FG_ELEMENT, DIM>::getLocalLinearIndex(IndexType globLinIndex) const {
   assert(globLinIndex < this->getNrElements());
 
   // convert to global vector index
-  static thread_local IndexVector globAxisIndex(dim_);
-  globAxisIndex.resize(dim_);
+  static thread_local IndexVector globAxisIndex(DIM);
+  globAxisIndex.resize(DIM);
   getGlobalVectorIndex(globLinIndex, globAxisIndex);
 
   if (this->isGlobalIndexHere(globAxisIndex)) {
@@ -819,20 +838,26 @@ IndexType DistributedFullGrid<FG_ELEMENT>::getLocalLinearIndex(IndexType globLin
   }
 }
 
-template <typename FG_ELEMENT>
-bool DistributedFullGrid<FG_ELEMENT>::isGlobalIndexHere(IndexVector globalVectorIndex) const {
-  return (globalVectorIndex >= this->getLowerBounds()) &&
-         (globalVectorIndex < this->getUpperBounds());
+template <typename FG_ELEMENT, DimType DIM>
+bool DistributedFullGrid<FG_ELEMENT, DIM>::isGlobalIndexHere(IndexVector globalVectorIndex) const {
+  for (DimType d = 0; d < DIM; ++d) {
+    if (globalVectorIndex[d] < this->getLowerBounds()[d] ||
+        globalVectorIndex[d] >= this->getUpperBounds()[d]) {
+      return false;
+    }
+  }
+  return true;
 }
 
-template <typename FG_ELEMENT>
-bool DistributedFullGrid<FG_ELEMENT>::isGlobalIndexHere(IndexType globLinIndex) const {
-  return isGlobalIndexHere(this->globalIndexer_.getVectorIndex(globLinIndex));
+template <typename FG_ELEMENT, DimType DIM>
+bool DistributedFullGrid<FG_ELEMENT, DIM>::isGlobalIndexHere(IndexType globLinIndex) const {
+  auto arr = this->globalIndexer_.getVectorIndex(globLinIndex);
+  return isGlobalIndexHere(IndexVector(arr.begin(), arr.end()));
 }
 
-template <typename FG_ELEMENT>
+template <typename FG_ELEMENT, DimType DIM>
 std::tuple<std::vector<int>, std::vector<int>, std::vector<int>>
-DistributedFullGrid<FG_ELEMENT>::getSizesSubsizesStartsOfSubtensor() const {
+DistributedFullGrid<FG_ELEMENT, DIM>::getSizesSubsizesStartsOfSubtensor() const {
   std::vector<int> csizes(this->getGlobalSizes().begin(), this->getGlobalSizes().end());
   std::vector<int> csubsizes(this->getLocalSizes().begin(), this->getLocalSizes().end());
   std::vector<int> cstarts(this->getLowerBounds().begin(), this->getLowerBounds().end());
@@ -840,17 +865,17 @@ DistributedFullGrid<FG_ELEMENT>::getSizesSubsizesStartsOfSubtensor() const {
   return std::make_tuple(csizes, csubsizes, cstarts);
 }
 
-template <typename FG_ELEMENT>
-double DistributedFullGrid<FG_ELEMENT>::getInverseGridSpacingIn(DimType inDimension) const {
+template <typename FG_ELEMENT, DimType DIM>
+double DistributedFullGrid<FG_ELEMENT, DIM>::getInverseGridSpacingIn(DimType inDimension) const {
   return powerOfTwo[levels_[inDimension]];
 }
 
-template <typename FG_ELEMENT>
-std::vector<double> DistributedFullGrid<FG_ELEMENT>::getInverseGridSpacing() const {
+template <typename FG_ELEMENT, DimType DIM>
+std::vector<double> DistributedFullGrid<FG_ELEMENT, DIM>::getInverseGridSpacing() const {
   std::vector<double> oneOverH;
   oneOverH.resize(gridSpacing_.size());
   // should be the same as the number of intervals (N)
-  for (DimType j = 0; j < dim_; j++) {
+  for (DimType j = 0; j < DIM; j++) {
     oneOverH[j] = powerOfTwo[levels_[j]];
   }
 #ifndef NDEBUG
@@ -858,7 +883,7 @@ std::vector<double> DistributedFullGrid<FG_ELEMENT>::getInverseGridSpacing() con
   oneOverHByDivision.resize(gridSpacing_.size());
   std::transform(gridSpacing_.begin(), gridSpacing_.end(), oneOverHByDivision.begin(),
                  std::bind(std::divides<double>(), 1, std::placeholders::_1));
-  for (DimType j = 0; j < dim_; j++) {
+  for (DimType j = 0; j < DIM; j++) {
     assert(std::abs(oneOverHByDivision[j] - oneOverH[j]) < 1e-10);
     assert(oneOverHByDivision[j] == oneOverH[j]);
   }
@@ -866,56 +891,58 @@ std::vector<double> DistributedFullGrid<FG_ELEMENT>::getInverseGridSpacing() con
   return oneOverH;
 }
 
-template <typename FG_ELEMENT>
-double DistributedFullGrid<FG_ELEMENT>::getInnerNodalBasisFunctionIntegral() const {
+template <typename FG_ELEMENT, DimType DIM>
+double DistributedFullGrid<FG_ELEMENT, DIM>::getInnerNodalBasisFunctionIntegral() const {
   const auto& h = this->getGridSpacing();
   return std::accumulate(h.begin(), h.end(), 1., std::multiplies<double>());
 }
 
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::setZero() {
+template <typename FG_ELEMENT, DimType DIM>
+void DistributedFullGrid<FG_ELEMENT, DIM>::setZero() {
   std::memset(this->getData(), 0, this->getNrLocalElements() * sizeof(FG_ELEMENT));
 }
 
-template <typename FG_ELEMENT>
-const IndexVector& DistributedFullGrid<FG_ELEMENT>::getLowerBounds() const {
+template <typename FG_ELEMENT, DimType DIM>
+const typename DistributedFullGrid<FG_ELEMENT, DIM>::DimIndexType&
+DistributedFullGrid<FG_ELEMENT, DIM>::getLowerBounds() const {
   // return getLowerBounds(this->getRank());
   return myPartitionsLowerBounds_;
 }
 
-template <typename FG_ELEMENT>
-IndexVector DistributedFullGrid<FG_ELEMENT>::getLowerBounds(RankType r) const {
+template <typename FG_ELEMENT, DimType DIM>
+IndexVector DistributedFullGrid<FG_ELEMENT, DIM>::getLowerBounds(RankType r) const {
   assert(r >= 0 && r < this->getCommunicatorSize());
   // get coords of r in cart comm
-  IndexVector lowerBounds(dim_);
+  IndexVector lowerBounds(DIM);
   const auto& coords = cartesianUtils_.getPartitionCoordsOfRank(r);
 
-  for (DimType i = 0; i < dim_; ++i) {
+  for (DimType i = 0; i < DIM; ++i) {
     lowerBounds[i] = getDecomposition()[i][coords[i]];
   }
   return lowerBounds;
 }
 
-template <typename FG_ELEMENT>
-real DistributedFullGrid<FG_ELEMENT>::getLowerBoundsCoord(DimType inDimension) const {
+template <typename FG_ELEMENT, DimType DIM>
+real DistributedFullGrid<FG_ELEMENT, DIM>::getLowerBoundsCoord(DimType inDimension) const {
   return static_cast<real>(this->getLowerBounds()[inDimension] +
                            (hasBoundaryPoints_[inDimension] > 0 ? 0 : 1)) *
          this->getGridSpacing()[inDimension];
 }
 
-template <typename FG_ELEMENT>
-const IndexVector& DistributedFullGrid<FG_ELEMENT>::getUpperBounds() const {
+template <typename FG_ELEMENT, DimType DIM>
+const typename DistributedFullGrid<FG_ELEMENT, DIM>::DimIndexType&
+DistributedFullGrid<FG_ELEMENT, DIM>::getUpperBounds() const {
   // return getUpperBounds(this->getRank());
   return myPartitionsUpperBounds_;
 }
 
-template <typename FG_ELEMENT>
-IndexVector DistributedFullGrid<FG_ELEMENT>::getUpperBounds(RankType r) const {
+template <typename FG_ELEMENT, DimType DIM>
+IndexVector DistributedFullGrid<FG_ELEMENT, DIM>::getUpperBounds(RankType r) const {
   assert(r >= 0 && r < this->getCommunicatorSize());
-  IndexVector upperBounds(dim_);
+  IndexVector upperBounds(DIM);
   const auto& coords = cartesianUtils_.getPartitionCoordsOfRank(r);
 
-  for (DimType i = 0; i < dim_; ++i) {
+  for (DimType i = 0; i < DIM; ++i) {
     RankType n;
     std::vector<int> nc(coords);
 
@@ -932,32 +959,32 @@ IndexVector DistributedFullGrid<FG_ELEMENT>::getUpperBounds(RankType r) const {
   return upperBounds;
 }
 
-template <typename FG_ELEMENT>
-std::vector<real> DistributedFullGrid<FG_ELEMENT>::getUpperBoundsCoords() const {
+template <typename FG_ELEMENT, DimType DIM>
+std::vector<real> DistributedFullGrid<FG_ELEMENT, DIM>::getUpperBoundsCoords() const {
   return getUpperBoundsCoords(this->getRank());
 }
 
-template <typename FG_ELEMENT>
-std::vector<real> DistributedFullGrid<FG_ELEMENT>::getUpperBoundsCoords(RankType r) const {
+template <typename FG_ELEMENT, DimType DIM>
+std::vector<real> DistributedFullGrid<FG_ELEMENT, DIM>::getUpperBoundsCoords(RankType r) const {
   assert(r >= 0 && r < this->getCommunicatorSize());
 
   /* the upper bound index vector can correspond to coordinates outside of
    * the domain, thus we cannot use the getGlobalLinearIndex method here.
    */
   const IndexVector& ubvi = getUpperBounds(r);
-  std::vector<real> coords(dim_);
+  std::vector<real> coords(DIM);
   IndexType tmp_add = 0;
 
-  for (DimType j = 0; j < dim_; ++j) {
+  for (DimType j = 0; j < DIM; ++j) {
     tmp_add = (hasBoundaryPoints_[j] > 0) ? (0) : (1);
     coords[j] = static_cast<double>(ubvi[j] + tmp_add) * getGridSpacing()[j];
   }
   return coords;
 }
 
-template <typename FG_ELEMENT>
-RankType DistributedFullGrid<FG_ELEMENT>::getNeighbor1dFromAxisIndex(DimType dim,
-                                                                     IndexType idx1d) const {
+template <typename FG_ELEMENT, DimType DIM>
+RankType DistributedFullGrid<FG_ELEMENT, DIM>::getNeighbor1dFromAxisIndex(DimType dim,
+                                                                          IndexType idx1d) const {
   // if global index is outside of domain return negative value
   {
     if (idx1d < 0) return -1;
@@ -975,18 +1002,18 @@ RankType DistributedFullGrid<FG_ELEMENT>::getNeighbor1dFromAxisIndex(DimType dim
   return r;
 }
 
-template <typename FG_ELEMENT>
-const std::vector<int>& DistributedFullGrid<FG_ELEMENT>::getParallelization() const {
+template <typename FG_ELEMENT, DimType DIM>
+const std::vector<int>& DistributedFullGrid<FG_ELEMENT, DIM>::getParallelization() const {
   return this->getCartesianUtils().getCartesianDimensions();
 }
 
-template <typename FG_ELEMENT>
-LevelType DistributedFullGrid<FG_ELEMENT>::getLevel(DimType d, IndexType idx1d) const {
-  // IndexVector givec(dim_, 0);
+template <typename FG_ELEMENT, DimType DIM>
+LevelType DistributedFullGrid<FG_ELEMENT, DIM>::getLevel(DimType d, IndexType idx1d) const {
+  // IndexVector givec(DIM, 0);
   // givec[d] = idx1d;
   // IndexType idx = getGlobalLinearIndex(givec);
-  // LevelVector levels(dim_);
-  // IndexVector tmp(dim_);
+  // LevelVector levels(DIM);
+  // IndexVector tmp(DIM);
   // getGlobalLI(idx, levels, tmp);
   // return levels[d];
 
@@ -1015,8 +1042,9 @@ LevelType DistributedFullGrid<FG_ELEMENT>::getLevel(DimType d, IndexType idx1d) 
   return l;
 }
 
-template <typename FG_ELEMENT>
-IndexType DistributedFullGrid<FG_ELEMENT>::getLeftPredecessor(DimType d, IndexType idx1d) const {
+template <typename FG_ELEMENT, DimType DIM>
+IndexType DistributedFullGrid<FG_ELEMENT, DIM>::getLeftPredecessor(DimType d,
+                                                                   IndexType idx1d) const {
   LevelType l = getLevel(d, idx1d);
 
   // boundary points
@@ -1028,8 +1056,9 @@ IndexType DistributedFullGrid<FG_ELEMENT>::getLeftPredecessor(DimType d, IndexTy
   return lpidx;
 }
 
-template <typename FG_ELEMENT>
-IndexType DistributedFullGrid<FG_ELEMENT>::getRightPredecessor(DimType d, IndexType idx1d) const {
+template <typename FG_ELEMENT, DimType DIM>
+IndexType DistributedFullGrid<FG_ELEMENT, DIM>::getRightPredecessor(DimType d,
+                                                                    IndexType idx1d) const {
   LevelType l = getLevel(d, idx1d);
 
   // boundary points
@@ -1050,12 +1079,12 @@ IndexType DistributedFullGrid<FG_ELEMENT>::getRightPredecessor(DimType d, IndexT
   return rpidx;
 }
 
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::getPartitionCoords(const IndexVector& globalAxisIndex,
-                                                         std::vector<int>& partitionCoords) const {
-  partitionCoords.resize(dim_);
+template <typename FG_ELEMENT, DimType DIM>
+void DistributedFullGrid<FG_ELEMENT, DIM>::getPartitionCoords(
+    const IndexVector& globalAxisIndex, std::vector<int>& partitionCoords) const {
+  partitionCoords.resize(DIM);
 
-  for (DimType d = 0; d < dim_; ++d) {
+  for (DimType d = 0; d < DIM; ++d) {
     partitionCoords[d] = -1;
     for (int i = 0; i < this->getCartesianUtils().getCartesianDimensions()[d]; ++i) {
       if (globalAxisIndex[d] >= getDecomposition()[d][i]) partitionCoords[d] = i;
@@ -1067,18 +1096,18 @@ void DistributedFullGrid<FG_ELEMENT>::getPartitionCoords(const IndexVector& glob
   }
 }
 
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::print() const {
+template <typename FG_ELEMENT, DimType DIM>
+void DistributedFullGrid<FG_ELEMENT, DIM>::print() const {
   std::visit([&](auto&& arg) { print(arg); }, localTensor_);
 }
 
-template <typename FG_ELEMENT>
-MPI_Datatype DistributedFullGrid<FG_ELEMENT>::getMPIDatatype() const {
+template <typename FG_ELEMENT, DimType DIM>
+MPI_Datatype DistributedFullGrid<FG_ELEMENT, DIM>::getMPIDatatype() const {
   return abstraction::getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
 }
 
-template <typename FG_ELEMENT>
-double DistributedFullGrid<FG_ELEMENT>::getPointDistanceToCoordinate(
+template <typename FG_ELEMENT, DimType DIM>
+double DistributedFullGrid<FG_ELEMENT, DIM>::getPointDistanceToCoordinate(
     IndexType oneDimensionalLocalIndex, double coord, DimType d) const {
   const auto& h = getGridSpacing();
   auto coordDistance =
@@ -1098,8 +1127,8 @@ double DistributedFullGrid<FG_ELEMENT>::getPointDistanceToCoordinate(
   return std::abs(coordDistance);
 }
 
-template <typename FG_ELEMENT>
-FG_ELEMENT DistributedFullGrid<FG_ELEMENT>::evalIndexAndAllUpperNeighbors(
+template <typename FG_ELEMENT, DimType DIM>
+FG_ELEMENT DistributedFullGrid<FG_ELEMENT, DIM>::evalIndexAndAllUpperNeighbors(
     const IndexVector& localIndex, const std::vector<real>& coords) const {
   FG_ELEMENT result = 0.;
   auto localLinearIndex = this->getLocalLinearIndex(localIndex);
@@ -1111,7 +1140,7 @@ FG_ELEMENT DistributedFullGrid<FG_ELEMENT>::evalIndexAndAllUpperNeighbors(
 #endif
     auto neighborIndex = localLinearIndex;
     real phi_c = 1.;  // value of product of iterate's basis function on coords
-    for (DimType d = 0; d < dim_; ++d) {
+    for (DimType d = 0; d < DIM; ++d) {
       const auto lastIndexInDim = this->getLocalSizes()[d] - 1;
       bool isUpperInDim = std::bitset<sizeof(int) * CHAR_BIT>(localIndexIterate).test(d);
       auto iterateIndexInThisDimension = localIndex[d] + isUpperInDim;
@@ -1164,22 +1193,22 @@ FG_ELEMENT DistributedFullGrid<FG_ELEMENT>::evalIndexAndAllUpperNeighbors(
   return result;
 }
 
-template <typename FG_ELEMENT>
-FG_ELEMENT DistributedFullGrid<FG_ELEMENT>::evalLocal(const std::vector<real>& coords) const {
+template <typename FG_ELEMENT, DimType DIM>
+FG_ELEMENT DistributedFullGrid<FG_ELEMENT, DIM>::evalLocal(const std::vector<real>& coords) const {
   FG_ELEMENT value;
   evalLocal(coords, value);
   return value;
 }
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::evalLocal(const std::vector<real>& coords,
-                                                FG_ELEMENT& value) const {
+template <typename FG_ELEMENT, DimType DIM>
+void DistributedFullGrid<FG_ELEMENT, DIM>::evalLocal(const std::vector<real>& coords,
+                                                     FG_ELEMENT& value) const {
   assert(coords.size() == this->getDimension());
   // get the lowest-index point of the points
   // whose basis functions contribute to the interpolated value
   const auto& h = getGridSpacing();
   static thread_local IndexVector localIndexLowerNonzeroNeighborPoint;
-  localIndexLowerNonzeroNeighborPoint.resize(dim_);
-  for (DimType d = 0; d < dim_; ++d) {
+  localIndexLowerNonzeroNeighborPoint.resize(DIM);
+  for (DimType d = 0; d < DIM; ++d) {
 #ifndef NDEBUG
     if (coords[d] < 0. || coords[d] > 1.) {
       std::cout << "coords " << coords << " out of bounds" << std::endl;
@@ -1211,8 +1240,8 @@ void DistributedFullGrid<FG_ELEMENT>::evalLocal(const std::vector<real>& coords,
   value = evalIndexAndAllUpperNeighbors(localIndexLowerNonzeroNeighborPoint, coords);
 }
 
-template <typename FG_ELEMENT>
-std::vector<FG_ELEMENT> DistributedFullGrid<FG_ELEMENT>::getInterpolatedValues(
+template <typename FG_ELEMENT, DimType DIM>
+std::vector<FG_ELEMENT> DistributedFullGrid<FG_ELEMENT, DIM>::getInterpolatedValues(
     const std::vector<std::vector<real>>& interpolationCoords) const {
   auto numValues = interpolationCoords.size();
   std::vector<FG_ELEMENT> values;
@@ -1227,8 +1256,8 @@ std::vector<FG_ELEMENT> DistributedFullGrid<FG_ELEMENT>::getInterpolatedValues(
   return values;
 }
 
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::gatherFullGrid(FullGrid<FG_ELEMENT>& fg, RankType root) {
+template <typename FG_ELEMENT, DimType DIM>
+void DistributedFullGrid<FG_ELEMENT, DIM>::gatherFullGrid(FullGrid<FG_ELEMENT>& fg, RankType root) {
   int size = this->getCommunicatorSize();
   int rank = this->getRank();
   CommunicatorType comm = this->getCommunicator();
@@ -1278,14 +1307,14 @@ void DistributedFullGrid<FG_ELEMENT>::gatherFullGrid(FullGrid<FG_ELEMENT>& fg, R
   for (size_t i = 0; i < subarrayTypes.size(); ++i) MPI_Type_free(&subarrayTypes[i]);
 }
 
-template <typename FG_ELEMENT>
-std::vector<IndexType> DistributedFullGrid<FG_ELEMENT>::getFGPointsOfSubspace(
+template <typename FG_ELEMENT, DimType DIM>
+std::vector<IndexType> DistributedFullGrid<FG_ELEMENT, DIM>::getFGPointsOfSubspace(
     const LevelVector& l) const {
   IndexVector subspaceIndices;
   IndexType numPointsOfSubspace = 1;
   static thread_local std::vector<IndexVector> oneDIndices;
-  oneDIndices.resize(dim_);
-  for (DimType d = 0; d < dim_; ++d) {
+  oneDIndices.resize(DIM);
+  for (DimType d = 0; d < DIM; ++d) {
     if (l[d] > levels_[d]) {
       return subspaceIndices;
     }
@@ -1296,16 +1325,16 @@ std::vector<IndexType> DistributedFullGrid<FG_ELEMENT>::getFGPointsOfSubspace(
     subspaceIndices.reserve(numPointsOfSubspace);
 
     IndexType localLinearIndexSum = 0;
-    getFGPointsOfSubspaceRecursive(static_cast<DimType>(dim_ - 1), localLinearIndexSum, oneDIndices,
+    getFGPointsOfSubspaceRecursive(static_cast<DimType>(DIM - 1), localLinearIndexSum, oneDIndices,
                                    subspaceIndices);
   }
   assert(static_cast<IndexType>(subspaceIndices.size()) == numPointsOfSubspace);
   return subspaceIndices;
 }
 
-template <typename FG_ELEMENT>
+template <typename FG_ELEMENT, DimType DIM>
 template <bool sparseGridFullyAllocated>
-size_t DistributedFullGrid<FG_ELEMENT>::extractFromUniformSG(
+size_t DistributedFullGrid<FG_ELEMENT, DIM>::extractFromUniformSG(
     const DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
   assert(dsg.isSubspaceDataCreated());
 
@@ -1339,9 +1368,9 @@ size_t DistributedFullGrid<FG_ELEMENT>::extractFromUniformSG(
   return numCopied;
 }
 
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::get1dIndicesLocal(DimType d, LevelType l,
-                                                        IndexVector& oneDIndices) const {
+template <typename FG_ELEMENT, DimType DIM>
+void DistributedFullGrid<FG_ELEMENT, DIM>::get1dIndicesLocal(DimType d, LevelType l,
+                                                             IndexVector& oneDIndices) const {
   assert(l > 0);
   assert(d < this->getDimension());
   if (l > levels_[d]) {
@@ -1362,8 +1391,8 @@ void DistributedFullGrid<FG_ELEMENT>::get1dIndicesLocal(DimType d, LevelType l,
   });
 }
 
-template <typename FG_ELEMENT>
-real DistributedFullGrid<FG_ELEMENT>::getLpNorm(int p) const {
+template <typename FG_ELEMENT, DimType DIM>
+real DistributedFullGrid<FG_ELEMENT, DIM>::getLpNorm(int p) const {
   assert(p >= 0);
   // special case maximum norm
   MPI_Datatype dtype = abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>());
@@ -1403,8 +1432,8 @@ real DistributedFullGrid<FG_ELEMENT>::getLpNorm(int p) const {
   }
 }
 
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::writePlotFile(const char* filename) const {
+template <typename FG_ELEMENT, DimType DIM>
+void DistributedFullGrid<FG_ELEMENT, DIM>::writePlotFile(const char* filename) const {
   auto dim = getDimension();
 
   // create subarray data type
@@ -1468,8 +1497,8 @@ void DistributedFullGrid<FG_ELEMENT>::writePlotFile(const char* filename) const 
   MPI_Type_free(&mysubarray);
 }
 
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::writePlotFileVTK(const char* filename) const {
+template <typename FG_ELEMENT, DimType DIM>
+void DistributedFullGrid<FG_ELEMENT, DIM>::writePlotFileVTK(const char* filename) const {
   auto dim = getDimension();
   assert(dim < 4);  // vtk supports only up to 3D
 
@@ -1541,9 +1570,9 @@ void DistributedFullGrid<FG_ELEMENT>::writePlotFileVTK(const char* filename) con
   MPI_Type_free(&mysubarray);
 }
 
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::getHighestAndLowestNeighbor(DimType d, int& highest,
-                                                                  int& lowest) const {
+template <typename FG_ELEMENT, DimType DIM>
+void DistributedFullGrid<FG_ELEMENT, DIM>::getHighestAndLowestNeighbor(DimType d, int& highest,
+                                                                       int& lowest) const {
   lowest = MPI_PROC_NULL;
   highest = MPI_PROC_NULL;
 
@@ -1560,8 +1589,8 @@ void DistributedFullGrid<FG_ELEMENT>::getHighestAndLowestNeighbor(DimType d, int
   }
 }
 
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::writeLowerBoundaryToUpperBoundary(DimType d) {
+template <typename FG_ELEMENT, DimType DIM>
+void DistributedFullGrid<FG_ELEMENT, DIM>::writeLowerBoundaryToUpperBoundary(DimType d) {
   assert(hasBoundaryPoints_[d] == 2);
 
   // create MPI datatypes
@@ -1582,11 +1611,10 @@ void DistributedFullGrid<FG_ELEMENT>::writeLowerBoundaryToUpperBoundary(DimType 
   MPI_Type_free(&upSubarray);
 }
 
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::exchangeGhostLayerUpward(DimType d,
-                                                               std::vector<int>& subarrayExtents,
-                                                               std::vector<FG_ELEMENT>& recvbuffer,
-                                                               MPI_Request* recvRequest) {
+template <typename FG_ELEMENT, DimType DIM>
+void DistributedFullGrid<FG_ELEMENT, DIM>::exchangeGhostLayerUpward(
+    DimType d, std::vector<int>& subarrayExtents, std::vector<FG_ELEMENT>& recvbuffer,
+    MPI_Request* recvRequest) {
   subarrayExtents.resize(this->getDimension());
   subarrayExtents.assign(this->getLocalSizes().begin(), this->getLocalSizes().end());
   subarrayExtents[d] = 1;
@@ -1643,23 +1671,23 @@ void DistributedFullGrid<FG_ELEMENT>::exchangeGhostLayerUpward(DimType d,
   MPI_Type_free(&subarray);
 }
 
-template <typename FG_ELEMENT>
-std::vector<FG_ELEMENT> DistributedFullGrid<FG_ELEMENT>::exchangeGhostLayerUpward(
+template <typename FG_ELEMENT, DimType DIM>
+std::vector<FG_ELEMENT> DistributedFullGrid<FG_ELEMENT, DIM>::exchangeGhostLayerUpward(
     DimType d, std::vector<int>& subarrayExtents) {
   std::vector<FG_ELEMENT> recvbuffer{};
   exchangeGhostLayerUpward(d, subarrayExtents, recvbuffer);
   return recvbuffer;
 }
 
-template <typename FG_ELEMENT>
-std::vector<bool> DistributedFullGrid<FG_ELEMENT>::isGlobalLinearIndexOnBoundary(
+template <typename FG_ELEMENT, DimType DIM>
+std::vector<bool> DistributedFullGrid<FG_ELEMENT, DIM>::isGlobalLinearIndexOnBoundary(
     IndexType globalLinearIndex) const {
   // this could likely be done way more efficiently, but it's
   // currently not in any performance critical spot
   std::vector<bool> isOnBoundary(this->getDimension(), false);
 
   // convert to global vector index
-  IndexVector globalAxisIndex(dim_);
+  IndexVector globalAxisIndex(DIM);
   getGlobalVectorIndex(globalLinearIndex, globalAxisIndex);
   for (DimType d = 0; d < this->getDimension(); ++d) {
     if (this->returnBoundaryFlags()[d] == 2) {
@@ -1672,13 +1700,14 @@ std::vector<bool> DistributedFullGrid<FG_ELEMENT>::isGlobalLinearIndexOnBoundary
   return isOnBoundary;
 }
 
-template <typename FG_ELEMENT>
-std::vector<bool> DistributedFullGrid<FG_ELEMENT>::isLocalLinearIndexOnBoundary(
+template <typename FG_ELEMENT, DimType DIM>
+std::vector<bool> DistributedFullGrid<FG_ELEMENT, DIM>::isLocalLinearIndexOnBoundary(
     IndexType localLinearIndex) const {
   return isGlobalLinearIndexOnBoundary(getGlobalLinearIndex(localLinearIndex));
 }
-template <typename FG_ELEMENT>
-std::vector<IndexVector> DistributedFullGrid<FG_ELEMENT>::getCornersGlobalVectorIndicesRecursive(
+template <typename FG_ELEMENT, DimType DIM>
+std::vector<IndexVector>
+DistributedFullGrid<FG_ELEMENT, DIM>::getCornersGlobalVectorIndicesRecursive(
     std::vector<IndexVector> indicesSoFar, DimType dim) const {
   if (dim < this->getDimension()) {
     std::vector<IndexVector> newIndicesSoFar{};
@@ -1695,8 +1724,9 @@ std::vector<IndexVector> DistributedFullGrid<FG_ELEMENT>::getCornersGlobalVector
   }
 }
 
-template <typename FG_ELEMENT>
-std::vector<IndexVector> DistributedFullGrid<FG_ELEMENT>::getCornersGlobalVectorIndices() const {
+template <typename FG_ELEMENT, DimType DIM>
+std::vector<IndexVector> DistributedFullGrid<FG_ELEMENT, DIM>::getCornersGlobalVectorIndices()
+    const {
   auto emptyVectorInVector = std::vector<IndexVector>(1);
   assert(emptyVectorInVector.size() == 1);
   assert(emptyVectorInVector[0].size() == 0);
@@ -1706,8 +1736,8 @@ std::vector<IndexVector> DistributedFullGrid<FG_ELEMENT>::getCornersGlobalVector
   return cornersVectors;
 }
 
-template <typename FG_ELEMENT>
-std::vector<FG_ELEMENT> DistributedFullGrid<FG_ELEMENT>::getCornersValues() const {
+template <typename FG_ELEMENT, DimType DIM>
+std::vector<FG_ELEMENT> DistributedFullGrid<FG_ELEMENT, DIM>::getCornersValues() const {
   std::vector<FG_ELEMENT> values(powerOfTwo[this->getDimension()]);
   auto corners = getCornersGlobalVectorIndices();
   for (size_t cornerNo = 0; cornerNo < corners.size(); ++cornerNo) {
@@ -1725,8 +1755,8 @@ std::vector<FG_ELEMENT> DistributedFullGrid<FG_ELEMENT>::getCornersValues() cons
   return values;
 }
 
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::InitMPI(MPI_Comm comm, const std::vector<int>& procs) {
+template <typename FG_ELEMENT, DimType DIM>
+void DistributedFullGrid<FG_ELEMENT, DIM>::InitMPI(MPI_Comm comm, const std::vector<int>& procs) {
   // check if communicator is already cartesian
   int status;
   MPI_Topo_test(comm, &status);
@@ -1753,18 +1783,18 @@ void DistributedFullGrid<FG_ELEMENT>::InitMPI(MPI_Comm comm, const std::vector<i
   }
 }
 
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::setDecomposition(
+template <typename FG_ELEMENT, DimType DIM>
+void DistributedFullGrid<FG_ELEMENT, DIM>::setDecomposition(
     const std::vector<IndexVector>& decomposition) {
 #ifndef NDEBUG
-  assert(decomposition.size() == dim_);
-  for (DimType i = 0; i < dim_; ++i)
+  assert(decomposition.size() == DIM);
+  for (DimType i = 0; i < DIM; ++i)
     assert(decomposition[i].size() ==
            static_cast<size_t>(this->getCartesianUtils().getCartesianDimensions()[i]));
 
   // check if 1d bounds given in ascending order
   // if not, this might indicate there's something wrong
-  for (DimType i = 0; i < dim_; ++i) {
+  for (DimType i = 0; i < DIM; ++i) {
     IndexVector tmp(decomposition[i]);
     std::sort(tmp.begin(), tmp.end());
     assert(tmp == decomposition[i]);
@@ -1773,7 +1803,7 @@ void DistributedFullGrid<FG_ELEMENT>::setDecomposition(
   // check if partitions size larger zero
   // this can be detected by checking for duplicate entries in
   // the 1d decompositions
-  for (DimType i = 0; i < dim_; ++i) {
+  for (DimType i = 0; i < DIM; ++i) {
     IndexVector tmp(decomposition[i]);
     IndexVector::iterator last = std::unique(tmp.begin(), tmp.end());
 
@@ -1784,15 +1814,17 @@ void DistributedFullGrid<FG_ELEMENT>::setDecomposition(
   }
 #endif  // not def NDEBUG
 
-  decomposition_ = decomposition;
+  for (DimType i = 0; i < DIM; ++i) {
+    decomposition_[i] = decomposition[i];
+  }
 }
 
-template <typename FG_ELEMENT>
-void DistributedFullGrid<FG_ELEMENT>::getFGPointsOfSubspaceRecursive(
+template <typename FG_ELEMENT, DimType DIM>
+void DistributedFullGrid<FG_ELEMENT, DIM>::getFGPointsOfSubspaceRecursive(
     DimType d, IndexType localLinearIndexSum, std::vector<IndexVector>& oneDIndices,
     std::vector<IndexType>& subspaceIndices) const {
-  assert(d < dim_);
-  assert(oneDIndices.size() == dim_);
+  assert(d < DIM);
+  assert(oneDIndices.size() == DIM);
   assert(!oneDIndices.empty());
 
   for (const auto idx : oneDIndices[d]) {
@@ -1807,8 +1839,9 @@ void DistributedFullGrid<FG_ELEMENT>::getFGPointsOfSubspaceRecursive(
   }
 }
 
-template <typename FG_ELEMENT>
-IndexType DistributedFullGrid<FG_ELEMENT>::getStrideForThisLevel(LevelType l, DimType d) const {
+template <typename FG_ELEMENT, DimType DIM>
+IndexType DistributedFullGrid<FG_ELEMENT, DIM>::getStrideForThisLevel(LevelType l,
+                                                                      DimType d) const {
   assert(d < this->getDimension());
   // special treatment for level 1 suspaces with boundary
   return (l == 1 && hasBoundaryPoints_[d] > 0)
@@ -1816,8 +1849,8 @@ IndexType DistributedFullGrid<FG_ELEMENT>::getStrideForThisLevel(LevelType l, Di
              : combigrid::powerOfTwoByBitshift(static_cast<LevelType>(levels_[d] - l + 1));
 }
 
-template <typename FG_ELEMENT>
-IndexType DistributedFullGrid<FG_ELEMENT>::getLocalStartForThisLevel(
+template <typename FG_ELEMENT, DimType DIM>
+IndexType DistributedFullGrid<FG_ELEMENT, DIM>::getLocalStartForThisLevel(
     LevelType l, DimType d, IndexType strideForThisLevel) const {
   const auto firstGlobal1dIdx = getFirstGlobal1dIndex(d);
 
@@ -1854,8 +1887,8 @@ IndexType DistributedFullGrid<FG_ELEMENT>::getLocalStartForThisLevel(
   return globalStart - firstGlobal1dIdx;
 }
 
-template <typename FG_ELEMENT>
-IndexType DistributedFullGrid<FG_ELEMENT>::getNumPointsOnThisPartition(
+template <typename FG_ELEMENT, DimType DIM>
+IndexType DistributedFullGrid<FG_ELEMENT, DIM>::getNumPointsOnThisPartition(
     DimType d, IndexType localStart, IndexType strideForThisLevel) const {
   assert(d < this->getDimension());
   return (this->getLocalSizes()[d] - 1 < localStart)
@@ -1863,17 +1896,17 @@ IndexType DistributedFullGrid<FG_ELEMENT>::getNumPointsOnThisPartition(
              : (this->getLocalSizes()[d] - 1 - localStart) / strideForThisLevel + 1;
 }
 
-template <typename FG_ELEMENT>
-IndexType DistributedFullGrid<FG_ELEMENT>::getNumPointsOnThisPartition(LevelType l,
-                                                                       DimType d) const {
+template <typename FG_ELEMENT, DimType DIM>
+IndexType DistributedFullGrid<FG_ELEMENT, DIM>::getNumPointsOnThisPartition(LevelType l,
+                                                                            DimType d) const {
   assert(!(l > levels_[d]));
   const auto strideForThisLevel = getStrideForThisLevel(l, d);
   return getNumPointsOnThisPartition(d, getLocalStartForThisLevel(l, d, strideForThisLevel),
                                      strideForThisLevel);
 }
 
-template <typename FG_ELEMENT>
-MPI_Datatype DistributedFullGrid<FG_ELEMENT>::getUpwardSubarray(DimType d) {
+template <typename FG_ELEMENT, DimType DIM>
+MPI_Datatype DistributedFullGrid<FG_ELEMENT, DIM>::getUpwardSubarray(DimType d) {
   // do index calculations
   // set lower bounds of subarray
   auto subarrayLowerBounds = this->getLowerBounds();
@@ -1898,8 +1931,8 @@ MPI_Datatype DistributedFullGrid<FG_ELEMENT>::getUpwardSubarray(DimType d) {
   return mysubarray;
 }
 
-template <typename FG_ELEMENT>
-std::vector<MPI_Datatype> DistributedFullGrid<FG_ELEMENT>::getUpwardSubarrays() {
+template <typename FG_ELEMENT, DimType DIM>
+std::vector<MPI_Datatype> DistributedFullGrid<FG_ELEMENT, DIM>::getUpwardSubarrays() {
   // initialize upwardSubarrays_ only once
   if (upwardSubarrays_.size() == 0) {
     upwardSubarrays_.resize(this->getDimension());
@@ -1910,12 +1943,12 @@ std::vector<MPI_Datatype> DistributedFullGrid<FG_ELEMENT>::getUpwardSubarrays() 
   return upwardSubarrays_;
 }
 
-template <typename FG_ELEMENT>
-MPI_Datatype DistributedFullGrid<FG_ELEMENT>::getDownwardSubarray(DimType d) {
+template <typename FG_ELEMENT, DimType DIM>
+MPI_Datatype DistributedFullGrid<FG_ELEMENT, DIM>::getDownwardSubarray(DimType d) {
   // do index calculations
   // set upper bounds of subarray
-  IndexVector subarrayLowerBounds = this->getLowerBounds();
-  IndexVector subarrayUpperBounds = this->getUpperBounds();
+  auto subarrayLowerBounds = this->getLowerBounds();
+  auto subarrayUpperBounds = this->getUpperBounds();
   subarrayUpperBounds[d] -= this->getLocalSizes()[d] - 1;
 
   auto subarrayExtents = subarrayUpperBounds - subarrayLowerBounds;
@@ -1937,8 +1970,8 @@ MPI_Datatype DistributedFullGrid<FG_ELEMENT>::getDownwardSubarray(DimType d) {
   return mysubarray;
 }
 
-template <typename FG_ELEMENT>
-std::vector<MPI_Datatype> DistributedFullGrid<FG_ELEMENT>::getDownwardSubarrays() {
+template <typename FG_ELEMENT, DimType DIM>
+std::vector<MPI_Datatype> DistributedFullGrid<FG_ELEMENT, DIM>::getDownwardSubarrays() {
   // initialize downwardSubarrays_ only once
   if (downwardSubarrays_.size() == 0) {
     downwardSubarrays_.resize(this->getDimension());
@@ -1949,12 +1982,12 @@ std::vector<MPI_Datatype> DistributedFullGrid<FG_ELEMENT>::getDownwardSubarrays(
   return downwardSubarrays_;
 }
 
-template <typename FG_ELEMENT>
-MPICartesianUtils DistributedFullGrid<FG_ELEMENT>::cartesianUtils_;
+template <typename FG_ELEMENT, DimType DIM>
+MPICartesianUtils DistributedFullGrid<FG_ELEMENT, DIM>::cartesianUtils_;
 
 // output operator
-template <typename FG_ELEMENT>
-inline std::ostream& operator<<(std::ostream& os, const DistributedFullGrid<FG_ELEMENT>& dfg) {
+template <typename FG_ELEMENT, DimType DIM>
+inline std::ostream& operator<<(std::ostream& os, const DistributedFullGrid<FG_ELEMENT, DIM>& dfg) {
   dfg.print();
 
   return os;
@@ -1965,8 +1998,8 @@ inline std::ostream& operator<<(std::ostream& os, const DistributedFullGrid<FG_E
  *
  * subclass of DistributedFullGrid that allocates a data vector of type FG_ELEMENT
  */
-template <typename FG_ELEMENT>
-class OwningDistributedFullGrid : public DistributedFullGrid<FG_ELEMENT> {
+template <typename FG_ELEMENT, DimType DIM>
+class OwningDistributedFullGrid : public DistributedFullGrid<FG_ELEMENT, DIM> {
  public:
   OwningDistributedFullGrid() = default;
 
@@ -1975,8 +2008,9 @@ class OwningDistributedFullGrid : public DistributedFullGrid<FG_ELEMENT> {
       const std::vector<BoundaryType>& hasBdrPoints, const std::vector<int>& procs,
       bool forwardDecomposition = true,
       const std::vector<IndexVector>& decomposition = std::vector<IndexVector>())
-      : DistributedFullGrid<FG_ELEMENT>(dim, levels, comm, hasBdrPoints, ownedDataVector_.data(),
-                                        procs, forwardDecomposition, decomposition) {
+      : DistributedFullGrid<FG_ELEMENT, DIM>(dim, levels, comm, hasBdrPoints,
+                                             ownedDataVector_.data(), procs, forwardDecomposition,
+                                             decomposition) {
     ownedDataVector_.resize(this->getNrLocalElements());
     this->setData(ownedDataVector_.data());
   }
@@ -1998,6 +2032,105 @@ class OwningDistributedFullGrid : public DistributedFullGrid<FG_ELEMENT> {
  private:
   std::vector<FG_ELEMENT> ownedDataVector_{};
 };
+
+// Variant types for runtime dimension selection (DIM 1-6)
+template <typename FG_ELEMENT>
+using OwningDistributedFullGridVariant =
+    std::variant<OwningDistributedFullGrid<FG_ELEMENT, 1>, OwningDistributedFullGrid<FG_ELEMENT, 2>,
+                 OwningDistributedFullGrid<FG_ELEMENT, 3>, OwningDistributedFullGrid<FG_ELEMENT, 4>,
+                 OwningDistributedFullGrid<FG_ELEMENT, 5>,
+                 OwningDistributedFullGrid<FG_ELEMENT, 6>>;
+
+// A variant of reference wrappers for non-owning access
+template <typename FG_ELEMENT>
+using DistributedFullGridRef =
+    std::variant<std::reference_wrapper<DistributedFullGrid<FG_ELEMENT, 1>>,
+                 std::reference_wrapper<DistributedFullGrid<FG_ELEMENT, 2>>,
+                 std::reference_wrapper<DistributedFullGrid<FG_ELEMENT, 3>>,
+                 std::reference_wrapper<DistributedFullGrid<FG_ELEMENT, 4>>,
+                 std::reference_wrapper<DistributedFullGrid<FG_ELEMENT, 5>>,
+                 std::reference_wrapper<DistributedFullGrid<FG_ELEMENT, 6>>>;
+
+template <typename FG_ELEMENT>
+using ConstDistributedFullGridRef =
+    std::variant<std::reference_wrapper<const DistributedFullGrid<FG_ELEMENT, 1>>,
+                 std::reference_wrapper<const DistributedFullGrid<FG_ELEMENT, 2>>,
+                 std::reference_wrapper<const DistributedFullGrid<FG_ELEMENT, 3>>,
+                 std::reference_wrapper<const DistributedFullGrid<FG_ELEMENT, 4>>,
+                 std::reference_wrapper<const DistributedFullGrid<FG_ELEMENT, 5>>,
+                 std::reference_wrapper<const DistributedFullGrid<FG_ELEMENT, 6>>>;
+
+/**
+ * @brief Convert an OwningDistributedFullGridVariant to a DistributedFullGridRef
+ */
+template <typename FG_ELEMENT>
+DistributedFullGridRef<FG_ELEMENT> toRef(OwningDistributedFullGridVariant<FG_ELEMENT>& var) {
+  return std::visit(
+      [](auto& owning) -> DistributedFullGridRef<FG_ELEMENT> {
+        constexpr DimType D = std::decay_t<decltype(owning)>::getDimension();
+        return std::ref(static_cast<DistributedFullGrid<FG_ELEMENT, D>&>(owning));
+      },
+      var);
+}
+
+template <typename FG_ELEMENT>
+ConstDistributedFullGridRef<FG_ELEMENT> toConstRef(
+    const OwningDistributedFullGridVariant<FG_ELEMENT>& var) {
+  return std::visit(
+      [](const auto& owning) -> ConstDistributedFullGridRef<FG_ELEMENT> {
+        constexpr DimType D = std::decay_t<decltype(owning)>::getDimension();
+        return std::cref(static_cast<const DistributedFullGrid<FG_ELEMENT, D>&>(owning));
+      },
+      var);
+}
+
+/**
+ * @brief Factory function: create an OwningDistributedFullGrid with runtime dimensionality
+ */
+template <typename FG_ELEMENT>
+OwningDistributedFullGridVariant<FG_ELEMENT> makeOwningDistributedFullGrid(
+    DimType dim, const LevelVector& levels, CommunicatorType const& comm,
+    const std::vector<BoundaryType>& hasBdrPoints, const std::vector<int>& procs,
+    bool forwardDecomposition = true,
+    const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) {
+  switch (dim) {
+    case 1:
+      return OwningDistributedFullGrid<FG_ELEMENT, 1>(dim, levels, comm, hasBdrPoints, procs,
+                                                      forwardDecomposition, decomposition);
+    case 2:
+      return OwningDistributedFullGrid<FG_ELEMENT, 2>(dim, levels, comm, hasBdrPoints, procs,
+                                                      forwardDecomposition, decomposition);
+    case 3:
+      return OwningDistributedFullGrid<FG_ELEMENT, 3>(dim, levels, comm, hasBdrPoints, procs,
+                                                      forwardDecomposition, decomposition);
+    case 4:
+      return OwningDistributedFullGrid<FG_ELEMENT, 4>(dim, levels, comm, hasBdrPoints, procs,
+                                                      forwardDecomposition, decomposition);
+    case 5:
+      return OwningDistributedFullGrid<FG_ELEMENT, 5>(dim, levels, comm, hasBdrPoints, procs,
+                                                      forwardDecomposition, decomposition);
+    case 6:
+      return OwningDistributedFullGrid<FG_ELEMENT, 6>(dim, levels, comm, hasBdrPoints, procs,
+                                                      forwardDecomposition, decomposition);
+    default:
+      throw std::invalid_argument("Unsupported dimensionality: " + std::to_string(dim) +
+                                  " (must be 1-6)");
+  }
+}
+
+/**
+ * @brief Helper: apply a visitor to a DistributedFullGridRef (unwraps the reference_wrapper)
+ */
+template <typename Visitor, typename FG_ELEMENT>
+decltype(auto) visitDFG(Visitor&& visitor, DistributedFullGridRef<FG_ELEMENT>& ref) {
+  return std::visit([&](auto& wrapper) -> decltype(auto) { return visitor(wrapper.get()); }, ref);
+}
+
+template <typename Visitor, typename FG_ELEMENT>
+decltype(auto) visitDFG(Visitor&& visitor, const ConstDistributedFullGridRef<FG_ELEMENT>& ref) {
+  return std::visit([&](const auto& wrapper) -> decltype(auto) { return visitor(wrapper.get()); },
+                    ref);
+}
 
 }  // namespace combigrid
 

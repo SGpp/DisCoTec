@@ -21,6 +21,11 @@ inline LevelType levelSum(const LevelVector& l) {
   return std::accumulate(l.begin(), l.end(), static_cast<LevelType>(0));
 }
 
+template <std::size_t NumDimensions>
+inline LevelType levelSum(const std::array<LevelType, NumDimensions>& l) {
+  return std::accumulate(l.begin(), l.end(), static_cast<LevelType>(0));
+}
+
 }  // namespace combigrid
 
 #endif /* LEVELVECTOR_HPP_ */

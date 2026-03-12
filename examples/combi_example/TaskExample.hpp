@@ -8,6 +8,8 @@
 #ifndef TASKEXAMPLE_HPP_
 #define TASKEXAMPLE_HPP_
 
+#include <optional>
+
 #include "fullgrid/DistributedFullGrid.hpp"
 #include "task/Task.hpp"
 
@@ -27,13 +29,11 @@ class TaskExample : public Task<> {
         nsteps_(nsteps),
         p_(p),
         initialized_(false),
-        stepsTotal_(0),
-        dfg_(NULL) {}
+        stepsTotal_(0) {}
 
   void init(CommunicatorType lcomm,
             const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) {
     assert(!initialized_);
-    assert(dfg_ == NULL);
 
     int lrank = theMPISystem()->getLocalRank();
     int pgroupNumber = theMPISystem()->getProcessGroupNumber();
@@ -49,18 +49,21 @@ class TaskExample : public Task<> {
     }
 
     // create local subgrid on each process
-    dfg_ = new OwningDistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_,
-                                                        false, decomposition);
+    dfg_.emplace(makeOwningDistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(),
+                                                              p_, false, decomposition));
 
     /* loop over local subgrid and set initial values */
-    auto elements = dfg_->getData();
-
-    for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
-      IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
-      std::vector<real> globalCoords(dim);
-      dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
-      elements[i] = TaskExample::myfunction(globalCoords, 0.0);
-    }
+    std::visit(
+        [&](auto& dfg) {
+          auto elements = dfg.getData();
+          for (size_t i = 0; i < dfg.getNrLocalElements(); ++i) {
+            IndexType globalLinearIndex = dfg.getGlobalLinearIndex(i);
+            std::vector<real> globalCoords(dim);
+            dfg.getCoordsGlobal(globalLinearIndex, globalCoords);
+            elements[i] = TaskExample::myfunction(globalCoords, 0.0);
+          }
+        },
+        *dfg_);
 
     initialized_ = true;
   }
@@ -73,51 +76,44 @@ class TaskExample : public Task<> {
   void run(CommunicatorType lcomm) {
     assert(initialized_);
 
-    auto elements = dfg_->getData();
-    // TODO if your Example uses another data structure, you need to copy
-    // the data from elements to that data structure
+    std::visit(
+        [&](auto& dfg) {
+          auto elements = dfg.getData();
 
-    /* pseudo timestepping to demonstrate the behaviour of your typical
-     * time-dependent simulation problem. */
-    // TODO replace by your time stepping algorithm
+          /* pseudo timestepping to demonstrate the behaviour of your typical
+           * time-dependent simulation problem. */
 
-    for (size_t step = stepsTotal_; step < stepsTotal_ + nsteps_; ++step) {
-      real time = step * dt_;
+          for (size_t step = stepsTotal_; step < stepsTotal_ + nsteps_; ++step) {
+            real time = step * dt_;
 
-      for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
-        IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
-        std::vector<real> globalCoords(this->getDim());
-        dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
-        elements[i] = TaskExample::myfunction(globalCoords, time);
-      }
+            for (size_t i = 0; i < dfg.getNrLocalElements(); ++i) {
+              IndexType globalLinearIndex = dfg.getGlobalLinearIndex(i);
+              std::vector<real> globalCoords(this->getDim());
+              dfg.getCoordsGlobal(globalLinearIndex, globalCoords);
+              elements[i] = TaskExample::myfunction(globalCoords, time);
+            }
 
-      MPI_Barrier(lcomm);
-    }
+            MPI_Barrier(lcomm);
+          }
+        },
+        *dfg_);
 
     stepsTotal_ += nsteps_;
-
-    // TODO if your Example uses another data structure, you need to copy
-    // the data from that data structure to elements/dfg_
 
     this->setFinished(true);
   }
 
-  /* this function evaluates the combination solution on a given full grid.
-   * here, a full grid representation of your task's solution has to be created
-   * on the process of lcomm with the rank r.
-   * typically this would require gathering your (in whatever way) distributed
-   * solution on one process and then converting it to the full grid representation.
-   * the DistributedFullGrid class offers a convenient function to do this.
-   */
   void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) {
-    assert(fg.getLevels() == dfg_->getLevels());
-
-    dfg_->gatherFullGrid(fg, r);
+    std::visit([&](auto& dfg) { dfg.gatherFullGrid(fg, r); }, *dfg_);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) override { return *dfg_; }
+  DistributedFullGridRef<CombiDataType> getDistributedFullGrid(size_t n = 0) override {
+    return toRef<CombiDataType>(*dfg_);
+  }
 
-  const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) const override { return *dfg_; }
+  ConstDistributedFullGridRef<CombiDataType> getDistributedFullGrid(size_t n = 0) const override {
+    return toConstRef<CombiDataType>(*dfg_);
+  }
 
   static real myfunction(std::vector<real>& coords, real t) {
     real u = std::cos(M_PI * t);
@@ -129,17 +125,10 @@ class TaskExample : public Task<> {
 
   void setZero() {}
 
-  ~TaskExample() {
-    if (dfg_ != NULL) delete dfg_;
-  }
+  ~TaskExample() = default;
 
  protected:
-  /* if there are local variables that have to be initialized at construction
-   * you have to do it here. the worker processes will create the task using
-   * this constructor before overwriting the variables that are set by the
-   * manager. here we need to set the initialized variable to make sure it is
-   * set to false. */
-  TaskExample() : initialized_(false), stepsTotal_(1), dfg_(NULL) {}
+  TaskExample() : initialized_(false), stepsTotal_(1) {}
 
  private:
   friend class boost::serialization::access;
@@ -152,7 +141,7 @@ class TaskExample : public Task<> {
   // pure local variables that exist only on the worker processes
   bool initialized_;
   size_t stepsTotal_;
-  OwningDistributedFullGrid<CombiDataType>* dfg_;
+  std::optional<OwningDistributedFullGridVariant<CombiDataType>> dfg_;
 
   /**
    * The serialize function has to be extended by the new member variables.

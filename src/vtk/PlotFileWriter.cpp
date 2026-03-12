@@ -18,9 +18,7 @@ void DFGPlotFileWriter::writePlotMasterFile(size_t numberOfPieces,
 }
 
 template <>
-void DFGPlotFileWriter::writePlotFile<real>(
-                                          const DistributedFullGrid<real>& dfg,
-                                          IndexType speciesId) {
+void DFGPlotFileWriter::writePlotFile<real>(const auto& dfg, IndexType speciesId) {
   DimType dim = dfg.getDimension();
   assert(dim < 4 && "Vtk does not support domains with more than 3 dimensions");
   // create filename
