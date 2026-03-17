@@ -7,15 +7,15 @@
 
 namespace combigrid {
 
-template <typename CombinableType, typename CombiDataType = double>
-static std::vector<CombinableType> interpolateValues(
+template <typename CombiDataType = double>
+static std::vector<CombiDataType> interpolateValues(
     const std::vector<std::unique_ptr<Task<CombiDataType>>>& tasks,
     const std::vector<std::vector<real>>& interpolationCoords) {
   auto numCoordinates = interpolationCoords.size();
 
   // call interpolation function on tasks and reduce with combination coefficient
-  std::vector<CombinableType> values(numCoordinates, 0.);
-  std::vector<CombinableType> kahanTrailingTerm(numCoordinates, 0.);
+  std::vector<CombiDataType> values(numCoordinates, 0.);
+  std::vector<CombiDataType> kahanTrailingTerm(numCoordinates, 0.);
 
   for (const auto& task : tasks) {
     const auto coeff = task->getCoefficient();
@@ -24,7 +24,7 @@ static std::vector<CombinableType> interpolateValues(
     for (size_t i = 0; i < numCoordinates; ++i) {
       auto localValue = task->visitDistributedFullGrid(
           [&](const auto& dfg) { return dfg.evalLocal(interpolationCoords[i]); });
-      auto summand = localValue * static_cast<CombinableType>(coeff);
+      auto summand = localValue * static_cast<CombiDataType>(coeff);
       // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
       auto y = summand - kahanTrailingTerm[i];
       auto t = values[i] + y;
@@ -34,14 +34,14 @@ static std::vector<CombinableType> interpolateValues(
   }
   // reduce interpolated values within process group
   MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numCoordinates),
-                abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombinableType>()),
+                abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
                 MPI_SUM, theMPISystem()->getLocalComm());
   // TODO is it necessary to correct for the kahan terms across process groups too?
   //  need to reduce across process groups too
   //  these do not strictly need to be allreduce (could be reduce), but it is easier to maintain
   //  that way (all processes end up with valid values)
   MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numCoordinates),
-                abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombinableType>()),
+                abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
                 MPI_SUM, theMPISystem()->getGlobalReduceComm());
 
   // hope for RVO or change
@@ -69,13 +69,13 @@ static void writeInterpolatedValuesPerGrid(
   }
 }
 
-template <typename CombinableType, typename CombiDataType = double>
+template <typename CombiDataType = double>
 static void writeInterpolatedValuesSingleFile(
     const std::vector<std::unique_ptr<Task<CombiDataType>>>& tasks,
     const std::vector<std::vector<real>>& interpolationCoords, const std::string& filenamePrefix,
     IndexType currentCombinationStep) {
   // all processes interpolate
-  auto values = interpolateValues<CombinableType>(tasks, interpolationCoords);
+  auto values = interpolateValues<CombiDataType>(tasks, interpolationCoords);
   // one process writes
   OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION {
     MASTER_EXCLUSIVE_SECTION {
