@@ -93,7 +93,7 @@ class TaskAdvection : public Task<> {
 
           const std::vector<CombiDataType> velocity(dim, 1);
 
-          const std::vector<double> oneOverH = dfg.getInverseGridSpacing();
+          const auto oneOverH = dfg.getInverseGridSpacing();
           const auto& fullOffsets = dfg.getLocalOffsets();
 
           phi_->resize(numLocalElements);

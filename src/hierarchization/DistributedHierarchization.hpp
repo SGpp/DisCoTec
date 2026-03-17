@@ -105,15 +105,16 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
   MPI_Datatype mysubarray;
   {
     // sizes of local grid
-    std::vector<int> sizes(dfg.getLocalSizes().begin(), dfg.getLocalSizes().end());
+    std::array<int, DIM> sizes{};
+    const auto& localSizes = dfg.getLocalSizes();
+    std::copy(localSizes.begin(), localSizes.end(), sizes.begin());
     // sizes of subarray ( full size except dimension d )
-    std::vector<int> subsizes = sizes;
+    auto subsizes = sizes;
     subsizes[dim] = 1;
-    // start
-    std::vector<int> starts(dfg.getDimension(), 0);
+    std::array<int, DIM> starts{};
     // create subarray view on data
-    MPI_Type_create_subarray(static_cast<int>(dfg.getDimension()), &sizes[0], &subsizes[0],
-                             &starts[0], MPI_ORDER_FORTRAN, dfg.getMPIDatatype(), &mysubarray);
+    MPI_Type_create_subarray(static_cast<int>(DIM), sizes.data(), subsizes.data(), starts.data(),
+                             MPI_ORDER_FORTRAN, dfg.getMPIDatatype(), &mysubarray);
     MPI_Type_commit(&mysubarray);
   }
   MPI_Aint dfgStartAddr;
@@ -188,7 +189,7 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
       const auto& r = mapIt->first;
       const auto& indices = mapIt->second;
       assert(!indices.empty());
-      const IndexVector& lowerBoundsNeighbor = dfg.getLowerBounds(static_cast<int>(r));
+      const auto lowerBoundsNeighbor = dfg.getLowerBounds(static_cast<int>(r));
 
       std::vector<FG_ELEMENT*> bufs;
       bufs.reserve(indices.size());
