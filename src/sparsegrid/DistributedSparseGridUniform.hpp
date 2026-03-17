@@ -815,6 +815,10 @@ template <typename FG_ELEMENT>
 template <bool sparseGridFullyAllocated, DimType DIM>
 inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
     const DistributedFullGrid<FG_ELEMENT, DIM>& dfg, combigrid::real coeff) {
+  static_assert(
+      std::is_same_v<FG_ELEMENT, typename DistributedFullGrid<FG_ELEMENT, DIM>::ElementType>,
+      "element type of the distributed full grid must match the element type of this "
+      "distributed sparse grid -- remove this check if you know what you are doing");
   assert(this->isSubspaceDataCreated());
   if (this->subspacesDataContainer_.kahanData_.empty() ||
       this->subspacesDataContainer_.kahanDataBegin_.empty()) {

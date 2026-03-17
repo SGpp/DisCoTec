@@ -58,6 +58,7 @@ class DistributedFullGrid {
  public:
   static_assert(DIM > 0 && DIM <= 6, "DIM must be between 1 and 6");
 
+  using ElementType = FG_ELEMENT;
   using LevelsType = LevelArray<DIM>;
   using BoundaryFlagsType = BoundaryArray<DIM>;
   using SpacingType = std::array<double, DIM>;
