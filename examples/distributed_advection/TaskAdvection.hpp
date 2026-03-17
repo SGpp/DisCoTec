@@ -54,6 +54,7 @@ class TaskAdvection : public Task<> {
     dfg_.emplace(makeOwningDistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(),
                                                               p_, false, decomposition));
 
+    const DimType dim = this->getDim();
     std::visit(
         [&](auto& dfg) {
           if (phi_ == nullptr) {
@@ -70,8 +71,8 @@ class TaskAdvection : public Task<> {
           }
 
           TestFn f;
-          static thread_local std::vector<double> coords(this->getDim());
-#pragma omp parallel for schedule(static) default(none) shared(f, dfg)
+          static thread_local std::vector<double> coords(dim);
+#pragma omp parallel for schedule(static) default(none) shared(f, dfg, coords)
           for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
             dfg.getCoordsLocal(li, coords);
             dfg.getData()[li] = f(coords, 0.);
@@ -85,11 +86,12 @@ class TaskAdvection : public Task<> {
   void run(CommunicatorType lcomm) override {
     assert(initialized_);
 
+    const DimType dim = this->getDim();
     std::visit(
         [&](auto& dfg) {
           const auto numLocalElements = dfg.getNrLocalElements();
 
-          const std::vector<CombiDataType> velocity(this->getDim(), 1);
+          const std::vector<CombiDataType> velocity(dim, 1);
 
           const std::vector<double> oneOverH = dfg.getInverseGridSpacing();
           const auto& fullOffsets = dfg.getLocalOffsets();
@@ -100,19 +102,19 @@ class TaskAdvection : public Task<> {
             std::memset(phi_->data(), 0, phi_->size() * sizeof(CombiDataType));
             auto& u_dot_dphi = *phi_;
             auto const ElementVector = dfg.getData();
-            for (unsigned int d = 0; d < this->getDim(); ++d) {
+            for (unsigned int d = 0; d < dim; ++d) {
               static std::vector<int> subarrayExtents;
               std::vector<CombiDataType> phi_ghost{};
               MPI_Request recvRequest;
               dfg.exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost, &recvRequest);
               auto fullOffsetsInThisDimension = fullOffsets[d];
               {
-#pragma omp parallel for schedule(static) default(none)           \
-    firstprivate(d, numLocalElements, fullOffsetsInThisDimension) \
-    shared(u_dot_dphi, ElementVector, oneOverH, velocity)
+#pragma omp parallel for schedule(static) default(none)                \
+    firstprivate(d, dim, numLocalElements, fullOffsetsInThisDimension) \
+    shared(u_dot_dphi, ElementVector, oneOverH, velocity, dfg)
                 for (IndexType li = 0; li < fullOffsetsInThisDimension; ++li) {
 #ifndef NDEBUG
-                  IndexVector locAxisIndex(this->getDim());
+                  IndexVector locAxisIndex(dim);
                   dfg.getLocalVectorIndex(li, locAxisIndex);
                   if (locAxisIndex[d] > 0) {
                     --locAxisIndex[d];
@@ -128,12 +130,12 @@ class TaskAdvection : public Task<> {
                   auto dphi = (ElementVector[li] - phi_neighbor) * oneOverH[d];
                   u_dot_dphi[li] += velocity[d] * dphi;
                 }
-#pragma omp parallel for schedule(static) default(none)           \
-    firstprivate(d, numLocalElements, fullOffsetsInThisDimension) \
-    shared(u_dot_dphi, ElementVector, oneOverH, velocity)
+#pragma omp parallel for schedule(static) default(none)                \
+    firstprivate(d, dim, numLocalElements, fullOffsetsInThisDimension) \
+    shared(u_dot_dphi, ElementVector, oneOverH, velocity, dfg)
                 for (IndexType li = fullOffsetsInThisDimension; li < numLocalElements; ++li) {
 #ifndef NDEBUG
-                  IndexVector locAxisIndex(this->getDim());
+                  IndexVector locAxisIndex(dim);
                   dfg.getLocalVectorIndex(li, locAxisIndex);
                   if (locAxisIndex[d] > 0) {
                     --locAxisIndex[d];
@@ -156,16 +158,16 @@ class TaskAdvection : public Task<> {
               const IndexType numberOfPolesHigherDimensions = numLocalElements / jump;
               MPI_Wait(&recvRequest, MPI_STATUS_IGNORE);
               {
-#pragma omp parallel for schedule(static) default(none)                            \
-    firstprivate(d, numLocalElements, stride, jump, numberOfPolesHigherDimensions, \
-                     fullOffsetsInThisDimension)                                   \
-    shared(u_dot_dphi, ElementVector, oneOverH, phi_ghost, velocity, std::cout)
+#pragma omp parallel for schedule(static) default(none)                                 \
+    firstprivate(d, dim, numLocalElements, stride, jump, numberOfPolesHigherDimensions, \
+                     fullOffsetsInThisDimension)                                        \
+    shared(u_dot_dphi, ElementVector, oneOverH, phi_ghost, velocity, dfg, std::cout)
                 for (IndexType nLower = 0; nLower < stride; ++nLower) {
                   IndexType dfgLowestLayerIteratedIndex = nLower;
                   IndexType ghostIndex = nLower;
 #ifndef NDEBUG
                   assert(dfgLowestLayerIteratedIndex < numLocalElements);
-                  IndexVector locAxisIndex(this->getDim());
+                  IndexVector locAxisIndex(dim);
                   dfg.getLocalVectorIndex(dfgLowestLayerIteratedIndex, locAxisIndex);
                   assert(locAxisIndex[d] == 0);
 #endif
@@ -178,17 +180,17 @@ class TaskAdvection : public Task<> {
                   u_dot_dphi[dfgLowestLayerIteratedIndex] += velocity[d] * dphi;
                 }
 
-#pragma omp parallel for collapse(2) schedule(static) default(none)                \
-    firstprivate(d, numLocalElements, stride, jump, numberOfPolesHigherDimensions, \
-                     fullOffsetsInThisDimension)                                   \
-    shared(u_dot_dphi, ElementVector, oneOverH, phi_ghost, velocity, std::cout)
+#pragma omp parallel for collapse(2) schedule(static) default(none)                     \
+    firstprivate(d, dim, numLocalElements, stride, jump, numberOfPolesHigherDimensions, \
+                     fullOffsetsInThisDimension)                                        \
+    shared(u_dot_dphi, ElementVector, oneOverH, phi_ghost, velocity, dfg, std::cout)
                 for (IndexType nHigher = 1; nHigher < numberOfPolesHigherDimensions; ++nHigher) {
                   for (IndexType nLower = 0; nLower < stride; ++nLower) {
                     IndexType dfgLowestLayerIteratedIndex = nHigher * jump + nLower;
                     IndexType ghostIndex = nLower + nHigher * stride;
 #ifndef NDEBUG
                     assert(dfgLowestLayerIteratedIndex < numLocalElements);
-                    IndexVector locAxisIndex(this->getDim());
+                    IndexVector locAxisIndex(dim);
                     dfg.getLocalVectorIndex(dfgLowestLayerIteratedIndex, locAxisIndex);
                     assert(locAxisIndex[d] == 0);
 #endif
