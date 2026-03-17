@@ -70,7 +70,7 @@ class TaskAdvection : public Task<> {
 
           TestFn f;
           static thread_local std::vector<double> coords(dim);
-#pragma omp parallel for schedule(static) default(none) shared(f, dfg, coords)
+#pragma omp parallel for schedule(static) default(none) shared(f, dfg)
           for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
             dfg.getCoordsLocal(li, coords);
             dfg.getData()[li] = f(coords, 0.);
