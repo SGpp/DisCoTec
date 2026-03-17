@@ -91,7 +91,7 @@ class TestingTask : public combigrid::Task<> {
     visitDFG(
         [&](auto& dfg) {
           auto elements = dfg.getData();
-          for (size_t i = 0; i < dfg.getNrLocalElements(); ++i) {
+          for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i) {
             elements[i] = 0;  // default state is 0
           }
         },
@@ -107,7 +107,7 @@ class TestingTask : public combigrid::Task<> {
     visitDFG(
         [&](auto& dfg) {
           auto elements = dfg.getData();
-          for (size_t i = 0; i < dfg.getNrLocalElements(); ++i) {
+          for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i) {
             elements[i] = 10;  // after run was executed the state is 10
           }
         },
@@ -264,7 +264,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
         visitDFG(
             [&](auto& dfg) {
               auto elements = dfg.getData();
-              for (size_t i = 0; i < dfg.getNrLocalElements(); ++i) {
+              for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i) {
                 // Elements need to be always equal to 10 because
                 // * first run: run is executed
                 // * next run: run is executed

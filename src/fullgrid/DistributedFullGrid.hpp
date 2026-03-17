@@ -1135,7 +1135,8 @@ FG_ELEMENT DistributedFullGrid<FG_ELEMENT, DIM>::evalIndexAndAllUpperNeighbors(
   FG_ELEMENT result = 0.;
   auto localLinearIndex = this->getLocalLinearIndex(localIndex);
   for (size_t localIndexIterate = 0;
-       localIndexIterate < combigrid::powerOfTwoByBitshift(this->getDimension());
+       localIndexIterate <
+       static_cast<size_t>(combigrid::powerOfTwoByBitshift(this->getDimension()));
        ++localIndexIterate) {
 #ifndef NDEBUG
     auto neighborVectorIndex = localIndex;
@@ -1291,9 +1292,9 @@ void DistributedFullGrid<FG_ELEMENT, DIM>::gatherFullGrid(FullGrid<FG_ELEMENT>& 
 
       // create subarray view on data
       MPI_Datatype mysubarray;
-      MPI_Type_create_subarray(static_cast<int>(this->getDimension()), csizes.data(), csubsizes.data(),
-                               cstarts.data(), MPI_ORDER_FORTRAN, this->getMPIDatatype(),
-                               &mysubarray);
+      MPI_Type_create_subarray(static_cast<int>(this->getDimension()), csizes.data(),
+                               csubsizes.data(), cstarts.data(), MPI_ORDER_FORTRAN,
+                               this->getMPIDatatype(), &mysubarray);
       MPI_Type_commit(&mysubarray);
       subarrayTypes.push_back(mysubarray);
 
@@ -1331,8 +1332,8 @@ std::vector<IndexType> DistributedFullGrid<FG_ELEMENT, DIM>::getFGPointsOfSubspa
     subspaceIndices.reserve(numPointsOfSubspace);
 
     IndexType localLinearIndexSum = 0;
-    getFGPointsOfSubspaceRecursive(static_cast<DimType>(this->getDimension() - 1), localLinearIndexSum, oneDIndices,
-                                   subspaceIndices);
+    getFGPointsOfSubspaceRecursive(static_cast<DimType>(this->getDimension() - 1),
+                                   localLinearIndexSum, oneDIndices, subspaceIndices);
   }
   assert(static_cast<IndexType>(subspaceIndices.size()) == numPointsOfSubspace);
   return subspaceIndices;
@@ -1936,8 +1937,8 @@ MPI_Datatype DistributedFullGrid<FG_ELEMENT, DIM>::getUpwardSubarray(DimType d) 
 
   // create subarray view on data
   MPI_Datatype mysubarray;
-  MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(), subsizes.data(), starts.data(),
-                           MPI_ORDER_FORTRAN, this->getMPIDatatype(), &mysubarray);
+  MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(), subsizes.data(),
+                           starts.data(), MPI_ORDER_FORTRAN, this->getMPIDatatype(), &mysubarray);
   MPI_Type_commit(&mysubarray);
   return mysubarray;
 }
@@ -1978,8 +1979,8 @@ MPI_Datatype DistributedFullGrid<FG_ELEMENT, DIM>::getDownwardSubarray(DimType d
 
   // create subarray view on data
   MPI_Datatype mysubarray;
-  MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(), subsizes.data(), starts.data(),
-                           MPI_ORDER_FORTRAN, this->getMPIDatatype(), &mysubarray);
+  MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(), subsizes.data(),
+                           starts.data(), MPI_ORDER_FORTRAN, this->getMPIDatatype(), &mysubarray);
   MPI_Type_commit(&mysubarray);
   return mysubarray;
 }

@@ -56,7 +56,7 @@ class TaskExample : public Task<> {
     std::visit(
         [&](auto& dfg) {
           auto elements = dfg.getData();
-          for (size_t i = 0; i < dfg.getNrLocalElements(); ++i) {
+          for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i) {
             IndexType globalLinearIndex = dfg.getGlobalLinearIndex(i);
             std::vector<real> globalCoords(dim);
             dfg.getCoordsGlobal(globalLinearIndex, globalCoords);
@@ -86,7 +86,7 @@ class TaskExample : public Task<> {
           for (size_t step = stepsTotal_; step < stepsTotal_ + nsteps_; ++step) {
             real time = step * dt_;
 
-            for (size_t i = 0; i < dfg.getNrLocalElements(); ++i) {
+            for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i) {
               IndexType globalLinearIndex = dfg.getGlobalLinearIndex(i);
               std::vector<real> globalCoords(this->getDim());
               dfg.getCoordsGlobal(globalLinearIndex, globalCoords);

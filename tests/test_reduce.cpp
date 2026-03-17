@@ -66,7 +66,7 @@ class TaskConst : public combigrid::Task<> {
     visitDFG(
         [](auto& dfg) {
           auto elements = dfg.getData();
-          for (size_t i = 0; i < dfg.getNrLocalElements(); ++i) {
+          for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i) {
             elements[i] = 10;
           }
         },
@@ -80,7 +80,7 @@ class TaskConst : public combigrid::Task<> {
     visitDFG(
         [&](auto& dfg) {
           auto elements = dfg.getData();
-          for (size_t i = 0; i < dfg.getNrLocalElements(); ++i) {
+          for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i) {
             elements[i] = static_cast<double>(getLevelVector()[0]) / getLevelVector()[1];
           }
         },

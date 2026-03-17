@@ -53,7 +53,7 @@ class TaskCount : public combigrid::Task<> {
     std::visit(
         [](auto& dfg) {
           auto element = dfg.getData();
-          for (size_t i = 0; i < dfg.getNrLocalElements(); ++i) {
+          for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i) {
             element[i] = -0.;
           }
         },

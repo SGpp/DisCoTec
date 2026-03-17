@@ -334,7 +334,7 @@ void checkFullWeightingHierarchization(Functor& f,
   // but only if we hierarchize all the way down
   if (checkValues && lmin == LevelVector(dim, 0)) {
     auto cornersValues = dfg.getCornersValues();
-    BOOST_CHECK(cornersValues.size() == powerOfTwo[dim]);
+    BOOST_CHECK(cornersValues.size() == static_cast<size_t>(powerOfTwo[dim]));
 
     auto sumOfCornerValues =
         std::accumulate(cornersValues.begin(), cornersValues.end(), std::complex<double>(0.),
