@@ -284,43 +284,38 @@ namespace combigrid {
            + ".vti";
   }
 
-  template <typename FG_ELEMENT, DimType DIM>
-  void DFGPlotFileWriter<FG_ELEMENT, DIM>::setGlobalExtent() {
-    std::vector<int> dimensionsGlob { dfg_.getGlobalSizes().begin(),
-                                      dfg_.getGlobalSizes().end() };
-    dimensionsGlob.resize(3, 1);
-    globalExtent_ = { 0, dimensionsGlob[0]-1, 0, dimensionsGlob[1]-1, 0,
-                      dimensionsGlob[2]-1 };
-  }
-
-  template <typename FG_ELEMENT, DimType DIM>
-  void DFGPlotFileWriter<FG_ELEMENT, DIM>::setLocalExtent() {
-    DimType dim = dfg_.getDimension();
-    IndexVector minExtend(dim);
-    IndexVector maxExtend(dim);
-    IndexType minIndex = dfg_.getGlobalLinearIndex(0);
-    IndexType maxIndex = dfg_.getGlobalLinearIndex(dfg_.getNrLocalElements()-1);
-    dfg_.getGlobalVectorIndex(minIndex, minExtend);
-    dfg_.getGlobalVectorIndex(maxIndex, maxExtend);
-    minExtend.resize(3, 0);
-    maxExtend.resize(3, 0);
-    localExtent_ = { static_cast<int>(minExtend[0]),
-                     static_cast<int>(maxExtend[0]),
-                     static_cast<int>(minExtend[1]),
-                     static_cast<int>(maxExtend[1]),
-                     static_cast<int>(minExtend[2]),
-                     static_cast<int>(maxExtend[2]) };
-  }
-
-  template <typename FG_ELEMENT, DimType DIM>
-  void DFGPlotFileWriter<FG_ELEMENT, DIM>::setSpacing() {
-    std::vector<double> spacing {dfg_.getGlobalSizes().begin(),
-                                 dfg_.getGlobalSizes().end() };
-    std::for_each(spacing.begin(), spacing.end(),
-                  [](double& x){x = 1./(x-1.);});
-    spacing.resize(3, 0.);
-    spacing_ = {spacing[0], spacing[1], spacing[2]};
+template <typename FG_ELEMENT, DimType DIM>
+void DFGPlotFileWriter<FG_ELEMENT, DIM>::setGlobalExtent() {
+  const auto& sizes = dfg_.getGlobalSizes();
+  globalExtent_ = {};
+  for (DimType d = 0; d < std::min(DIM, DimType(3)); ++d) {
+    globalExtent_[2 * d + 1] = sizes[d] - 1;
   }
 }
+
+template <typename FG_ELEMENT, DimType DIM>
+void DFGPlotFileWriter<FG_ELEMENT, DIM>::setLocalExtent() {
+  IndexArray<DIM> minExtend;
+  IndexArray<DIM> maxExtend;
+  IndexType minIndex = dfg_.getGlobalLinearIndex(0);
+  IndexType maxIndex = dfg_.getGlobalLinearIndex(dfg_.getNrLocalElements() - 1);
+  dfg_.getGlobalVectorIndex(minIndex, minExtend);
+  dfg_.getGlobalVectorIndex(maxIndex, maxExtend);
+  localExtent_ = {};
+  for (DimType d = 0; d < std::min(DIM, DimType(3)); ++d) {
+    localExtent_[2 * d] = minExtend[d];
+    localExtent_[2 * d + 1] = maxExtend[d];
+  }
+}
+
+template <typename FG_ELEMENT, DimType DIM>
+void DFGPlotFileWriter<FG_ELEMENT, DIM>::setSpacing() {
+  const auto& sizes = dfg_.getGlobalSizes();
+  spacing_ = {};
+  for (DimType d = 0; d < std::min(DIM, DimType(3)); ++d) {
+    spacing_[d] = 1. / (sizes[d] - 1.);
+  }
+}
+}  // namespace combigrid
 #endif /* VTK_HPP_ */
 #endif /* USE_VTK */

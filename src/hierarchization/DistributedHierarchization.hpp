@@ -147,11 +147,8 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
               (index - dfg.getLowerBounds()[dim]) * dfg.getLocalOffsets()[dim];
 #ifndef NDEBUG
           {
-            static thread_local IndexVector lidxvec(dfg.getDimension(), 0);
-            lidxvec.resize(dfg.getDimension());
-            static thread_local IndexVector gidxvec;
-            const auto& lb = dfg.getLowerBounds();
-            gidxvec.assign(lb.begin(), lb.end());
+            IndexArray<DIM> lidxvec{};
+            IndexArray<DIM> gidxvec = dfg.getLowerBounds();
             gidxvec[dim] = index;
             [[maybe_unused]] bool tmp = dfg.getLocalVectorIndex(gidxvec, lidxvec);
             assert(tmp && "index to be send not in local domain");
@@ -924,7 +921,7 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
       const IndexType poleStart = nHigher * jump + nLower;  // local linear index
       const IndexType poleNumber = nLower + nHigher * numberOfPolesLowerDimensions;
 #ifndef NDEBUG
-      IndexVector localIndexVector(dfg.getDimension());
+      IndexArray<DIM> localIndexVector{};
       // compute global vector index of poleStart, make sure 0 in this dimension
       dfg.getLocalVectorIndex(poleStart, localIndexVector);
       assert(localIndexVector[dim] == 0);

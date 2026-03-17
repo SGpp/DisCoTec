@@ -1,17 +1,16 @@
 #ifdef USE_VTK
 #include "vtk/PlotFileWriter.hpp"
+
 #include "fault_tolerance/FTUtils.hpp"
 
 namespace combigrid {
-
 
 constexpr char DFGPlotFileWriter::outputDir[];
 
 void DFGPlotFileWriter::writePlotMasterFile(size_t numberOfPieces,
                                             const std::string& filenamePrefix) {
   std::string filename = filenamePrefix + ".pvti";
-  vtkSmartPointer<vtkXMLPImageDataWriter> writer =
-    vtkSmartPointer<vtkXMLPImageDataWriter>::New();
+  vtkSmartPointer<vtkXMLPImageDataWriter> writer = vtkSmartPointer<vtkXMLPImageDataWriter>::New();
   writer->SetFileName(filename.c_str());
   writer->SetNumberOfPieces(static_cast<int>(numberOfPieces));
   writer->Update();
@@ -22,18 +21,17 @@ void DFGPlotFileWriter::writePlotFile<real>(const auto& dfg, IndexType speciesId
   DimType dim = dfg.getDimension();
   assert(dim < 4 && "Vtk does not support domains with more than 3 dimensions");
   // create filename
-  const LevelVector& level = dfg.getLevels();
-  std::string filenamePrefix {createFilenamePrefix(dim, level, speciesId)};
+  const auto& level = dfg.getLevels();
+  std::string filenamePrefix{createFilenamePrefix(dim, level, speciesId)};
   RankType myRank = theMPISystem()->getLocalRank();
   std::string filename = filenamePrefix + "_" + std::to_string(myRank) + ".vti";
 
   // set metadata
-  IndexVector dimensions = dfg.getLocalSizes();
+  auto dimensionsArr = dfg.getLocalSizes();
+  IndexVector dimensions(dimensionsArr.begin(), dimensionsArr.end());
   std::vector<double> spacing(dimensions.begin(), dimensions.end());
-  std::for_each(spacing.begin(), spacing.end(),
-      [](double& x){x = 1./(x-1.);});
-  vtkSmartPointer<vtkImageData> imageData =
-    vtkSmartPointer<vtkImageData>::New();
+  std::for_each(spacing.begin(), spacing.end(), [](double& x) { x = 1. / (x - 1.); });
+  vtkSmartPointer<vtkImageData> imageData = vtkSmartPointer<vtkImageData>::New();
   imageData->AllocateScalars(VTK_DOUBLE, 1);
   std::vector<real> origin(dim);
   dfg.getCoordsLocal(0, origin);
@@ -43,21 +41,19 @@ void DFGPlotFileWriter::writePlotFile<real>(const auto& dfg, IndexType speciesId
   std::reverse(origin.begin(), origin.end());
   std::reverse(spacing.begin(), spacing.end());
 
-  switch(dim) {
+  switch (dim) {
     case 1:
       imageData->SetDimensions(static_cast<int>(dimensions[0]), 1, 1);
       imageData->SetSpacing(spacing[0], 0., 0.);
       imageData->SetOrigin(origin[0], 0., 0.);
       break;
     case 2:
-      imageData->SetDimensions(static_cast<int>(dimensions[0]),
-                               static_cast<int>(dimensions[1]), 1);
+      imageData->SetDimensions(static_cast<int>(dimensions[0]), static_cast<int>(dimensions[1]), 1);
       imageData->SetSpacing(spacing[0], spacing[1], 0.);
       imageData->SetOrigin(origin[0], origin[1], 0.);
       break;
     case 3:
-      imageData->SetDimensions(static_cast<int>(dimensions[0]),
-                               static_cast<int>(dimensions[1]),
+      imageData->SetDimensions(static_cast<int>(dimensions[0]), static_cast<int>(dimensions[1]),
                                static_cast<int>(dimensions[2]));
       imageData->SetSpacing(spacing[0], spacing[1], spacing[2]);
       imageData->SetOrigin(origin[0], origin[1], origin[2]);
@@ -69,8 +65,8 @@ void DFGPlotFileWriter::writePlotFile<real>(const auto& dfg, IndexType speciesId
 
   // loop over rows i -> dim2
   vtkNew<vtkDoubleArray> scalars;
-  IndexVector localOffsets = dfg.getLocalOffsets();
-  IndexVector nrLocalPoints = dfg.getLocalSizes();
+  const auto& localOffsets = dfg.getLocalOffsets();
+  const auto& nrLocalPoints = dfg.getLocalSizes();
   for (IndexType i = 0; i < nrLocalPoints[1]; ++i) {
     IndexType offset = localOffsets[1] * i;
     for (IndexType j = 0; j < nrLocalPoints[0]; ++j) {

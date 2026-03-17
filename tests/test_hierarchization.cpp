@@ -231,7 +231,7 @@ real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
   for (size_t cornerNo = 0; cornerNo < corners.size(); ++cornerNo) {
     if (dfgOne->isGlobalIndexHere(corners[cornerNo])) {
       // convert to local vector index, then to linear index
-      IndexVector locAxisIndex(dfgOne->getDimension());
+      IndexArray<DIM> locAxisIndex;
       bool present = dfgOne->getLocalVectorIndex(corners[cornerNo], locAxisIndex);
       BOOST_CHECK(present);
       auto index = dfgOne->getLocalLinearIndex(locAxisIndex);
