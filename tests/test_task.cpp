@@ -2,18 +2,20 @@
 // to resolve https://github.com/open-mpi/ompi/issues/5157
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
+
+#include <boost/serialization/export.hpp>
 #include <boost/test/unit_test.hpp>
 #include <complex>
 #include <cstdarg>
 #include <iostream>
+#include <optional>
 #include <vector>
 
-#include <boost/serialization/export.hpp>
+#include "fullgrid/DistributedFullGrid.hpp"
 #include "loadmodel/LinearLoadModel.hpp"
 #include "task/Task.hpp"
-#include "utils/Config.hpp"
-
 #include "test_helper.hpp"
+#include "utils/Config.hpp"
 
 using namespace combigrid;
 
@@ -29,34 +31,32 @@ class TaskTest : public combigrid::Task<> {
             const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) override {
     // create dummy dfg
     std::vector<int> p(getDim(), 1);
-    dfg_ = new OwningDistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm,
-                                                        getBoundary(), p);
+    dfg_.emplace(makeOwningDistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm,
+                                                              getBoundary(), p));
   }
 
   void run(CommunicatorType lcomm) override {}
 
   void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm,
                    int n = 0) override {
-    dfg_->gatherFullGrid(fg, r);
+    std::visit([&](auto& dfg) { dfg.gatherFullGrid(fg, r); }, *dfg_);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) override {
-    return *dfg_;
+  DistributedFullGridRef<CombiDataType> getDistributedFullGrid(size_t n = 0) override {
+    return toRef<CombiDataType>(*dfg_);
   }
 
   void setZero() override {}
 
-  ~TaskTest() {
-    if (dfg_ != NULL) delete dfg_;
-  }
+  ~TaskTest() = default;
 
  protected:
-  TaskTest() : dfg_(NULL) {}
+  TaskTest() {}
 
  private:
   friend class boost::serialization::access;
 
-  OwningDistributedFullGrid<CombiDataType>* dfg_;
+  std::optional<OwningDistributedFullGridVariant<CombiDataType>> dfg_;
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {

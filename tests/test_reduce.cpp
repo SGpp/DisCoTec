@@ -2,14 +2,16 @@
 // to resolve https://github.com/open-mpi/ompi/issues/5157
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
+
+#include <boost/serialization/export.hpp>
 #include <boost/test/unit_test.hpp>
 #include <cmath>
 #include <complex>
 #include <cstdarg>
 #include <iostream>
+#include <optional>
 #include <vector>
 
-#include <boost/serialization/export.hpp>
 #include "combischeme/CombiMinMaxScheme.hpp"
 #include "fault_tolerance/FaultCriterion.hpp"
 #include "fault_tolerance/StaticFaults.hpp"
@@ -21,9 +23,9 @@
 #include "manager/ProcessGroupWorker.hpp"
 #include "manager/ProcessManager.hpp"
 #include "task/Task.hpp"
+#include "test_helper.hpp"
 #include "utils/Config.hpp"
 #include "utils/Types.hpp"
-#include "test_helper.hpp"
 
 using namespace combigrid;
 
@@ -41,7 +43,7 @@ class TaskConst : public combigrid::Task<> {
     // parallelization
     // assert(dfg_ == nullptr);
     auto nprocs = getCommSize(lcomm);
-    std::vector<int> p = {nprocs,1};
+    std::vector<int> p = {nprocs, 1};
 
     // decomposition = std::vector<IndexVector>(2);
     // size_t l1 = getLevelVector()[1];
@@ -57,51 +59,62 @@ class TaskConst : public combigrid::Task<> {
     //   // std::cout << decomposition[1].back() << std::endl;
     // }
 
-    dfg_ = new OwningDistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm,
-                                                        getBoundary(), p, false, decomposition);
+    dfg_.emplace(makeOwningDistributedFullGrid<CombiDataType>(
+        getDim(), getLevelVector(), lcomm, getBoundary(), p, false, decomposition));
 
-    auto elements = dfg_->getData();
-    for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
-      elements[i] = 10;
-    }
+    auto ref = toRef(*dfg_);
+    visitDFG(
+        [](auto& dfg) {
+          auto elements = dfg.getData();
+          for (size_t i = 0; i < dfg.getNrLocalElements(); ++i) {
+            elements[i] = 10;
+          }
+        },
+        ref);
   }
 
   void run(CommunicatorType lcomm) {
-
     std::cout << "run " << getCommRank(lcomm) << std::endl;
-    
-    auto elements = dfg_->getData();
-    for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
-      // BOOST_CHECK(abs(dfg_->getData()[li]));
-      elements[i] = static_cast<double>(getLevelVector()[0]) / getLevelVector()[1];
-    }
-    BOOST_CHECK(dfg_);
+
+    auto ref = toRef(*dfg_);
+    visitDFG(
+        [&](auto& dfg) {
+          auto elements = dfg.getData();
+          for (size_t i = 0; i < dfg.getNrLocalElements(); ++i) {
+            elements[i] = static_cast<double>(getLevelVector()[0]) / getLevelVector()[1];
+          }
+        },
+        ref);
+    BOOST_CHECK(dfg_.has_value());
 
     setFinished(true);
-    
+
     MPI_Barrier(lcomm);
     // std::cerr << "barrier" << std::endl;
   }
 
   void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) {
-    dfg_->gatherFullGrid(fg, r);
+    auto ref = toRef(*dfg_);
+    visitDFG([&](auto& dfg) { dfg.gatherFullGrid(fg, r); }, ref);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) override { return *dfg_; }
+  DistributedFullGridRef<CombiDataType> getDistributedFullGrid(size_t n = 0) override {
+    return toRef(*dfg_);
+  }
+
+  ConstDistributedFullGridRef<CombiDataType> getDistributedFullGrid(size_t n) const override {
+    return toConstRef(*dfg_);
+  }
 
   void setZero() {}
 
-  ~TaskConst() {
-    if (dfg_ != NULL) delete dfg_;
-  }
-
  protected:
-  TaskConst() : dfg_(NULL) {}
+  TaskConst() = default;
 
  private:
   friend class boost::serialization::access;
 
-  OwningDistributedFullGrid<CombiDataType>* dfg_;
+  std::optional<OwningDistributedFullGridVariant<CombiDataType>> dfg_;
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
@@ -172,14 +185,14 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
     std::vector<int> parallelization = {static_cast<int>(nprocs), 1};
     // create combiparameters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
-    params.setParallelization(parallelization); //TODO why??
+    params.setParallelization(parallelization);  // TODO why??
 
     // create abstraction for Manager
     ProcessManager<> manager(pgroups, tasks, params, std::move(loadmodel));
 
     // the combiparameters are sent to all process groups before the
     // computations start
-    manager.updateCombiParameters(); //TODO move to manager constructor or runfirst?
+    manager.updateCombiParameters();  // TODO move to manager constructor or runfirst?
 
     /* distribute task according to load model and start computation for
      * the first time */
@@ -190,7 +203,7 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
       std::cout << "combine " << std::endl;
       manager.combine();
     }
-    
+
     // compare with known results:
     // point in the middle
     std::vector<std::vector<real>> midPoint = {{0.5, 0.5}};
@@ -218,26 +231,26 @@ BOOST_FIXTURE_TEST_SUITE(reduce, TestHelper::BarrierAtEnd, *boost::unit_test::ti
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
                                  boost::unit_test::timeout(60)) {
-  std::cout << "reduce/test_1"<< std::endl;
-  checkCombine(1,1);
+  std::cout << "reduce/test_1" << std::endl;
+  checkCombine(1, 1);
 }
 
 BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
                                  boost::unit_test::timeout(60)) {
-  std::cout << "reduce/test_2"<< std::endl;
-  checkCombine(1,2);
+  std::cout << "reduce/test_2" << std::endl;
+  checkCombine(1, 2);
 }
 
 BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
                                  boost::unit_test::timeout(60)) {
-  std::cout << "reduce/test_3"<< std::endl;
-  checkCombine(2,2);
+  std::cout << "reduce/test_3" << std::endl;
+  checkCombine(2, 2);
 }
 
 BOOST_AUTO_TEST_CASE(test_4, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
                                  boost::unit_test::timeout(60)) {
-  std::cout << "reduce/test_4"<< std::endl;
-  checkCombine(2,4);
+  std::cout << "reduce/test_4" << std::endl;
+  checkCombine(2, 4);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

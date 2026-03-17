@@ -29,6 +29,7 @@
 
 using namespace combigrid;
 
+template <DimType DIM>
 void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vector<int>& procs,
                                 std::vector<BoundaryType>& boundary, int size) {
   CommunicatorType comm = TestHelper::getComm(procs);
@@ -111,9 +112,9 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     auto dfgDecomposition =
         combigrid::downsampleDecomposition(decomposition, lref, dfgLevel, boundary);
 
-    auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<std::complex<double>>>(
-        new OwningDistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs,
-                                                            true, dfgDecomposition));
+    auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<std::complex<double>, DIM>>(
+        new OwningDistributedFullGrid<std::complex<double>, DIM>(dim, dfgLevel, comm, boundary,
+                                                                 procs, true, dfgDecomposition));
 
     uniDSG->registerDistributedFullGrid(*uniDFG);
 
@@ -233,9 +234,9 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
 
     // have a tiny delay here, by already allocating dfg
     dfgDecomposition = combigrid::downsampleDecomposition(decomposition, lref, dfgLevel, boundary);
-    auto largeUniDFG = std::unique_ptr<OwningDistributedFullGrid<std::complex<double>>>(
-        new OwningDistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs,
-                                                            true, dfgDecomposition));
+    auto largeUniDFG = std::unique_ptr<OwningDistributedFullGrid<std::complex<double>, DIM>>(
+        new OwningDistributedFullGrid<std::complex<double>, DIM>(dim, dfgLevel, comm, boundary,
+                                                                 procs, true, dfgDecomposition));
 
     BOOST_TEST_CHECKPOINT("read from disk chunked");
     uniDSGfromSubspaces->setZero();
@@ -309,7 +310,7 @@ BOOST_AUTO_TEST_CASE(test_0) {
     std::vector<BoundaryType> boundary(2, bValue);
     auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
     BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
-    checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
+    checkDistributedSparsegrid<2>(lmin, lmax, procs, boundary, multProcs);
     MPI_Barrier(MPI_COMM_WORLD);
   }
 }
@@ -324,7 +325,7 @@ BOOST_AUTO_TEST_CASE(test_1) {
       std::vector<int> procs = {procOne, procTwo};
       auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
       BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
-      checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
+      checkDistributedSparsegrid<2>(lmin, lmax, procs, boundary, multProcs);
       MPI_Barrier(MPI_COMM_WORLD);
     }
   }
@@ -340,7 +341,7 @@ BOOST_AUTO_TEST_CASE(test_2) {
       std::vector<int> procs = {procOne, procTwo};
       auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
       BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
-      checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
+      checkDistributedSparsegrid<2>(lmin, lmax, procs, boundary, multProcs);
       MPI_Barrier(MPI_COMM_WORLD);
     }
   }
@@ -357,7 +358,7 @@ BOOST_AUTO_TEST_CASE(test_3) {
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
-        checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
+        checkDistributedSparsegrid<2>(lmin, lmax, procs, boundary, multProcs);
         MPI_Barrier(MPI_COMM_WORLD);
       }
     }
@@ -374,7 +375,7 @@ BOOST_AUTO_TEST_CASE(test_4) {
       std::vector<int> procs = {procOne, procTwo, 1};
       auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
       BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
-      checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
+      checkDistributedSparsegrid<3>(lmin, lmax, procs, boundary, multProcs);
       MPI_Barrier(MPI_COMM_WORLD);
     }
   }
@@ -390,7 +391,7 @@ BOOST_AUTO_TEST_CASE(test_5) {
       std::vector<int> procs = {procOne, procTwo, 1};
       auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
       BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
-      checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
+      checkDistributedSparsegrid<3>(lmin, lmax, procs, boundary, multProcs);
       MPI_Barrier(MPI_COMM_WORLD);
     }
   }
@@ -407,7 +408,7 @@ BOOST_AUTO_TEST_CASE(test_6) {
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
-        checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
+        checkDistributedSparsegrid<3>(lmin, lmax, procs, boundary, multProcs);
         MPI_Barrier(MPI_COMM_WORLD);
       }
     }
@@ -426,7 +427,7 @@ BOOST_AUTO_TEST_CASE(test_7) {
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
-        checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
+        checkDistributedSparsegrid<4>(lmin, lmax, procs, boundary, multProcs);
         MPI_Barrier(MPI_COMM_WORLD);
       }
     }
@@ -445,7 +446,7 @@ BOOST_AUTO_TEST_CASE(test_8) {
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
-        checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
+        checkDistributedSparsegrid<6>(lmin, lmax, procs, boundary, multProcs);
         MPI_Barrier(MPI_COMM_WORLD);
       }
     }
@@ -693,9 +694,9 @@ BOOST_AUTO_TEST_CASE(test_reduceSubspaceSizesFileBased) {
         new DistributedSparseGridUniform<combigrid::DimType>(dim, lmax, lmin, comm));
 
     {  // register full grid
-      auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<combigrid::DimType>>(
-          new OwningDistributedFullGrid<combigrid::DimType>(dim, lfull, comm, boundary, procs,
-                                                            false));
+      auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<combigrid::DimType, 6>>(
+          new OwningDistributedFullGrid<combigrid::DimType, 6>(dim, lfull, comm, boundary, procs,
+                                                               false));
       uniDSG->registerDistributedFullGrid(*uniDFG);
     }
 
@@ -708,9 +709,9 @@ BOOST_AUTO_TEST_CASE(test_reduceSubspaceSizesFileBased) {
 
     {  // register reversed full grid
       std::reverse(lfull.begin(), lfull.end());
-      auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<combigrid::DimType>>(
-          new OwningDistributedFullGrid<combigrid::DimType>(dim, lfull, comm, boundary, procs,
-                                                            false));
+      auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<combigrid::DimType, 6>>(
+          new OwningDistributedFullGrid<combigrid::DimType, 6>(dim, lfull, comm, boundary, procs,
+                                                               false));
       uniDSG->registerDistributedFullGrid(*uniDFG);
     }
 
@@ -761,9 +762,9 @@ BOOST_AUTO_TEST_CASE(test_writeOneFile) {
       if (levelSum(level) >= maxLevelSum) {
         auto dfgDecomposition =
             combigrid::downsampleDecomposition(decomposition, lmax, level, boundary);
-        auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<combigrid::real>>(
-            new OwningDistributedFullGrid<combigrid::real>(dim, level, comm, boundary, procs, true,
-                                                           dfgDecomposition));
+        auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<combigrid::real, 4>>(
+            new OwningDistributedFullGrid<combigrid::real, 4>(dim, level, comm, boundary, procs,
+                                                              true, dfgDecomposition));
         uniDSG->registerDistributedFullGrid(*uniDFG);
       }
     }
@@ -900,9 +901,9 @@ BOOST_AUTO_TEST_CASE(test_sparseGridAndSubspaceReduce) {
         auto procs = std::vector<int>(dimensionality, 1);
         // for each level, create DFG and register to set DSG's subspace sizes
         for (size_t i = 0; i < myLevels.size(); ++i) {
-          auto dfg = std::unique_ptr<DistributedFullGrid<combigrid::real>>(
-              new DistributedFullGrid<combigrid::real>(dimensionality, myLevels[i], myOwnComm,
-                                                       boundary, nullptr, procs, false));
+          auto dfg = std::unique_ptr<DistributedFullGrid<combigrid::real, dimensionality>>(
+              new DistributedFullGrid<combigrid::real, dimensionality>(
+                  dimensionality, myLevels[i], myOwnComm, boundary, nullptr, procs, false));
           uniDSG->registerDistributedFullGrid(*dfg);
         }
 

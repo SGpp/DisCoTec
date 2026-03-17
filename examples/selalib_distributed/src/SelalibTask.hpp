@@ -48,15 +48,15 @@ namespace combigrid {
 class SelalibTask;
 inline std::ostream& operator<<(std::ostream& os, const SelalibTask& t);
 
-static constexpr DimType sixdimensions = 6;
-
 class SelalibTask : public combigrid::Task<> {
+  static constexpr DimType DIM = 6;
+
  public:
   SelalibTask(LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
               LoadModel* loadModel, std::string& path, real dt, size_t nsteps,
               const std::vector<int>& p = std::vector<int>(0),
               FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
-      : Task(sixdimensions, l, boundary, coeff, loadModel, faultCrit),
+      : Task(DIM, l, boundary, coeff, loadModel, faultCrit),
         path_(path),
         p_(p),
         localSize_(),
@@ -156,8 +156,8 @@ class SelalibTask : public combigrid::Task<> {
     bool haveResolution = coeff_ == std::numeric_limits<combigrid::real>::max();
     if (!haveResolution) {
       dfg_ =
-          new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
-                                                 localDistribution_, p_, false, decomposition);
+          new DistributedFullGrid<CombiDataType, DIM>(DIM, getLevelVector(), lcomm, getBoundary(),
+                                                      localDistribution_, p_, false, decomposition);
     }
     initialized_ = true;
     changeDir(lcomm);
@@ -201,7 +201,9 @@ class SelalibTask : public combigrid::Task<> {
   /**
    * Returns the distributed full grid of the specified specie
    */
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t specie) { return *dfg_; }
+  DistributedFullGridRef<CombiDataType> getDistributedFullGrid(size_t specie = 0) override {
+    return std::ref(static_cast<DistributedFullGrid<CombiDataType, DIM>&>(*dfg_));
+  }
 
   /**
    * @return double* the pointer to the distribution (in Fortran allocated memory)
@@ -255,7 +257,7 @@ class SelalibTask : public combigrid::Task<> {
   // serialized
   std::array<int32_t, 6> localSize_;
   double* localDistribution_;
-  DistributedFullGrid<CombiDataType>* dfg_;
+  DistributedFullGrid<CombiDataType, DIM>* dfg_;
   void* selalibSimPointer_;
   void** simPtrPtr_ = &selalibSimPointer_;
 

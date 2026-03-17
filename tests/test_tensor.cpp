@@ -108,7 +108,7 @@ BOOST_AUTO_TEST_CASE(test_iterate_lower_boundaries_6d) {
         tensorLowestLayerIteratedIndex = nHigher * jump;  // local linear index
         for (IndexType nLower = 0; nLower < tensor.getOffsetsArray()[d];
              ++nLower && ++tensorLowestLayerIteratedIndex && ++numberOfPointsVisited) {
-          auto arrayIndex = tensor.getVectorIndex(tensorLowestLayerIteratedIndex);
+          auto arrayIndex = tensor.getArrayIndex(tensorLowestLayerIteratedIndex);
           BOOST_CHECK_EQUAL(arrayIndex[d], 0);
         }
       }

@@ -43,27 +43,29 @@ bool checkReducedFullGridIntegration(ProcessGroupWorker<>& worker, int nrun) {
 
   for (const auto& t : tasks) {
     for (int g = 0; g < numGrids; g++) {
-      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
-      for (auto b : dfg.returnBoundaryFlags()) {
-        BOOST_CHECK(b == 2);
-      }
+      auto dfgRef = t->getDistributedFullGrid(g);
+      visitDFG(
+          [&](auto& dfg) {
+            for (auto b : dfg.returnBoundaryFlags()) {
+              BOOST_CHECK(b == 2);
+            }
 
-      TestFnCount<CombiDataType> initialFunction;
-      for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
-        std::vector<double> coords(dfg.getDimension());
-        dfg.getCoordsLocal(li, coords);
-        CombiDataType expected = initialFunction(coords, nrun);
-        CombiDataType occuring = dfg.getData()[li];
-        for (auto& c : coords) {
-          BOOST_CHECK(c >= 0.);
-          BOOST_CHECK(c <= 1.);
-        }
-        // checking absolute and real value since comparing std::complex may be tricky
-        BOOST_CHECK_CLOSE(std::abs(expected), std::abs(occuring), TestHelper::tolerance);
-        BOOST_CHECK_CLOSE(std::real(expected), std::real(occuring), TestHelper::tolerance);
-        // BOOST_REQUIRE_CLOSE(expected, occuring, TestHelper::tolerance);
-        any = true;
-      }
+            TestFnCount<CombiDataType> initialFunction;
+            for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+              std::vector<double> coords(dfg.getDimension());
+              dfg.getCoordsLocal(li, coords);
+              CombiDataType expected = initialFunction(coords, nrun);
+              CombiDataType occuring = dfg.getData()[li];
+              for (auto& c : coords) {
+                BOOST_CHECK(c >= 0.);
+                BOOST_CHECK(c <= 1.);
+              }
+              BOOST_CHECK_CLOSE(std::abs(expected), std::abs(occuring), TestHelper::tolerance);
+              BOOST_CHECK_CLOSE(std::real(expected), std::real(occuring), TestHelper::tolerance);
+              any = true;
+            }
+          },
+          dfgRef);
     }
   }
   BOOST_REQUIRE(any);
