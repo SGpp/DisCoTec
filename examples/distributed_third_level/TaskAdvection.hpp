@@ -48,13 +48,11 @@ class TaskAdvection : public Task<> {
             const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) override {
     assert(!initialized_);
 
-    DimType dim = this->getDim();
+    const DimType dim = this->getDim();
     const LevelVector& l = this->getLevelVector();
 
     dfg_.emplace(makeOwningDistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(),
-                                                              p_, false, decomposition));
-
-    const DimType dim = this->getDim();
+                                                              p_, false, decomposition));    
     std::visit(
         [&](auto& dfg) {
           if (phi_ == nullptr) {
