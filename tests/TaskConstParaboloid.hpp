@@ -21,7 +21,7 @@ class ParaboloidFn {
     FG_ELEMENT sign;
     (dim % 2) ? sign = 1. : sign = -1.;
     FG_ELEMENT result(sign);
-    for (size_t d = 0; d < dim; ++d) {
+    for (DimType d = 0; d < dim; ++d) {
       result *= coords[d] * (coords[d] - 1.);
     }
     return result;

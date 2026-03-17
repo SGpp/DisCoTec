@@ -100,7 +100,7 @@ class TaskAdvection : public Task<> {
             std::memset(phi_->data(), 0, phi_->size() * sizeof(CombiDataType));
             auto& u_dot_dphi = *phi_;
             auto const ElementVector = dfg.getData();
-            for (unsigned int d = 0; d < dim; ++d) {
+            for (DimType d = 0; d < dim; ++d) {
               static std::vector<int> subarrayExtents;
               std::vector<CombiDataType> phi_ghost{};
               MPI_Request recvRequest;
