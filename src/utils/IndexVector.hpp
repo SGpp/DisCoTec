@@ -34,7 +34,7 @@ inline std::array<T, Dim> toArray(const std::vector<T>& v) {
   return a;
 }
 
-template <DimType Dim, typename T>
+template <size_t Dim, typename T>
 inline std::vector<T> toVector(const std::array<T, Dim>& a) {
   return std::vector<T>(a.begin(), a.end());
 }

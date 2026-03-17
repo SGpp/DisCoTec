@@ -62,7 +62,7 @@ class DistributedFullGrid {
   using BoundaryFlagsType = BoundaryArray<DIM>;
   using SpacingType = std::array<double, DIM>;
   using DimIndexType = IndexArray<DIM>;
-  using IndexerType = TensorIndexerDim<DIM>;
+  using IndexerType = TensorIndexer<DIM>;
   using TensorType = TensorDim<FG_ELEMENT, DIM>;
   using DecompositionType = std::array<IndexVector, DIM>;
 
@@ -242,7 +242,7 @@ class DistributedFullGrid {
 
   /** get the number of elements in the local partition */
   inline IndexType getNrLocalElements() const {
-    return static_cast<IndexType>(localIndexer_.size());
+    return static_cast<IndexType>(localTensor_.size());
   }
 
   /** get vector extents of the local grid */
@@ -258,10 +258,10 @@ class DistributedFullGrid {
   inline const BoundaryFlagsType& returnBoundaryFlags() const { return hasBoundaryPoints_; }
 
   /** get pointer to the beginning of the local data */
-  inline FG_ELEMENT* getData() { return localData_; }
+  inline FG_ELEMENT* getData() { return localTensor_.getData(); }
 
   /** get const pointer to the beginning of the local data */
-  inline const FG_ELEMENT* getData() const { return localData_; }
+  inline const FG_ELEMENT* getData() const { return localTensor_.getData(); }
 
   /** zero out all values in the local storage
    *
@@ -312,7 +312,7 @@ class DistributedFullGrid {
   RankType getNeighbor1dFromAxisIndex(DimType dim, IndexType idx1d) const;
 
   /** get the number of cartesian ranks in every dimension */
-  inline const std::vector<int>& getParallelization() const;
+  inline const std::array<int, DIM>& getParallelization() const;
 
   /** get the 1d global index of the first point in the local domain */
   inline IndexType getFirstGlobal1dIndex(DimType d) const { return getLowerBounds()[d]; }
@@ -543,11 +543,11 @@ class DistributedFullGrid {
   std::vector<FG_ELEMENT> getCornersValues() const;
 
   /** get the MPICartesianUtils associated with this */
-  const MPICartesianUtils& getCartesianUtils() const { return cartesianUtils_; }
+  const MPICartesianUtils<DIM>& getCartesianUtils() const { return cartesianUtils_; }
 
  protected:
   /** set the data pointer, data needs to be allocated outside */
-  inline void setData(FG_ELEMENT* newData) { localData_ = newData; }
+  inline void setData(FG_ELEMENT* newData) { localTensor_.setData(newData); }
 
  private:
   /**
@@ -614,7 +614,7 @@ class DistributedFullGrid {
   DecompositionType decomposition_;
 
   /** utility to get info about cartesian communicator  */
-  static MPICartesianUtils cartesianUtils_;
+  static MPICartesianUtils<DIM> cartesianUtils_;
 
   // the MPI Datatypes representing the boundary layers of the MPI processes' subgrid
   std::vector<MPI_Datatype> downwardSubarrays_;
@@ -651,12 +651,12 @@ DistributedFullGrid<FG_ELEMENT, DIM>::DistributedFullGrid(
 
   if (decomposition.size() == 0) {
     setDecomposition(getDefaultDecomposition(
-        nrPoints, this->getCartesianUtils().getCartesianDimensions(), forwardDecomposition));
+        nrPoints, this->getCartesianUtils().getCartesianDimensionsVector(), forwardDecomposition));
   } else {
     setDecomposition(decomposition);
   }
 
-  globalIndexer_ = TensorIndexerDim<DIM>(toArray<DIM>(nrPoints));
+  globalIndexer_ = TensorIndexer<DIM>(toArray<DIM>(nrPoints));
 
   myPartitionsLowerBounds_ = toArray<DIM>(getLowerBounds(this->getRank()));
   myPartitionsFirstGlobalIndex_ = globalIndexer_.sequentialIndex(myPartitionsLowerBounds_);
@@ -755,7 +755,7 @@ void DistributedFullGrid<FG_ELEMENT, DIM>::getGlobalVectorIndex(IndexType globLi
   assert(globLinIndex < this->getNrElements());
   assert(globAxisIndex.size() == DIM);
 
-  auto arr = this->globalIndexer_.getVectorIndex(globLinIndex);
+  auto arr = this->globalIndexer_.getArrayIndex(globLinIndex);
   globAxisIndex.assign(arr.begin(), arr.end());
 }
 
@@ -774,7 +774,7 @@ void DistributedFullGrid<FG_ELEMENT, DIM>::getGlobalVectorIndex(const IndexVecto
 template <typename FG_ELEMENT, DimType DIM>
 void DistributedFullGrid<FG_ELEMENT, DIM>::getLocalVectorIndex(IndexType locLinIndex,
                                                                IndexVector& locAxisIndex) const {
-  auto arr = this->localTensor_.getVectorIndex(locLinIndex);
+  auto arr = this->localTensor_.getArrayIndex(locLinIndex);
   locAxisIndex.assign(arr.begin(), arr.end());
 }
 
@@ -818,7 +818,7 @@ IndexType DistributedFullGrid<FG_ELEMENT, DIM>::getGlobalLinearIndex(IndexType l
 template <typename FG_ELEMENT, DimType DIM>
 IndexType DistributedFullGrid<FG_ELEMENT, DIM>::getLocalLinearIndex(
     const IndexVector& locAxisIndex) const {
-  return localIndexer_.sequentialIndex(locAxisIndex);
+  return localTensor_.sequentialIndex(toArray<DIM>(locAxisIndex));
 }
 
 template <typename FG_ELEMENT, DimType DIM>
@@ -851,7 +851,7 @@ bool DistributedFullGrid<FG_ELEMENT, DIM>::isGlobalIndexHere(IndexVector globalV
 
 template <typename FG_ELEMENT, DimType DIM>
 bool DistributedFullGrid<FG_ELEMENT, DIM>::isGlobalIndexHere(IndexType globLinIndex) const {
-  auto arr = this->globalIndexer_.getVectorIndex(globLinIndex);
+  auto arr = this->globalIndexer_.getArrayIndex(globLinIndex);
   return isGlobalIndexHere(IndexVector(arr.begin(), arr.end()));
 }
 
@@ -940,16 +940,16 @@ template <typename FG_ELEMENT, DimType DIM>
 IndexVector DistributedFullGrid<FG_ELEMENT, DIM>::getUpperBounds(RankType r) const {
   assert(r >= 0 && r < this->getCommunicatorSize());
   IndexVector upperBounds(DIM);
-  const auto& coords = cartesianUtils_.getPartitionCoordsOfRank(r);
+  const auto coords = cartesianUtils_.getPartitionCoordsOfRank(r);
 
   for (DimType i = 0; i < DIM; ++i) {
-    RankType n;
-    std::vector<int> nc(coords);
+    std::array<int, DIM> nc;
+    for (DimType j = 0; j < DIM; ++j) nc[j] = static_cast<int>(coords[j]);
 
     if (nc[i] < this->getCartesianUtils().getCartesianDimensions()[i] - 1) {
       // get rank of next neighbor in dim i
       nc[i] += 1;
-      n = this->getCartesianUtils().getRankFromPartitionCoords(nc);
+      RankType n = this->getCartesianUtils().getRankFromPartitionCoords(nc);
       upperBounds[i] = getLowerBounds(n)[i];
     } else {
       // no neighbor in dim i -> end of domain
@@ -1003,7 +1003,7 @@ RankType DistributedFullGrid<FG_ELEMENT, DIM>::getNeighbor1dFromAxisIndex(DimTyp
 }
 
 template <typename FG_ELEMENT, DimType DIM>
-const std::vector<int>& DistributedFullGrid<FG_ELEMENT, DIM>::getParallelization() const {
+const std::array<int, DIM>& DistributedFullGrid<FG_ELEMENT, DIM>::getParallelization() const {
   return this->getCartesianUtils().getCartesianDimensions();
 }
 
@@ -1098,7 +1098,7 @@ void DistributedFullGrid<FG_ELEMENT, DIM>::getPartitionCoords(
 
 template <typename FG_ELEMENT, DimType DIM>
 void DistributedFullGrid<FG_ELEMENT, DIM>::print() const {
-  std::visit([&](auto&& arg) { print(arg); }, localTensor_);
+  combigrid::print(localTensor_);
 }
 
 template <typename FG_ELEMENT, DimType DIM>
@@ -1763,9 +1763,10 @@ void DistributedFullGrid<FG_ELEMENT, DIM>::InitMPI(MPI_Comm comm, const std::vec
 
   if (status == MPI_CART) {
     if (comm != cartesianUtils_.getComm()) {
-      cartesianUtils_ = MPICartesianUtils(comm);
+      cartesianUtils_ = MPICartesianUtils<DIM>(comm);
     }
-    if (procs != cartesianUtils_.getCartesianDimensions()) {
+    if (!std::equal(procs.begin(), procs.end(), cartesianUtils_.getCartesianDimensions().begin(),
+                    cartesianUtils_.getCartesianDimensions().end())) {
       std::cerr << "unpart" << std::endl;
       throw std::runtime_error("The given communicator is not partitioned as desired");
     }
@@ -1983,7 +1984,7 @@ std::vector<MPI_Datatype> DistributedFullGrid<FG_ELEMENT, DIM>::getDownwardSubar
 }
 
 template <typename FG_ELEMENT, DimType DIM>
-MPICartesianUtils DistributedFullGrid<FG_ELEMENT, DIM>::cartesianUtils_;
+MPICartesianUtils<DIM> DistributedFullGrid<FG_ELEMENT, DIM>::cartesianUtils_;
 
 // output operator
 template <typename FG_ELEMENT, DimType DIM>
