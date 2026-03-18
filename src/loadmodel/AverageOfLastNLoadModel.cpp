@@ -24,13 +24,10 @@ void AverageOfLastNLoadModel::addDurationInformation(
   durations.push_back(info.duration);
 }
 
-std::chrono::microseconds AverageOfLastNLoadModel::evalSpecificUOT(
-    const LevelVector& lvlVec) {
-
+std::chrono::microseconds AverageOfLastNLoadModel::evalSpecificUOT(const LevelVector& lvlVec) {
   const auto& durations = this->levelVectorToLastNDurations_[lvlVec];
-  const auto average = (static_cast<real>(std::accumulate(durations.begin(), 
-                                                          durations.end(), 0)) 
-                        / static_cast<real>(durations.size()));
+  const auto average = (static_cast<real>(std::accumulate(durations.begin(), durations.end(), 0)) /
+                        static_cast<real>(durations.size()));
   return std::chrono::microseconds{static_cast<long>(average)};
 }
 
@@ -38,7 +35,7 @@ real AverageOfLastNLoadModel::eval(const LevelVector& lvlVec) {
   if (this->levelVectorToLastNDurations_.at(lvlVec).size() == 0) {
     return this->loadModelIfNoHistory_->eval(lvlVec);
   } else {
-    return this->evalSpecificUOT(lvlVec).count();
+    return static_cast<real>(this->evalSpecificUOT(lvlVec).count());
   }
 }
 

@@ -132,8 +132,7 @@ std::vector<UIntForGroupReductionType> getSubspaceVote(
     // or implement things with bitsets or a veeery long string altogether
   }
 
-  UIntForGroupReductionType mySummand = static_cast<UIntForGroupReductionType>(1)
-                                               << rankInComm;
+  UIntForGroupReductionType mySummand = static_cast<UIntForGroupReductionType>(1) << rankInComm;
 
   // allocate vector of long long
   std::vector<UIntForGroupReductionType> subspaceVote(subspacesDataSizes.size(), 0);
@@ -146,8 +145,8 @@ std::vector<UIntForGroupReductionType> getSubspaceVote(
 
   // vote by binary or
   MPI_Allreduce(MPI_IN_PLACE, subspaceVote.data(),
-                static_cast<int>(subspaceVote.size()) * sizeof(UIntForGroupReductionType),
-                MPI_CHAR, MPI_BOR, comm);
+                static_cast<int>(subspaceVote.size()) * sizeof(UIntForGroupReductionType), MPI_CHAR,
+                MPI_BOR, comm);
   return subspaceVote;
 }
 
@@ -196,7 +195,7 @@ void AnyDistributedSparseGrid::setOutgroupCommunicator(CommunicatorType comm, Ra
   }
   if (!subspacesForMany.empty()) {
     MPI_Allreduce(MPI_IN_PLACE, subspaceDataSizesAlmostCopy.data(),
-                  subspaceDataSizesAlmostCopy.size(),
+                  static_cast<int>(subspaceDataSizesAlmostCopy.size()),
                   getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>()), MPI_MAX,
                   subspaceComm);
     for (const auto& subspace : subspacesForMany) {

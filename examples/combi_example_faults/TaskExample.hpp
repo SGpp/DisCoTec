@@ -103,7 +103,7 @@ class TaskExample : public Task<> {
           auto elements = dfg.getData();
 
           for (size_t step = stepsTotal_; step < stepsTotal_ + nsteps_; ++step) {
-            real time = (step + 1) * dt_;
+            real time = static_cast<real>(step + 1) * dt_;
 
             for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i) {
               IndexType globalLinearIndex = dfg.getGlobalLinearIndex(i);
@@ -178,7 +178,8 @@ class TaskExample : public Task<> {
 
     int globalRank = theMPISystem()->getGlobalRank();
 
-    if (combiStep_ != 0 && faultCriterion_->failNow(combiStep_, -1.0, globalRank)) {
+    if (combiStep_ != 0 &&
+        faultCriterion_->failNow(static_cast<int>(combiStep_), -1.0, globalRank)) {
       std::cout << "Rank " << globalRank << " failed at iteration " << combiStep_ << std::endl;
       StatusType status = PROCESS_GROUP_FAIL;
       MASTER_EXCLUSIVE_SECTION {

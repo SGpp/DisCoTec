@@ -84,7 +84,7 @@ class TaskExample : public Task<> {
            * time-dependent simulation problem. */
 
           for (size_t step = stepsTotal_; step < stepsTotal_ + nsteps_; ++step) {
-            real time = step * dt_;
+            real time = static_cast<real>(step) * dt_;
 
             for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i) {
               IndexType globalLinearIndex = dfg.getGlobalLinearIndex(i);

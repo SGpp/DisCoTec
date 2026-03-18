@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
      */
     ProcessGroupManagerContainer<> pgroups;
     for (size_t i = 0; i < ngroup; ++i) {
-      int pgroupRootID(i);
+      int pgroupRootID(static_cast<int>(i));
       pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
 
@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
       if(faultsInfo.numFaults_ < 0){ //use random distributed faults
         //if numFaults is smallerthan 0 we use the absolute value
         //as lambda value for the weibull distribution
-        faultCrit = new WeibullFaults(0.7, abs(faultsInfo.numFaults_), ncombi, true);
+        faultCrit = new WeibullFaults(0.7, abs(faultsInfo.numFaults_), static_cast<int>(ncombi), true);
       }
       else{ //use predefined static number and timing of faults
         //if numFaults = 0 there are no faults

@@ -66,7 +66,9 @@ std::vector<std::pair<LevelVector, int>> RebalancingTaskRescheduler::eval(
       slowestGroup = *minmaxGroup.second;
     }
 
-    if (slowestGroup.second / averageProcessGroupDuration < this->min_inbalance_) {
+    if (static_cast<double>(slowestGroup.second) /
+            static_cast<double>(averageProcessGroupDuration) <
+        this->min_inbalance_) {
       return moveTasks;
     }
 

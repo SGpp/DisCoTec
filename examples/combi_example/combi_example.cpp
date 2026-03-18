@@ -7,6 +7,7 @@
 // to resolve https://github.com/open-mpi/ompi/issues/5157
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
+
 #include <boost/serialization/export.hpp>
 #include <string>
 #include <vector>
@@ -62,13 +63,12 @@ int main(int argc, char** argv) {
      */
     ProcessGroupManagerContainer<> pgroups;
     for (size_t i = 0; i < ngroup; ++i) {
-      int pgroupRootID(i);
+      int pgroupRootID(static_cast<int>(i));
       pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
 
     // create load model
     std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
-
 
     /* read in parameters from ctparam */
     DimType dim = cfg.get<DimType>("ct.dim");
@@ -132,7 +132,6 @@ int main(int argc, char** argv) {
     Stats::stopEvent("manager run first");
 
     for (size_t i = 0; i < ncombi; ++i) {
-
       // start = MPI_Wtime();
 
       Stats::startEvent("combine");
@@ -160,8 +159,7 @@ int main(int argc, char** argv) {
     }
 
     Stats::startEvent("manager write vtk");
-    for (auto group : pgroups)
-      manager.writeCombigridsToVTKPlotFile(group);
+    for (auto group : pgroups) manager.writeCombigridsToVTKPlotFile(group);
     Stats::stopEvent("manager write vtk");
 
     // send exit signal to workers in order to enable a clean program termination

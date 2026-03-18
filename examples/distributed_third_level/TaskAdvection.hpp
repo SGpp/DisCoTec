@@ -237,13 +237,13 @@ class TaskAdvection : public Task<> {
     phi_ = nullptr;
   }
 
-  real getCurrentTime() const override { return stepsTotal_ * dt_; }
+  real getCurrentTime() const override { return static_cast<real>(stepsTotal_) * dt_; }
 
   CombiDataType analyticalSolution(const std::vector<real>& coords, int n = 0) const override {
     assert(n == 0);
     auto coordsCopy = coords;
     TestFn f;
-    return f(coordsCopy, stepsTotal_ * dt_);
+    return f(coordsCopy, static_cast<real>(stepsTotal_) * dt_);
   }
 
  protected:
@@ -252,12 +252,12 @@ class TaskAdvection : public Task<> {
  private:
   friend class boost::serialization::access;
 
+  bool initialized_;
+  size_t stepsTotal_;
+
   real dt_;
   size_t nsteps_;
   std::vector<int> p_;
-
-  bool initialized_;
-  size_t stepsTotal_;
   std::optional<OwningDistributedFullGridVariant<CombiDataType>> dfg_;
   static std::vector<CombiDataType>* phi_;
 
