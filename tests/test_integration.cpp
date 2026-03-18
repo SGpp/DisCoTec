@@ -17,12 +17,12 @@
 #include "manager/ProcessGroupWorker.hpp"
 #include "manager/ProcessManager.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
+#include "stdlib.h"
 #include "task/Task.hpp"
+#include "test_helper.hpp"
 #include "utils/Config.hpp"
 #include "utils/MonteCarlo.hpp"
 #include "utils/Types.hpp"
-#include "stdlib.h"
-#include "test_helper.hpp"
 
 using namespace combigrid;
 
@@ -104,8 +104,8 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
     BOOST_CHECK_EQUAL(getCommRank(theMPISystem()->getGlobalComm()), ngroup);
 
     ProcessGroupManagerContainer<> pgroups;
-    for (int i = 0; i < ngroup; ++i) {
-      int pgroupRootID(i);
+    for (size_t i = 0; i < ngroup; ++i) {
+      int pgroupRootID(static_cast<int>(i));
       pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
 
@@ -306,7 +306,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
           BOOST_CHECK(checkReducedFullGridIntegration(pgroup, nrun));
         }
         // write partial stats
-        if (theMPISystem()->getWorldRank() < nprocs) {
+        if (static_cast<size_t>(theMPISystem()->getWorldRank()) < nprocs) {
           Stats::writePartial("integration_partial_timers_group.json",
                               theMPISystem()->getLocalComm());
         }
@@ -353,8 +353,8 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     ProcessGroupManagerContainer<> pgroups;
-    for (int i = 0; i < ngroup; ++i) {
-      int pgroupRootID(i);
+    for (size_t i = 0; i < ngroup; ++i) {
+      int pgroupRootID(static_cast<int>(i));
       pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
 

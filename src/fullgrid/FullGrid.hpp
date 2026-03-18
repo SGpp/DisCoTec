@@ -574,8 +574,8 @@ inline void FullGrid<FG_ELEMENT>::getVectorIndex(const IndexType linIndex,
   IndexType tmp = linIndex;
 
   for (int i = static_cast<int>(dim_) - 1; i >= 0; i--) {
-    axisIndex[i] = tmp / (this->getOffset(i));
-    tmp = tmp % this->getOffset(i);
+    axisIndex[i] = tmp / (this->getOffset(static_cast<DimType>(i)));
+    tmp = tmp % this->getOffset(static_cast<DimType>(i));
   }
 }
 

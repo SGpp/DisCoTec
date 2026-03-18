@@ -68,7 +68,7 @@ void ProcessManager<CombiDataType>::receiveDurationsOfTasksFromGroupMasters(
     DurationInformation recvbuf;
     for ([[maybe_unused]] const auto& t : pgroups_[i]->getTaskContainer()) {
       // this assumes that the manager rank is the highest in globalComm
-      MPIUtils::receiveClass(&recvbuf, i, theMPISystem()->getGlobalComm());
+      MPIUtils::receiveClass(&recvbuf, static_cast<RankType>(i), theMPISystem()->getGlobalComm());
 
       const auto& levelVector = getLevelVectorFromTaskID(tasks_, recvbuf.task_id);
       if (LearningLoadModel* llm = dynamic_cast<LearningLoadModel*>(loadModel_.get())) {
@@ -519,7 +519,7 @@ void ProcessManager<CombiDataType>::monteCarloThirdLevel(
     size_t numPoints, std::vector<std::vector<real>>& coordinates,
     std::vector<CombiDataType>& values) {
   Stats::startEvent("manager MC third level");
-  coordinates = montecarlo::getRandomCoordinates(numPoints, params_.getDim());
+  coordinates = montecarlo::getRandomCoordinates(static_cast<int>(numPoints), params_.getDim());
   auto ourCoordinatesSerial = serializeInterpolationCoords(coordinates);
 
   // obtain instructions from third level manager

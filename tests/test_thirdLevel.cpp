@@ -589,7 +589,7 @@ void testCombineThirdLevelWithoutManagers(
                                     true);
 
   if (testParams.nprocs > 1 && thirdLevelExtraSparseGrid) {
-    theMPISystem()->initOutputGroupComm(testParams.nprocs / 2);
+    theMPISystem()->initOutputGroupComm(static_cast<uint16_t>(testParams.nprocs / 2));
   }
   auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
   std::vector<BoundaryType> boundary(testParams.dim, testParams.boundary);

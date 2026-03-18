@@ -1,17 +1,5 @@
 #include "manager/ProcessGroupWorker.hpp"
 
-#include "combicom/CombiCom.hpp"
-#include "manager/InterpolationWorker.hpp"
-#include "manager/ProcessGroupSignals.hpp"
-#include "mpi/MPIUtils.hpp"
-#include "loadmodel/LearningLoadModel.hpp"
-#include "mpi/MPISystem.hpp"
-#include "mpi_fault_simulator/MPI-FT.h"
-#include "io/H5InputOutput.hpp"
-#include "utils/MonteCarlo.hpp"
-
-#include "boost/lexical_cast.hpp"
-
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
@@ -19,6 +7,17 @@
 #include <random>
 #include <string>
 #include <thread>
+
+#include "boost/lexical_cast.hpp"
+#include "combicom/CombiCom.hpp"
+#include "io/H5InputOutput.hpp"
+#include "loadmodel/LearningLoadModel.hpp"
+#include "manager/InterpolationWorker.hpp"
+#include "manager/ProcessGroupSignals.hpp"
+#include "mpi/MPISystem.hpp"
+#include "mpi/MPIUtils.hpp"
+#include "mpi_fault_simulator/MPI-FT.h"
+#include "utils/MonteCarlo.hpp"
 
 namespace combigrid {
 
@@ -250,7 +249,7 @@ SignalType ProcessGroupWorker<CombiDataType>::wait() {
     case WRITE_DFGS_TO_VTK: {
       Stats::startEvent("write vtk all tasks");
       combigrid::writeVTKPlotFilesOfAllTasks(this->getTaskWorker().getTasks(),
-                                             combiParameters_.getNumGrids());
+                                             static_cast<int>(combiParameters_.getNumGrids()));
       Stats::stopEvent("write vtk all tasks");
     } break;
     case WRITE_DSGS_TO_DISK: {

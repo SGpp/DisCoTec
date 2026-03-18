@@ -40,9 +40,9 @@ void testDataSave(int size) {
       for (size_t i = 0; i < ngroup; ++i) {
         DurationInformation recvbuf;
         // this assumes that the manager rank is the highest in globalComm
-        MPIUtils::receiveClass(&recvbuf, i, theMPISystem()->getGlobalComm());
+        MPIUtils::receiveClass(&recvbuf, static_cast<RankType>(i), theMPISystem()->getGlobalComm());
         if (LearningLoadModel* llm = dynamic_cast<LearningLoadModel*>(loadModel.get())) {
-          llm->addDurationInformation(recvbuf, lvv.at(recvbuf.task_id)); 
+          llm->addDurationInformation(recvbuf, lvv.at(recvbuf.task_id));
         }
       }
     }

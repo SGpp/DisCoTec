@@ -190,7 +190,8 @@ class TaskAdvFDM : public combigrid::Task<> {
     // check if killing necessary
     // std::cout << "failNow result " << failNow(globalRank) << " at rank: " << globalRank <<" at
     // step " << combiStep_ << "\n" ; real t = dt_ * nsteps_ * combiStep_;
-    if (combiStep_ != 0 && faultCriterion_->failNow(combiStep_, -1.0, globalRank)) {
+    if (combiStep_ != 0 &&
+        faultCriterion_->failNow(static_cast<int>(combiStep_), -1.0, globalRank)) {
       std::cout << "Rank " << globalRank << " failed at iteration " << combiStep_ << std::endl;
       [[maybe_unused]] StatusType status = PROCESS_GROUP_FAIL; /*
          MASTER_EXCLUSIVE_SECTION{

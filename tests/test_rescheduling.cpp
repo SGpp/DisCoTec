@@ -184,8 +184,8 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     ProcessGroupManagerContainer<> pgroups;
-    for (int i = 0; i < ngroup; ++i) {
-      int pgroupRootID(i);
+    for (size_t i = 0; i < ngroup; ++i) {
+      int pgroupRootID(static_cast<int>(i));
       pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
 

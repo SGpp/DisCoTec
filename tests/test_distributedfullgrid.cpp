@@ -45,7 +45,7 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
   std::vector<size_t> groupSizes;
   // TODO allow non-pow2 group sizes
   size_t groupSize = 1;
-  while (groupSize <= commSize) {
+  while (groupSize <= static_cast<size_t>(commSize)) {
     groupSizes.push_back(groupSize);
     groupSize *= 2;
   }
@@ -103,7 +103,8 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
                            std::to_string(vmSizesReference[i]) +
                            ", vmSize: " + std::to_string(vmSizes[i]));
         if (i > 0) {
-          BOOST_TEST(static_cast<double>(vmSizes[i]) <= ((vmSizes[0] + 500) * 2.));
+          BOOST_TEST(static_cast<double>(vmSizes[i]) <=
+                     (static_cast<double>(vmSizes[0] + 500) * 2.));
         }
       }
     }
@@ -261,7 +262,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
     BOOST_CHECK_EQUAL(ghostLayer.size(), numElements);
     if (numElements > 0) {
       BOOST_CHECK_EQUAL(subarrayExtents[d], 1);
-      for (size_t j = 0; j < numElements; ++j) {
+      for (IndexType j = 0; j < numElements; ++j) {
         // calculate local axis indices of ghost layer points
         // == axis index of lowest layer in dim d for dfg
         IndexArray<DIM> locAxisIndex{}, globAxisIndex{};
@@ -292,7 +293,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   if (TestHelper::getRank(comm) == 0) {
     for (size_t i = 0; i < static_cast<size_t>(fg.getNrElements()); ++i) {
       std::vector<double> coords(dim);
-      fg.getCoords(i, coords);
+      fg.getCoords(static_cast<IndexType>(i), coords);
       BOOST_TEST(fg.getData()[i] == f(coords));
     }
   }
@@ -655,8 +656,8 @@ BOOST_AUTO_TEST_CASE(interpolation_test) {
     }
 
     auto numMCCoordinates = 1e2;
-    std::vector<std::vector<double>> interpolationCoords =
-        montecarlo::getRandomCoordinates(numMCCoordinates, static_cast<size_t>(dim));
+    std::vector<std::vector<double>> interpolationCoords = montecarlo::getRandomCoordinates(
+        static_cast<int>(numMCCoordinates), static_cast<size_t>(dim));
 
     auto interpolatedValuesTwoBoundary = dfgTwoBoundary.getInterpolatedValues(interpolationCoords);
     auto interpolatedValuesOneBoundary = dfgOneBoundary.getInterpolatedValues(interpolationCoords);
@@ -691,8 +692,8 @@ BOOST_AUTO_TEST_CASE(interpolation_speed_test) {
                                                      false);
 
     auto numMCCoordinates = 1e6;
-    std::vector<std::vector<double>> interpolationCoords =
-        montecarlo::getRandomCoordinates(numMCCoordinates, static_cast<size_t>(dim));
+    std::vector<std::vector<double>> interpolationCoords = montecarlo::getRandomCoordinates(
+        static_cast<int>(numMCCoordinates), static_cast<size_t>(dim));
 
     MPI_Barrier(comm);
     auto start = std::chrono::high_resolution_clock::now();
@@ -1200,7 +1201,8 @@ BOOST_AUTO_TEST_CASE(test_evalDFG) {
   if (comm != MPI_COMM_NULL) {
     DimType dim = static_cast<DimType>(procs.size());
     size_t numCoordinates = 1000;
-    auto interpolationCoords = montecarlo::getRandomCoordinates(numCoordinates, dim);
+    auto interpolationCoords =
+        montecarlo::getRandomCoordinates(static_cast<int>(numCoordinates), dim);
     // make sure there are some corner cases
     interpolationCoords.push_back(std::vector<double>(dim, 1e-10));
     interpolationCoords.push_back(std::vector<double>(dim, 1. - 1e-10));

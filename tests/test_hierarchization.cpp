@@ -139,17 +139,13 @@ template <typename FG_ELEMENT, DimType DIM>
 real getMonteCarloMass(DistributedFullGrid<FG_ELEMENT, DIM>& dfg, size_t npoints) {
   BOOST_TEST_CHECKPOINT("start mass calculation");
   auto dim = dfg.getDimension();
-  auto interpolationCoords = montecarlo::getRandomCoordinates(npoints, dim);
+  auto interpolationCoords = montecarlo::getRandomCoordinates(static_cast<int>(npoints), dim);
   auto interpolatedValues = dfg.getInterpolatedValues(interpolationCoords);
   real mass = 0.;
   for (size_t i = 0; i < npoints; ++i) {
-    // auto scalarCoordinate = std::accumulate(
-    //     interpolationCoords[i].begin(), interpolationCoords[i].end(), 1.,
-    //     std::multiplies<real>());
-    // TODO what about complex' imaginary part?
     mass += std::real(interpolatedValues[i]);
   }
-  mass = mass / npoints;
+  mass = mass / static_cast<real>(npoints);
   BOOST_TEST_CHECKPOINT("end mass calculation");
   return mass;
 }
@@ -158,7 +154,7 @@ template <typename FG_ELEMENT, DimType DIM>
 std::vector<real> getMonteCarloMomenta(DistributedFullGrid<FG_ELEMENT, DIM>& dfg, size_t npoints) {
   BOOST_TEST_CHECKPOINT("start momentum calculation");
   const auto dim = dfg.getDimension();
-  auto interpolationCoords = montecarlo::getRandomCoordinates(npoints, dim);
+  auto interpolationCoords = montecarlo::getRandomCoordinates(static_cast<int>(npoints), dim);
   auto interpolatedValues = dfg.getInterpolatedValues(interpolationCoords);
   std::vector<real> momenta(dim + 1, 0.);
   for (size_t i = 0; i < npoints; ++i) {
@@ -167,11 +163,10 @@ std::vector<real> getMonteCarloMomenta(DistributedFullGrid<FG_ELEMENT, DIM>& dfg
     }
     auto scalarCoordinate = std::accumulate(
         interpolationCoords[i].begin(), interpolationCoords[i].end(), 1., std::multiplies<real>());
-    // TODO what about complex' imaginary part?
     momenta[dim] += scalarCoordinate * std::real(interpolatedValues[i]);
   }
   for (auto& momentum : momenta) {
-    momentum = momentum / npoints;
+    momentum = momentum / static_cast<real>(npoints);
   }
   BOOST_TEST_CHECKPOINT("end momentum calculation");
   return momenta;
@@ -246,7 +241,7 @@ real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
 
   auto dfgZero = std::unique_ptr<OwningDistributedFullGrid<FG_ELEMENT, DIM>>(
       new OwningDistributedFullGrid<FG_ELEMENT, DIM>(dim, lmin, comm, boundaryVec, procs));
-  BOOST_CHECK(values.size() == dfgZero->getNrLocalElements());
+  BOOST_CHECK(values.size() == static_cast<size_t>(dfgZero->getNrLocalElements()));
   dfgZero->setDataVector(std::move(values));
 
   // no need to dehierarchize, is nodal/scaling function on coarsest grid anyways
