@@ -252,7 +252,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   std::vector<int> subarrayExtents;
   for (DimType d = 0; d < dim; ++d) {
     auto ghostLayer = dfg.exchangeGhostLayerUpward(d, subarrayExtents);
-    IndexVector offsets(dim);
+    IndexArray<DIM> offsets{};
     IndexType numElements = 1;
     for (DimType j = 0; j < dim; ++j) {
       offsets[j] = numElements;
@@ -264,7 +264,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
       for (size_t j = 0; j < numElements; ++j) {
         // calculate local axis indices of ghost layer points
         // == axis index of lowest layer in dim d for dfg
-        IndexVector locAxisIndex(dim), globAxisIndex(dim);
+        IndexArray<DIM> locAxisIndex{}, globAxisIndex{};
         IndexType tmp = j;
         for (int i = static_cast<int>(dim) - 1; i >= 0; i--) {
           locAxisIndex[i] = tmp / offsets[i];

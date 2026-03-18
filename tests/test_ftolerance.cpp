@@ -103,16 +103,16 @@ class TaskAdvFDM : public combigrid::Task<> {
       dfg.swapDataVector(phi_);
 
       for (IndexType li = 0; li < dfg.getNrElements(); ++li) {
-        IndexVector ai(DIM);
+        IndexArray<DIM> ai;
         dfg.getGlobalVectorIndex(li, ai);
 
         // west neighbor
-        IndexVector wi = ai;
+        IndexArray<DIM> wi = ai;
         wi[0] = (l0 + wi[0] - 1) % l0;
         IndexType lwi = dfg.getGlobalLinearIndex(wi);
 
         // south neighbor
-        IndexVector si = ai;
+        IndexArray<DIM> si = ai;
         si[1] = (l1 + si[1] - 1) % l1;
         IndexType lsi = dfg.getGlobalLinearIndex(si);
 

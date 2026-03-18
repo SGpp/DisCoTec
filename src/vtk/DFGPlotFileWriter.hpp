@@ -122,64 +122,66 @@ namespace combigrid {
     */
   }
 
-  template <typename FG_ELEMENT, DimType DIM>
-  inline vtkSmartPointer<vtkImageData>
-    DFGPlotFileWriter<FG_ELEMENT, DIM>::writePieceFile(const std::string& filename) {
-    if constexpr (!std::is_same_v<FG_ELEMENT, real>) {
-      assert(false && "Only implemented for double so far");
-      return {};
-    } else {
-    // set data (correct order of dimensions in dfg)
-    vtkNew<vtkDoubleArray> pointValues;
-    pointValues->SetName("GridValues");
-    const auto& localOffsets = dfg_.getLocalOffsets();
-    const auto& nrLocalPoints = dfg_.getLocalSizes();
-    DimType dim = dfg_.getDimension();
-    switch (dim) {
-      case 1:
-        for (IndexType i = 0; i < nrLocalPoints[0]; ++i) {
-          pointValues->InsertNextTuple1(dfg_.getData()[i]);
+template <typename FG_ELEMENT, DimType DIM>
+inline vtkSmartPointer<vtkImageData> DFGPlotFileWriter<FG_ELEMENT, DIM>::writePieceFile(
+    const std::string& filename) {
+  assert(false && "Only implemented for double so far");
+}
+
+/* TODO remove copy of grid values */
+template <>
+inline vtkSmartPointer<vtkImageData> DFGPlotFileWriter<real>::writePieceFile(
+    const std::string& filename) {
+  // set data (correct order of dimensions in dfg)
+  vtkNew<vtkDoubleArray> pointValues;
+  pointValues->SetName("GridValues");
+  IndexVector localOffsets = dfg_.getLocalOffsets();
+  IndexVector nrLocalPoints = dfg_.getLocalSizes();
+  DimType dim = dfg_.getDimension();
+  switch (dim) {
+    case 1:
+      for (IndexType i = 0; i < nrLocalPoints[0]; ++i) {
+        pointValues->InsertNextTuple1(dfg_.getData()[i]);
+      }
+      break;
+    case 2:
+      for (IndexType i = 0; i < nrLocalPoints[1]; ++i) {
+        IndexType offset = localOffsets[1] * i;
+        for (IndexType j = 0; j < nrLocalPoints[0]; ++j) {
+          pointValues->InsertNextTuple1(dfg_.getData()[offset + j]);
         }
-        break;
-      case 2:
+      }
+      break;
+    case 3:
+      for (IndexType k = 0; k < nrLocalPoints[2]; ++k) {
+        IndexType offsetK = localOffsets[2] * k;
         for (IndexType i = 0; i < nrLocalPoints[1]; ++i) {
-          IndexType offset = localOffsets[1] * i;
+          IndexType offset = offsetK + localOffsets[1] * i;
           for (IndexType j = 0; j < nrLocalPoints[0]; ++j) {
             pointValues->InsertNextTuple1(dfg_.getData()[offset + j]);
           }
         }
-        break;
-      case 3:
-        for (IndexType k = 0; k < nrLocalPoints[2]; ++k) {
-          IndexType offsetK = localOffsets[2] * k;
-          for (IndexType i = 0; i < nrLocalPoints[1]; ++i) {
-            IndexType offset = offsetK + localOffsets[1] * i;
-            for (IndexType j = 0; j < nrLocalPoints[0]; ++j) {
-              pointValues->InsertNextTuple1(dfg_.getData()[offset + j]);
-            }
-          }
-        }
-        break;
-      default:
-        assert(false && "wrong number of dimensions");
-    }
-
-    // set meta information of piece file
-    auto imageData = vtkSmartPointer<vtkImageData>::New();
-    imageData->SetExtent(localExtent_.data());
-    imageData->SetOrigin(origin_.data());
-    imageData->SetSpacing(spacing_.data());
-    imageData->GetPointData()->AddArray(pointValues);
-
-    // write piece file
-    auto writer = vtkSmartPointer<vtkXMLImageDataWriter>::New();
-    writer->SetFileName(filename.c_str());
-    writer->SetInputData(imageData);
-    writer->Write();
-
-    return imageData;
-    } // else (is real)
+      }
+      break;
+    default:
+      assert(false && "wrong number of dimensions");
   }
+
+  // set meta information of piece file
+  auto imageData = vtkSmartPointer<vtkImageData>::New();
+  imageData->SetExtent(localExtent_.data());
+  imageData->SetOrigin(origin_.data());
+  imageData->SetSpacing(spacing_.data());
+  imageData->GetPointData()->AddArray(pointValues);
+
+  // write piece file
+  auto writer = vtkSmartPointer<vtkXMLImageDataWriter>::New();
+  writer->SetFileName(filename.c_str());
+  writer->SetInputData(imageData);
+  writer->Write();
+
+  return imageData;
+}
 
   /**
    * Possible manual creation of the master file without using the poorly

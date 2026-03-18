@@ -87,6 +87,7 @@ class TaskAdvection : public Task<> {
     const DimType dim = this->getDim();
     std::visit(
         [&](auto& dfg) {
+          constexpr DimType DIM = std::decay_t<decltype(dfg)>::getDimension();
           const auto numLocalElements = dfg.getNrLocalElements();
 
           const std::vector<CombiDataType> velocity(dim, 1);
@@ -112,7 +113,7 @@ class TaskAdvection : public Task<> {
     shared(u_dot_dphi, ElementVector, oneOverH, velocity, dfg)
                 for (IndexType li = 0; li < fullOffsetsInThisDimension; ++li) {
 #ifndef NDEBUG
-                  IndexVector locAxisIndex(dim);
+                  IndexArray<DIM> locAxisIndex{};
                   dfg.getLocalVectorIndex(li, locAxisIndex);
                   if (locAxisIndex[d] > 0) {
                     --locAxisIndex[d];
@@ -133,7 +134,7 @@ class TaskAdvection : public Task<> {
     shared(u_dot_dphi, ElementVector, oneOverH, velocity, dfg)
                 for (IndexType li = fullOffsetsInThisDimension; li < numLocalElements; ++li) {
 #ifndef NDEBUG
-                  IndexVector locAxisIndex(dim);
+                  IndexArray<DIM> locAxisIndex{};
                   dfg.getLocalVectorIndex(li, locAxisIndex);
                   if (locAxisIndex[d] > 0) {
                     --locAxisIndex[d];
@@ -165,7 +166,7 @@ class TaskAdvection : public Task<> {
                   IndexType ghostIndex = nLower;
 #ifndef NDEBUG
                   assert(dfgLowestLayerIteratedIndex < numLocalElements);
-                  IndexVector locAxisIndex(dim);
+                  IndexArray<DIM> locAxisIndex{};
                   dfg.getLocalVectorIndex(dfgLowestLayerIteratedIndex, locAxisIndex);
                   assert(locAxisIndex[d] == 0);
 #endif

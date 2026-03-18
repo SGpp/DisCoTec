@@ -445,14 +445,15 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>, 
       for (size_t i = 0; i < dfgLevel.size(); ++i) {
         BOOST_ASSERT(lmin[i] <= dfgLevel[i]);
       }
-      LevelVector levels_of_point(dim);
-      IndexVector tmp(dim);
+      LevelArray<DIM> levels_of_point;
+      IndexArray<DIM> tmp;
       IndexVector axisIndex(dim);
+      auto lminArr = toArray<DIM>(lmin);
       for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
         IndexType gi = dfg.getGlobalLinearIndex(li);
         dfg.getGlobalLI(gi, levels_of_point, tmp);
 
-        if (levels_of_point > lmin) {
+        if (elementwiseGreater(levels_of_point, lminArr)) {
           if (!anyOneSidedBoundary) {
             if (useComplexReference) {
               fg.getVectorIndex(gi, axisIndex);
@@ -472,7 +473,7 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>, 
             BOOST_TEST(dfg.getData()[li] == f(axisIndex),
                        boost::test_tools::tolerance(TestHelper::tolerance));
           }
-        } else if (levels_of_point <= lmin) {
+        } else if (elementwiseLessOrEqual(levels_of_point, lminArr)) {
           // the coarsest levels should not be hierarchized at all
           if (useComplexReference) {
             fg.getVectorIndex(gi, axisIndex);
@@ -490,27 +491,28 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>, 
       // compare hierarchical surpluses
       for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
         IndexType gi = dfg.getGlobalLinearIndex(li);
-        IndexVector axisIndex(dim), localAxisIndex(dim);
+        IndexArray<DIM> axisIndexArr, localAxisIndex;
         dfg.getLocalVectorIndex(li, localAxisIndex);
-        dfg.getGlobalVectorIndex(localAxisIndex, axisIndex);
-        BOOST_REQUIRE_EQUAL(dfg.getGlobalLinearIndex(axisIndex), gi);
+        dfg.getGlobalVectorIndex(localAxisIndex, axisIndexArr);
+        BOOST_REQUIRE_EQUAL(dfg.getGlobalLinearIndex(axisIndexArr), gi);
         if (!anyOneSidedBoundary) {
-          auto fgAxisIndex = axisIndex;
+          IndexVector fgAxisIndex(axisIndexArr.begin(), axisIndexArr.end());
           if (useComplexReference) {
             fg.getVectorIndex(gi, fgAxisIndex);
-            BOOST_REQUIRE(axisIndex == fgAxisIndex);
+            BOOST_REQUIRE(IndexVector(axisIndexArr.begin(), axisIndexArr.end()) == fgAxisIndex);
             // compare fg and distributed fg
             BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
                        boost::test_tools::tolerance(TestHelper::tolerance));
           } else {
             fgReal.getVectorIndex(gi, fgAxisIndex);
-            BOOST_REQUIRE(axisIndex == fgAxisIndex);
+            BOOST_REQUIRE(IndexVector(axisIndexArr.begin(), axisIndexArr.end()) == fgAxisIndex);
             BOOST_TEST(dfg.getData()[li].real() == fgReal.getData()[gi],
                        boost::test_tools::tolerance(TestHelper::tolerance));
           }
         }
         // compare distributed fg to exact solution
         if constexpr (std::is_invocable_v<Functor&, IndexVector&>) {
+          IndexVector axisIndex(axisIndexArr.begin(), axisIndexArr.end());
           BOOST_TEST(dfg.getData()[li] == f(axisIndex),
                      boost::test_tools::tolerance(TestHelper::tolerance));
         }

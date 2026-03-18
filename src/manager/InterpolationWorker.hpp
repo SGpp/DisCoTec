@@ -99,7 +99,8 @@ static void writeVTKPlotFilesOfAllTasks(
     for (int g = 0; g < numberOfGrids; ++g) {
       task->visitDistributedFullGrid(
           [&](auto& dfg) {
-            DFGPlotFileWriter<CombiDataType> writer{dfg, g};
+            constexpr DimType D = std::decay_t<decltype(dfg)>::getDimension();
+            DFGPlotFileWriter<CombiDataType, D> writer{dfg, g};
             writer.writePlotFile();
           },
           static_cast<size_t>(g));

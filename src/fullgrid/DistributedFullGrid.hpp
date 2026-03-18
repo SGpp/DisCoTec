@@ -112,89 +112,6 @@ class DistributedFullGrid {
    * @param coords [OUT] coordinates */
   inline void getCoordsLocal(IndexType localLinearIndex, std::vector<real>& coords) const;
 
-  /** get the LI (level,index) notation for a given element in the full grid
-   *
-   * @param elementIndex [IN] the linear index of the element
-   * @param levels [OUT] the levels of the point in the LI notation
-   * @param indices [OUT] the indices of the point in the LI notation
-   */
-  inline void getGlobalLI(IndexType elementIndex, LevelVector& levels, IndexVector& indices) const;
-
-  /** get the global vector index corresponding to a global linear index
-   *
-   * @param globLinIndex [IN] the global linear index
-   * @param globAxisIndex [OUT] the global vector index
-   */
-  inline void getGlobalVectorIndex(IndexType globLinIndex, IndexVector& globAxisIndex) const;
-
-  /** get the global vector index corresponding to a local vector index
-   *
-   * @param locAxisIndex [IN] the local vector index
-   * @param globAxisIndex [OUT] the global vector index
-   */
-  inline void getGlobalVectorIndex(const IndexVector& locAxisIndex,
-                                   IndexVector& globAxisIndex) const;
-
-  /** get the local vector index corresponding to a local linear index
-   *
-   * @param locLinIndex [IN] the local linear index
-   * @param locAxisIndex [OUT] the local vector index
-   */
-  inline void getLocalVectorIndex(IndexType locLinIndex, IndexVector& locAxisIndex) const;
-
-  /** get the local vector index corresponding to a global vector index
-   *
-   * @param globAxisIndex [IN] the global vector index
-   * @param locAxisIndex [OUT] the local vector index
-   * @return true if global index vector contained in local domain, false otherwise
-   */
-  inline bool getLocalVectorIndex(const IndexVector& globAxisIndex,
-                                  IndexVector& locAxisIndex) const;
-
-  /** get the global linear index corresponding to the global index vector
-   *
-   * @param axisIndex the vector index
-   * @return the global linear index
-   */
-  inline IndexType getGlobalLinearIndex(const IndexVector& globAxisIndex) const;
-
-  /** get the global linear index corresponding to the local linear index
-   *
-   * @param locLinIndex the local linear index
-   * @return the global linear index
-   */
-  inline IndexType getGlobalLinearIndex(IndexType locLinIndex) const;
-
-  /** get the local linear index corresponding to the local index vector
-   *
-   * @param locAxisIndex the local vector index
-   * @return the local linear index
-   */
-  inline IndexType getLocalLinearIndex(const IndexVector& locAxisIndex) const;
-
-  /** get the local linear index corresponding to the global linear index
-   *
-   * @param globLinIndex the local linear index
-   * @return the global linear index, negative value if element not inside local partition
-   */
-  inline IndexType getLocalLinearIndex(IndexType globLinIndex) const;
-
-  /** is the global index part of this partition?
-   *
-   * @param globalVectorIndex the global vector index
-   * @return true if the global index is part of this' local partition
-   */
-  inline bool isGlobalIndexHere(IndexVector globalVectorIndex) const;
-
-  /** is the global index part of this partition?
-   *
-   * @param globLinIndex the global vector index
-   * @return true if the global index is part of this' local partition
-   */
-  inline bool isGlobalIndexHere(IndexType globLinIndex) const;
-
-  // --- array-based overloads (primary implementations; vector versions delegate to these) ---
-
   inline void getGlobalLI(IndexType elementIndex, LevelArray<DIM>& levels,
                           IndexArray<DIM>& indices) const;
 
@@ -209,10 +126,13 @@ class DistributedFullGrid {
                                   IndexArray<DIM>& locAxisIndex) const;
 
   inline IndexType getGlobalLinearIndex(const IndexArray<DIM>& globAxisIndex) const;
+  inline IndexType getGlobalLinearIndex(IndexType locLinIndex) const;
 
   inline IndexType getLocalLinearIndex(const IndexArray<DIM>& locAxisIndex) const;
+  inline IndexType getLocalLinearIndex(IndexType globLinIndex) const;
 
   inline bool isGlobalIndexHere(const IndexArray<DIM>& globalVectorIndex) const;
+  inline bool isGlobalIndexHere(IndexType globLinIndex) const;
 
   /** get the dimension of the full grid */
   static constexpr DimType getDimension() { return DIM; }
@@ -411,8 +331,6 @@ class DistributedFullGrid {
    * @param coords ND coordinates on the unit square [0,1]^D
    * @return the interpolated value assuming nodal hat basis functions
    */
-  inline FG_ELEMENT evalIndexAndAllUpperNeighbors(const IndexVector& localIndex,
-                                                  const std::vector<real>& coords) const;
   inline FG_ELEMENT evalIndexAndAllUpperNeighbors(const IndexArray<DIM>& localIndex,
                                                   const std::array<real, DIM>& coords) const;
 
@@ -784,28 +702,10 @@ void DistributedFullGrid<FG_ELEMENT, DIM>::getGlobalLI(IndexType elementIndex,
 }
 
 template <typename FG_ELEMENT, DimType DIM>
-void DistributedFullGrid<FG_ELEMENT, DIM>::getGlobalLI(IndexType elementIndex, LevelVector& levels,
-                                                       IndexVector& indices) const {
-  LevelArray<DIM> levelsArr;
-  IndexArray<DIM> indicesArr;
-  getGlobalLI(elementIndex, levelsArr, indicesArr);
-  levels.assign(levelsArr.begin(), levelsArr.end());
-  indices.assign(indicesArr.begin(), indicesArr.end());
-}
-
-template <typename FG_ELEMENT, DimType DIM>
 void DistributedFullGrid<FG_ELEMENT, DIM>::getGlobalVectorIndex(
     IndexType globLinIndex, IndexArray<DIM>& globAxisIndex) const {
   assert(globLinIndex < this->getNrElements());
   globAxisIndex = this->globalIndexer_.getArrayIndex(globLinIndex);
-}
-
-template <typename FG_ELEMENT, DimType DIM>
-void DistributedFullGrid<FG_ELEMENT, DIM>::getGlobalVectorIndex(IndexType globLinIndex,
-                                                                IndexVector& globAxisIndex) const {
-  IndexArray<DIM> arr;
-  getGlobalVectorIndex(globLinIndex, arr);
-  globAxisIndex.assign(arr.begin(), arr.end());
 }
 
 template <typename FG_ELEMENT, DimType DIM>
@@ -815,27 +715,9 @@ void DistributedFullGrid<FG_ELEMENT, DIM>::getGlobalVectorIndex(
 }
 
 template <typename FG_ELEMENT, DimType DIM>
-void DistributedFullGrid<FG_ELEMENT, DIM>::getGlobalVectorIndex(const IndexVector& locAxisIndex,
-                                                                IndexVector& globAxisIndex) const {
-  assert(locAxisIndex.size() == this->getDimension());
-  IndexArray<DIM> locArr = toArray<DIM>(locAxisIndex);
-  IndexArray<DIM> globArr;
-  getGlobalVectorIndex(locArr, globArr);
-  globAxisIndex.assign(globArr.begin(), globArr.end());
-}
-
-template <typename FG_ELEMENT, DimType DIM>
 void DistributedFullGrid<FG_ELEMENT, DIM>::getLocalVectorIndex(
     IndexType locLinIndex, IndexArray<DIM>& locAxisIndex) const {
   locAxisIndex = this->localTensor_.getArrayIndex(locLinIndex);
-}
-
-template <typename FG_ELEMENT, DimType DIM>
-void DistributedFullGrid<FG_ELEMENT, DIM>::getLocalVectorIndex(IndexType locLinIndex,
-                                                               IndexVector& locAxisIndex) const {
-  IndexArray<DIM> arr;
-  getLocalVectorIndex(locLinIndex, arr);
-  locAxisIndex.assign(arr.begin(), arr.end());
 }
 
 template <typename FG_ELEMENT, DimType DIM>
@@ -850,28 +732,9 @@ bool DistributedFullGrid<FG_ELEMENT, DIM>::getLocalVectorIndex(
 }
 
 template <typename FG_ELEMENT, DimType DIM>
-bool DistributedFullGrid<FG_ELEMENT, DIM>::getLocalVectorIndex(const IndexVector& globAxisIndex,
-                                                               IndexVector& locAxisIndex) const {
-  assert(globAxisIndex.size() == this->getDimension());
-  IndexArray<DIM> globArr = toArray<DIM>(globAxisIndex);
-  IndexArray<DIM> locArr;
-  if (getLocalVectorIndex(globArr, locArr)) {
-    locAxisIndex.assign(locArr.begin(), locArr.end());
-    return true;
-  }
-  return false;
-}
-
-template <typename FG_ELEMENT, DimType DIM>
 IndexType DistributedFullGrid<FG_ELEMENT, DIM>::getGlobalLinearIndex(
     const IndexArray<DIM>& globAxisIndex) const {
   return globalIndexer_.sequentialIndex(globAxisIndex);
-}
-
-template <typename FG_ELEMENT, DimType DIM>
-IndexType DistributedFullGrid<FG_ELEMENT, DIM>::getGlobalLinearIndex(
-    const IndexVector& globAxisIndex) const {
-  return getGlobalLinearIndex(toArray<DIM>(globAxisIndex));
 }
 
 template <typename FG_ELEMENT, DimType DIM>
@@ -893,12 +756,6 @@ template <typename FG_ELEMENT, DimType DIM>
 IndexType DistributedFullGrid<FG_ELEMENT, DIM>::getLocalLinearIndex(
     const IndexArray<DIM>& locAxisIndex) const {
   return localTensor_.sequentialIndex(locAxisIndex);
-}
-
-template <typename FG_ELEMENT, DimType DIM>
-IndexType DistributedFullGrid<FG_ELEMENT, DIM>::getLocalLinearIndex(
-    const IndexVector& locAxisIndex) const {
-  return getLocalLinearIndex(toArray<DIM>(locAxisIndex));
 }
 
 template <typename FG_ELEMENT, DimType DIM>
@@ -927,11 +784,6 @@ bool DistributedFullGrid<FG_ELEMENT, DIM>::isGlobalIndexHere(
     }
   }
   return true;
-}
-
-template <typename FG_ELEMENT, DimType DIM>
-bool DistributedFullGrid<FG_ELEMENT, DIM>::isGlobalIndexHere(IndexVector globalVectorIndex) const {
-  return isGlobalIndexHere(toArray<DIM>(globalVectorIndex));
 }
 
 template <typename FG_ELEMENT, DimType DIM>
@@ -1276,12 +1128,6 @@ FG_ELEMENT DistributedFullGrid<FG_ELEMENT, DIM>::evalIndexAndAllUpperNeighbors(
     }
   }
   return result;
-}
-
-template <typename FG_ELEMENT, DimType DIM>
-FG_ELEMENT DistributedFullGrid<FG_ELEMENT, DIM>::evalIndexAndAllUpperNeighbors(
-    const IndexVector& localIndex, const std::vector<real>& coords) const {
-  return evalIndexAndAllUpperNeighbors(toArray<DIM>(localIndex), toArray<DIM>(coords));
 }
 
 template <typename FG_ELEMENT, DimType DIM>
