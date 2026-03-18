@@ -993,7 +993,7 @@ void hierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                                          divresult.rem);  // localer lin index start of pole
 
 #ifndef NDEBUG
-    IndexVector localIndexVector(dfg.getDimension());
+    IndexArray<DIM> localIndexVector{};
     // compute global vector index of start
     dfg.getLocalVectorIndex(start, localIndexVector);
     assert(localIndexVector[dim] == 0);
@@ -1076,7 +1076,7 @@ void dehierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                                          divresult.rem);  // localer lin index start of pole
 
 #ifndef NDEBUG
-    IndexVector localIndexVector(dfg.getDimension());
+    IndexArray<DIM> localIndexVector{};
     // compute global vector index of start
     dfg.getLocalVectorIndex(start, localIndexVector);
     assert(localIndexVector[dim] == 0);
