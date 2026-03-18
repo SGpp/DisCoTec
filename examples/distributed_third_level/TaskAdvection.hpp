@@ -87,7 +87,7 @@ class TaskAdvection : public Task<> {
     const DimType dim = this->getDim();
     std::visit(
         [&](auto& dfg) {
-          constexpr DimType DIM = std::decay_t<decltype(dfg)>::getDimension();
+          [[maybe_unused]] constexpr DimType DIM = std::decay_t<decltype(dfg)>::getDimension();
           const auto numLocalElements = dfg.getNrLocalElements();
 
           const std::vector<CombiDataType> velocity(dim, 1);
@@ -247,7 +247,7 @@ class TaskAdvection : public Task<> {
   }
 
  protected:
-  TaskAdvection() : initialized_(false), stepsTotal_(0) {}
+  TaskAdvection() : initialized_(false), stepsTotal_(0), nsteps_(0) {}
 
  private:
   friend class boost::serialization::access;

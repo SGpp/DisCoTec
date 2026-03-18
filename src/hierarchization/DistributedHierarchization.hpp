@@ -186,7 +186,6 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
       const auto& r = mapIt->first;
       const auto& indices = mapIt->second;
       assert(!indices.empty());
-      const auto lowerBoundsNeighbor = dfg.getLowerBounds(static_cast<int>(r));
 
       std::vector<FG_ELEMENT*> bufs;
       bufs.reserve(indices.size());

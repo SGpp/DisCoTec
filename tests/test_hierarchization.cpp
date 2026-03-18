@@ -406,7 +406,7 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>, 
     if (useComplexReference) {
       // create complex fg and fill with test function
       fg.createFullGrid();
-      for (size_t i = 0; i < static_cast<size_t>(fg.getNrElements()); ++i) {
+      for (IndexType i = 0; i < fg.getNrElements(); ++i) {
         std::vector<double> coords(dim);
         fg.getCoords(i, coords);
         fg.getData()[i] = f(coords);
@@ -414,7 +414,7 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>, 
     } else {
       // for real-valued test functions, use real FullGrid reference
       fgReal.createFullGrid();
-      for (size_t i = 0; i < static_cast<size_t>(fgReal.getNrElements()); ++i) {
+      for (IndexType i = 0; i < fgReal.getNrElements(); ++i) {
         std::vector<double> coords(dim);
         fgReal.getCoords(i, coords);
         fgReal.getData()[i] = f(coords).real();
