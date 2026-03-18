@@ -1124,7 +1124,9 @@ FG_ELEMENT DistributedFullGrid<FG_ELEMENT, DIM>::evalIndexAndAllUpperNeighbors(
 #endif
       assert(neighborIndex > -1);
       assert(neighborIndex < this->getNrLocalElements());
-      result += static_cast<FG_ELEMENT>(phi_c) * this->getData()[neighborIndex];
+      FG_ELEMENT weighted = this->getData()[neighborIndex];
+      weighted *= static_cast<decltype(std::abs(weighted))>(phi_c);
+      result += weighted;
     }
   }
   return result;

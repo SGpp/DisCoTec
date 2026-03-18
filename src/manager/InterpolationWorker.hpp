@@ -24,7 +24,8 @@ static std::vector<CombiDataType> interpolateValues(
     for (size_t i = 0; i < numCoordinates; ++i) {
       auto localValue = task->visitDistributedFullGrid(
           [&](const auto& dfg) { return dfg.evalLocal(interpolationCoords[i]); });
-      auto summand = localValue * static_cast<CombiDataType>(coeff);
+      auto summand = localValue;
+      summand *= static_cast<decltype(std::abs(summand))>(coeff);
       // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
       auto y = summand - kahanTrailingTerm[i];
       auto t = values[i] + y;
@@ -58,7 +59,7 @@ static void writeInterpolatedValuesPerGrid(
     auto taskVals = tasks[i]->visitDistributedFullGrid(
         [&](const auto& dfg) { return dfg.getInterpolatedValues(interpolationCoords); });
     // cycle through ranks to write
-    if (i % (theMPISystem()->getNumProcs()) == theMPISystem()->getLocalRank()) {
+    if (i % (theMPISystem()->getNumProcs()) == static_cast<size_t>(theMPISystem()->getLocalRank())) {
       std::string saveFilePath =
           fileNamePrefix + "_task_" + std::to_string(tasks[i]->getID()) + ".h5";
       std::string groupName = "run_";
