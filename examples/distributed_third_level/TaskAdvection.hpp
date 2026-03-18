@@ -189,7 +189,7 @@ class TaskAdvection : public Task<> {
                     IndexType ghostIndex = nLower + nHigher * stride;
 #ifndef NDEBUG
                     assert(dfgLowestLayerIteratedIndex < numLocalElements);
-                    IndexVector locAxisIndex(dim);
+                    IndexArray<DIM> locAxisIndex{};
                     dfg.getLocalVectorIndex(dfgLowestLayerIteratedIndex, locAxisIndex);
                     assert(locAxisIndex[d] == 0);
 #endif
