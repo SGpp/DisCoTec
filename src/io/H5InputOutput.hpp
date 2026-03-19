@@ -22,12 +22,8 @@ void writeValuesToH5File(
   HighFive::File h5_file(fileName, HighFive::File::OpenOrCreate | HighFive::File::ReadWrite |
                                        HighFive::File::Overwrite);
 
-  HighFive::Group group;
-  if (h5_file.exist(groupName)) {
-    group = h5_file.getGroup(groupName);
-  } else {
-    group = h5_file.createGroup(groupName);
-  }
+  auto group =
+      h5_file.exist(groupName) ? h5_file.getGroup(groupName) : h5_file.createGroup(groupName);
 
   HighFive::DataSet dataset =
       group.createDataSet<CombiDataType>(dataSetName, HighFive::DataSpace::From(values));
@@ -62,7 +58,8 @@ void readValuesFromH5File(T& values, const std::string& fileName) {
 }
 
 // some instantiations
-void readH5Coordinates(std::vector<std::vector<real>>& coordinates, const std::string& saveFilePath);
+void readH5Coordinates(std::vector<std::vector<real>>& coordinates,
+                       const std::string& saveFilePath);
 
 void readH5Values(std::vector<real>& values, const std::string& saveFilePath);
 

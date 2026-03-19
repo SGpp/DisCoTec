@@ -34,11 +34,11 @@ class TaskAdvection : public Task<> {
                 const std::vector<int>& p = std::vector<int>(0),
                 FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(l, boundary, coeff, loadModel, faultCrit),
+        initialized_(false),
+        stepsTotal_(0),
         dt_(dt),
         nsteps_(nsteps),
-        p_(std::move(p)),
-        initialized_(false),
-        stepsTotal_(0) {
+        p_(std::move(p)) {
     for ([[maybe_unused]] const auto& b : boundary) {
       assert(b == 1);
     }
