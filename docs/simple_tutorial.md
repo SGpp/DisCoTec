@@ -157,8 +157,11 @@ With `YourSolver`, that will be as simple as:
 #include "YourSolver.h"
 
 // The CombiDataType template parameter defaults to double.
+// In this tutorial we use a plain double so the example compiles in isolation.
+// In your own code, you can instead alias this to combigrid::CombiDataType
+// (from your project's Config.hpp or equivalent) once you include that header.
 // DIM is a compile-time constant for the dimensionality (1-6).
-using CombiDataType = combigrid::CombiDataType;  // = double
+using CombiDataType = double;
 static constexpr combigrid::DimType DIM = 6;
 
 class YourTask : public combigrid::Task<CombiDataType> {
