@@ -373,10 +373,6 @@ class ProcessManager {
    */
   void reschedule();
 
-  /**
-   * @brief signal a single group to write the component grids to vtk plot file
-   */
-  void writeCombigridsToVTKPlotFile(ProcessGroupManagerID<CombiDataType> pg);
 
   /**
    * @brief signal all groups to write their sparse grid data structures to disk
@@ -631,7 +627,7 @@ size_t ProcessManager<CombiDataType>::pretendCombineThirdLevelForBroker(
       thirdLevel_.recvData(dsguData.data(), dsguSize);
       if (checkValues) {
         for (long long j = 0; j < dsguSize; ++j) {
-          if (dsguData[j] != static_cast<CombiDataType>(initialData[j])) {
+          if (static_cast<double>(std::real(dsguData[j])) != initialData[j]) {
             ++numWrongValues;
           }
         }

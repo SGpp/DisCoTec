@@ -2,14 +2,16 @@
 // to resolve https://github.com/open-mpi/ompi/issues/5157
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
+
+#include <boost/serialization/export.hpp>
 #include <boost/test/unit_test.hpp>
 #include <cmath>
 #include <complex>
 #include <cstdarg>
 #include <iostream>
+#include <optional>
 #include <vector>
 
-#include <boost/serialization/export.hpp>
 #include "combischeme/CombiMinMaxScheme.hpp"
 #include "fault_tolerance/FaultCriterion.hpp"
 #include "fault_tolerance/StaticFaults.hpp"
@@ -21,9 +23,9 @@
 #include "manager/ProcessGroupWorker.hpp"
 #include "manager/ProcessManager.hpp"
 #include "task/Task.hpp"
+#include "test_helper.hpp"
 #include "utils/Config.hpp"
 #include "utils/Types.hpp"
-#include "test_helper.hpp"
 
 using namespace combigrid;
 
@@ -32,7 +34,7 @@ class TestingTaskRescheduler : public TaskRescheduler {
   std::vector<std::pair<LevelVector, int>> eval(
       const std::map<LevelVector, int>& levelVectorToProcessGroupIndex,
       const std::map<LevelVector, unsigned long>& levelVectorToTaskDuration,
-      LoadModel *loadModel) override {
+      LoadModel* loadModel) override {
     // Find arbitrary tasks to reschedule! (but at least 1 must be left per process group)
 
     // Find groups with more than 1 task
@@ -62,7 +64,6 @@ class TestingTaskRescheduler : public TaskRescheduler {
       }
     }
 
-    
     return result;
   }
 };
@@ -83,43 +84,54 @@ class TestingTask : public combigrid::Task<> {
     auto nprocs = getCommSize(lcomm);
     std::vector<int> p = {nprocs, 1};
 
-    dfg_ = new OwningDistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm,
-                                                        getBoundary(), p, false, decomposition);
+    dfg_.emplace(makeOwningDistributedFullGrid<CombiDataType>(
+        getDim(), getLevelVector(), lcomm, getBoundary(), p, false, decomposition));
 
-    auto elements = dfg_->getData();
-    for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
-      elements[i] = 0;  // default state is 0
-    }
+    auto ref = toRef(*dfg_);
+    visitDFG(
+        [&](auto& dfg) {
+          auto elements = dfg.getData();
+          for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i) {
+            elements[i] = 0;  // default state is 0
+          }
+        },
+        ref);
   }
 
   void run(CommunicatorType lcomm) override {
-    
     ++valueToPersist_;
 
     // std::cout << "run " << getCommRank(lcomm) << std::endl;
-    
-    auto elements = dfg_->getData();
-    for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
-      elements[i] = 10; // after run was executed the state is 10
-    }
-    BOOST_CHECK(dfg_);
+
+    auto ref = toRef(*dfg_);
+    visitDFG(
+        [&](auto& dfg) {
+          auto elements = dfg.getData();
+          for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i) {
+            elements[i] = 10;  // after run was executed the state is 10
+          }
+        },
+        ref);
+    BOOST_CHECK(dfg_.has_value());
 
     setFinished(true);
-    
+
     MPI_Barrier(lcomm);
   }
 
-  void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) override {
-    dfg_->gatherFullGrid(fg, r);
+  void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm,
+                   int n = 0) override {
+    auto ref = toRef(*dfg_);
+    visitDFG([&](auto& dfg) { dfg.gatherFullGrid(fg, r); }, ref);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) override { return *dfg_; }
+  DistributedFullGridRef<CombiDataType> getDistributedFullGrid(size_t n = 0) override {
+    return toRef(*dfg_);
+  }
 
   void setZero() override {}
 
-  ~TestingTask() override {
-    if (dfg_ != nullptr) delete dfg_;
-  }
+  ~TestingTask() override = default;
 
   int valueToPersist_{0};
 
@@ -129,7 +141,7 @@ class TestingTask : public combigrid::Task<> {
  private:
   friend class boost::serialization::access;
 
-  OwningDistributedFullGrid<CombiDataType>* dfg_{nullptr};
+  std::optional<OwningDistributedFullGridVariant<CombiDataType>> dfg_;
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
@@ -146,10 +158,10 @@ bool tasksContainSameValue(const std::vector<std::unique_ptr<Task<>>>& tasks) {
     return true;
   }
 
-  auto firstValue = dynamic_cast<TestingTask *>(tasks[0].get())->valueToPersist_;
+  auto firstValue = dynamic_cast<TestingTask*>(tasks[0].get())->valueToPersist_;
 
   for (auto i = tasks.cbegin() + 1; i < tasks.cend(); ++i) {
-    if (firstValue != dynamic_cast<TestingTask *>((*i).get())->valueToPersist_) {
+    if (firstValue != dynamic_cast<TestingTask*>((*i).get())->valueToPersist_) {
       return false;
     }
   }
@@ -172,8 +184,8 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     ProcessGroupManagerContainer<> pgroups;
-    for (int i = 0; i < ngroup; ++i) {
-      int pgroupRootID(i);
+    for (size_t i = 0; i < ngroup; ++i) {
+      int pgroupRootID(static_cast<int>(i));
       pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
 
@@ -208,19 +220,17 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
     params.setParallelization({static_cast<int>(nprocs), 1});
 
-
     // create abstraction for Manager
     ProcessManager<> manager{pgroups, tasks, params, std::move(loadmodel), std::move(rescheduler)};
 
     // the combiparameters are sent to all process groups before the
     // computations start
-    manager.updateCombiParameters(); //TODO move to manager constructor or runfirst?
+    manager.updateCombiParameters();  // TODO move to manager constructor or runfirst?
 
     /* distribute task according to load model and start computation for
      * the first time */
     BOOST_TEST_CHECKPOINT("run first");
     manager.runfirst();
-
 
     for (size_t it = 0; it < ncombi - 1; ++it) {
       BOOST_TEST_CHECKPOINT("combine");
@@ -240,7 +250,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
     BOOST_TEST_CHECKPOINT("Worker startet");
     ProcessGroupWorker<> pgroup;
     SignalType signal = -1;
-    while (signal != EXIT){ 
+    while (signal != EXIT) {
       BOOST_TEST_CHECKPOINT("Last Successful Worker Signal " + std::to_string(signal));
       signal = pgroup.wait();
 
@@ -250,18 +260,23 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
       BOOST_REQUIRE(tasksContainSameValue(pgroup.getTasks()));
 
       for (auto& t : pgroup.getTasks()) {
-        auto elements = t->getDistributedFullGrid().getData();
-        for (size_t i = 0; i < t->getDistributedFullGrid().getNrLocalElements(); ++i) {
-          // Elements need to be always equal to 10 because
-          // * first run: run is executed
-          // * next run: run is executed
-          // * combination: element values do not change (every element is
-          //                equal to 10)
-          // * Task was added: element values are restored
-          // * Task was removed: all remaining elements were already checked in
-          //                     a previous iteration
-          BOOST_REQUIRE(elements[i] == 10.);
-        }
+        auto ref = t->getDistributedFullGrid();
+        visitDFG(
+            [&](auto& dfg) {
+              auto elements = dfg.getData();
+              for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i) {
+                // Elements need to be always equal to 10 because
+                // * first run: run is executed
+                // * next run: run is executed
+                // * combination: element values do not change (every element is
+                //                equal to 10)
+                // * Task was added: element values are restored
+                // * Task was removed: all remaining elements were already checked in
+                //                     a previous iteration
+                BOOST_REQUIRE(elements[i] == 10.);
+              }
+            },
+            ref);
       }
     }
   }
@@ -275,15 +290,14 @@ BOOST_FIXTURE_TEST_SUITE(rescheduling, TestHelper::BarrierAtEnd, *boost::unit_te
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
                                  boost::unit_test::timeout(60)) {
-  std::cout << "rescheduling/test_1"<< std::endl;
-  checkRescheduling(3,1);
+  std::cout << "rescheduling/test_1" << std::endl;
+  checkRescheduling(3, 1);
 }
 
 BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
                                  boost::unit_test::timeout(60)) {
-  std::cout << "rescheduling/test_2"<< std::endl;
-  checkRescheduling(3,2);
+  std::cout << "rescheduling/test_2" << std::endl;
+  checkRescheduling(3, 2);
 }
-
 
 BOOST_AUTO_TEST_SUITE_END()

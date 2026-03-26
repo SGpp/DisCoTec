@@ -51,30 +51,30 @@ class RemoteDataCollector : public std::vector<RemoteDataSlice<FG_ELEMENT>> {
   }
 };
 
-template <typename FG_ELEMENT>
+template <typename FG_ELEMENT, DimType DIM>
 static void checkLeftSuccesors(IndexType checkIdx, const IndexType& rootIdx, const DimType& dim,
-                               const DistributedFullGrid<FG_ELEMENT>& dfg,
+                               const DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                                std::map<RankType, std::set<IndexType>>& OneDIndices,
                                const LevelType& lmin);
 
-template <typename FG_ELEMENT>
+template <typename FG_ELEMENT, DimType DIM>
 static void checkRightSuccesors(IndexType checkIdx, const IndexType& rootIdx, const DimType& dim,
-                                const DistributedFullGrid<FG_ELEMENT>& dfg,
+                                const DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                                 std::map<RankType, std::set<IndexType>>& OneDIndices,
                                 const LevelType& lmin);
 
-template <typename FG_ELEMENT>
+template <typename FG_ELEMENT, DimType DIM>
 static IndexType checkPredecessors(IndexType idx, const DimType& dim,
-                                   const DistributedFullGrid<FG_ELEMENT>& dfg,
+                                   const DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                                    std::map<RankType, std::set<IndexType>>& OneDIndices,
                                    const LevelType& lmin);
 
-template <typename FG_ELEMENT>
-static IndexType getNextIndex1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d,
+template <typename FG_ELEMENT, DimType DIM>
+static IndexType getNextIndex1d(const DistributedFullGrid<FG_ELEMENT, DIM>& dfg, DimType d,
                                 IndexType idx1d);
 
-template <typename FG_ELEMENT>
-static IndexType getFirstIndexOfLevel1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d,
+template <typename FG_ELEMENT, DimType DIM>
+static IndexType getFirstIndexOfLevel1d(const DistributedFullGrid<FG_ELEMENT, DIM>& dfg, DimType d,
                                         LevelType l);
 
 /**
@@ -88,10 +88,10 @@ static IndexType getFirstIndexOfLevel1d(const DistributedFullGrid<FG_ELEMENT>& d
  * @param dim : the dimension in which we want to exchange
  * @param remoteData : the data structure into which the received data will be stored
  */
-template <typename FG_ELEMENT>
+template <typename FG_ELEMENT, DimType DIM>
 static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& send1dIndices,
                                        const std::map<RankType, std::set<IndexType>>& recv1dIndices,
-                                       const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
+                                       const DistributedFullGrid<FG_ELEMENT, DIM>& dfg, DimType dim,
                                        RemoteDataCollector<FG_ELEMENT>& remoteData) {
   assert(remoteData.empty());
   // count elements of input indices
@@ -105,15 +105,16 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
   MPI_Datatype mysubarray;
   {
     // sizes of local grid
-    std::vector<int> sizes(dfg.getLocalSizes().begin(), dfg.getLocalSizes().end());
+    std::array<int, DIM> sizes{};
+    const auto& localSizes = dfg.getLocalSizes();
+    std::copy(localSizes.begin(), localSizes.end(), sizes.begin());
     // sizes of subarray ( full size except dimension d )
-    std::vector<int> subsizes = sizes;
+    auto subsizes = sizes;
     subsizes[dim] = 1;
-    // start
-    std::vector<int> starts(dfg.getDimension(), 0);
+    std::array<int, DIM> starts{};
     // create subarray view on data
-    MPI_Type_create_subarray(static_cast<int>(dfg.getDimension()), &sizes[0], &subsizes[0],
-                             &starts[0], MPI_ORDER_FORTRAN, dfg.getMPIDatatype(), &mysubarray);
+    MPI_Type_create_subarray(static_cast<int>(DIM), sizes.data(), subsizes.data(), starts.data(),
+                             MPI_ORDER_FORTRAN, dfg.getMPIDatatype(), &mysubarray);
     MPI_Type_commit(&mysubarray);
   }
   MPI_Aint dfgStartAddr;
@@ -146,10 +147,8 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
               (index - dfg.getLowerBounds()[dim]) * dfg.getLocalOffsets()[dim];
 #ifndef NDEBUG
           {
-            static thread_local IndexVector lidxvec(dfg.getDimension(), 0);
-            lidxvec.resize(dfg.getDimension());
-            static thread_local IndexVector gidxvec;
-            gidxvec = dfg.getLowerBounds();
+            IndexArray<DIM> lidxvec{};
+            IndexArray<DIM> gidxvec = dfg.getLowerBounds();
             gidxvec[dim] = index;
             [[maybe_unused]] bool tmp = dfg.getLocalVectorIndex(gidxvec, lidxvec);
             assert(tmp && "index to be send not in local domain");
@@ -187,7 +186,6 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
       const auto& r = mapIt->first;
       const auto& indices = mapIt->second;
       assert(!indices.empty());
-      const IndexVector& lowerBoundsNeighbor = dfg.getLowerBounds(static_cast<int>(r));
 
       std::vector<FG_ELEMENT*> bufs;
       bufs.reserve(indices.size());
@@ -250,8 +248,8 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
  * @param dim : the dimension in which we want to exchange
  * @param remoteData : the data structure into which the received data will be stored
  */
-template <typename FG_ELEMENT>
-static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
+template <typename FG_ELEMENT, DimType DIM>
+static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT, DIM>& dfg, DimType dim,
                               RemoteDataCollector<FG_ELEMENT>& remoteData) {
   // send every index to all neighboring ranks in dimension dim
   const auto globalIdxMax = dfg.globalNumPointsInDimension(dim);
@@ -320,8 +318,8 @@ static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimTyp
  * @param dim : the dimension in which we want to exchange
  * @param remoteData : the data structure into which the received data will be stored
  */
-template <typename FG_ELEMENT>
-static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
+template <typename FG_ELEMENT, DimType DIM>
+static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT, DIM>& dfg, DimType dim,
                            RemoteDataCollector<FG_ELEMENT>& remoteData, LevelType lmin = 0) {
   // create buffers for every rank
   std::map<RankType, std::set<IndexType>> recv1dIndices;
@@ -419,8 +417,9 @@ static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d
  * @param dim : the dimension in which we want to exchange
  * @param remoteData : the data structure into which the received data will be stored
  */
-template <typename FG_ELEMENT>
-static void exchangeData1dDehierarchization(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
+template <typename FG_ELEMENT, DimType DIM>
+static void exchangeData1dDehierarchization(const DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
+                                            DimType dim,
                                             RemoteDataCollector<FG_ELEMENT>& remoteData,
                                             LevelType lmin = 0) {
   // create buffers for every rank
@@ -447,9 +446,9 @@ static void exchangeData1dDehierarchization(const DistributedFullGrid<FG_ELEMENT
   return sendAndReceiveIndicesBlock(send1dIndices, recv1dIndices, dfg, dim, remoteData);
 }
 
-template <typename FG_ELEMENT>
+template <typename FG_ELEMENT, DimType DIM>
 static void checkLeftSuccesors(IndexType checkIdx, const IndexType& rootIdx, const DimType& dim,
-                               const DistributedFullGrid<FG_ELEMENT>& dfg,
+                               const DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                                std::map<RankType, std::set<IndexType>>& sendOneDIndices,
                                const LevelType& lmin) {
   const auto levelOfCheckIndex = dfg.getLevel(dim, checkIdx);
@@ -486,9 +485,9 @@ static void checkLeftSuccesors(IndexType checkIdx, const IndexType& rootIdx, con
   }
 }
 
-template <typename FG_ELEMENT>
+template <typename FG_ELEMENT, DimType DIM>
 static void checkRightSuccesors(IndexType checkIdx, const IndexType& rootIdx, const DimType& dim,
-                                const DistributedFullGrid<FG_ELEMENT>& dfg,
+                                const DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                                 std::map<RankType, std::set<IndexType>>& sendOneDIndices,
                                 const LevelType& lmin) {
   const auto levelOfCheckIndex = dfg.getLevel(dim, checkIdx);
@@ -535,9 +534,9 @@ static void checkRightSuccesors(IndexType checkIdx, const IndexType& rootIdx, co
   }
 }
 
-template <typename FG_ELEMENT>
+template <typename FG_ELEMENT, DimType DIM>
 static IndexType checkPredecessors(IndexType idx, const DimType& dim,
-                                   const DistributedFullGrid<FG_ELEMENT>& dfg,
+                                   const DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                                    std::map<RankType, std::set<IndexType>>& recvOneDIndices,
                                    const LevelType& lmin) {
   const auto levelOfIndex = dfg.getLevel(dim, idx);
@@ -604,8 +603,9 @@ static IndexType checkPredecessors(IndexType idx, const DimType& dim,
 
 // returns the next one-dimensional global index which fulfills
 // min( lmax, l(idx1d) + 1 )
-template <typename FG_ELEMENT>
-IndexType getNextIndex1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim, IndexType idx1d) {
+template <typename FG_ELEMENT, DimType DIM>
+IndexType getNextIndex1d(const DistributedFullGrid<FG_ELEMENT, DIM>& dfg, DimType dim,
+                         IndexType idx1d) {
   IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
   LevelType lmax = dfg.getLevels()[dim];
 
@@ -623,9 +623,9 @@ IndexType getNextIndex1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim
   return idx1d + 1;
 }
 
-template <typename FG_ELEMENT>
-static IndexType getFirstIndexOfLevel1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
-                                        LevelType l) {
+template <typename FG_ELEMENT, DimType DIM>
+static IndexType getFirstIndexOfLevel1d(const DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
+                                        DimType dim, LevelType l) {
   IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
   IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
 
@@ -889,9 +889,11 @@ inline void dehierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelTy
 /**
  * @brief  hierarchize a DFG with boundary points in dimension dim
  */
-template <typename FG_ELEMENT, void (*HIERARCHIZATION_FCTN)(FG_ELEMENT[], LevelType, LevelType) =
-                                   hierarchize_hat_boundary_kernel>
-void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
+template <typename FG_ELEMENT,
+          void (*HIERARCHIZATION_FCTN)(FG_ELEMENT[], LevelType,
+                                       LevelType) = hierarchize_hat_boundary_kernel,
+          DimType DIM>
+void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                              const RemoteDataCollector<FG_ELEMENT>& remoteData, DimType dim,
                              LevelType lmin_n = 0) {
   assert(dfg.returnBoundaryFlags()[dim] > 0);
@@ -918,7 +920,7 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
       const IndexType poleStart = nHigher * jump + nLower;  // local linear index
       const IndexType poleNumber = nLower + nHigher * numberOfPolesLowerDimensions;
 #ifndef NDEBUG
-      IndexVector localIndexVector(dfg.getDimension());
+      IndexArray<DIM> localIndexVector{};
       // compute global vector index of poleStart, make sure 0 in this dimension
       dfg.getLocalVectorIndex(poleStart, localIndexVector);
       assert(localIndexVector[dim] == 0);
@@ -964,8 +966,8 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 /**
  * @brief  hierarchize a DFG without boundary points in dimension dim
  */
-template <typename FG_ELEMENT>
-void hierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
+template <typename FG_ELEMENT, DimType DIM>
+void hierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                            std::vector<RemoteDataSlice<FG_ELEMENT>>& remoteData, DimType dim) {
   assert(dfg.returnBoundaryFlags()[dim] == 0);
 
@@ -990,7 +992,7 @@ void hierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                          divresult.rem);  // localer lin index start of pole
 
 #ifndef NDEBUG
-    IndexVector localIndexVector(dfg.getDimension());
+    IndexArray<DIM> localIndexVector{};
     // compute global vector index of start
     dfg.getLocalVectorIndex(start, localIndexVector);
     assert(localIndexVector[dim] == 0);
@@ -1046,8 +1048,8 @@ void hierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 /**
  * @brief inverse operation for hierarchizeNoBoundary
  */
-template <typename FG_ELEMENT>
-void dehierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
+template <typename FG_ELEMENT, DimType DIM>
+void dehierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                              RemoteDataCollector<FG_ELEMENT>& remoteData, DimType dim) {
   assert(dfg.returnBoundaryFlags()[dim] == 0);
 
@@ -1073,7 +1075,7 @@ void dehierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                          divresult.rem);  // localer lin index start of pole
 
 #ifndef NDEBUG
-    IndexVector localIndexVector(dfg.getDimension());
+    IndexArray<DIM> localIndexVector{};
     // compute global vector index of start
     dfg.getLocalVectorIndex(start, localIndexVector);
     assert(localIndexVector[dim] == 0);
@@ -1125,8 +1127,8 @@ void dehierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 class DistributedHierarchization {
  public:
   // inplace hierarchization
-  template <typename FG_ELEMENT>
-  static void hierarchize(DistributedFullGrid<FG_ELEMENT>& dfg, const std::vector<bool>& dims,
+  template <typename FG_ELEMENT, DimType DIM>
+  static void hierarchize(DistributedFullGrid<FG_ELEMENT, DIM>& dfg, const std::vector<bool>& dims,
                           const std::vector<BasisFunctionBasis*>& hierarchicalBases,
                           const LevelVector& lmin) {
     assert(dfg.getDimension() > 0);
@@ -1186,8 +1188,8 @@ class DistributedHierarchization {
     }
   }
 
-  template <typename FG_ELEMENT, class T = HierarchicalHatBasisFunction>
-  static void hierarchizeHierachicalBasis(DistributedFullGrid<FG_ELEMENT>& dfg,
+  template <typename FG_ELEMENT, class T = HierarchicalHatBasisFunction, DimType DIM>
+  static void hierarchizeHierachicalBasis(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                                           const std::vector<bool>& dims,
                                           LevelVector lmin = LevelVector(0)) {
     T basisFctn;
@@ -1195,11 +1197,12 @@ class DistributedHierarchization {
     if (lmin.size() == 0) {
       lmin = LevelVector(dims.size(), 0);
     }
-    return hierarchize<FG_ELEMENT>(dfg, dims, bases, lmin);
+    return hierarchize<FG_ELEMENT, DIM>(dfg, dims, bases, lmin);
   }
 
-  template <typename FG_ELEMENT>
-  static void hierarchize(DistributedFullGrid<FG_ELEMENT>& dfg, LevelVector lmin = LevelVector(0)) {
+  template <typename FG_ELEMENT, DimType DIM>
+  static void hierarchize(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
+                          LevelVector lmin = LevelVector(0)) {
     std::vector<bool> dims(dfg.getDimension(), true);
     if (lmin.size() == 0) {
       lmin = LevelVector(dfg.getDimension(), 0);
@@ -1208,8 +1211,9 @@ class DistributedHierarchization {
   }
 
   // inplace dehierarchization
-  template <typename FG_ELEMENT>
-  static void dehierarchize(DistributedFullGrid<FG_ELEMENT>& dfg, const std::vector<bool>& dims,
+  template <typename FG_ELEMENT, DimType DIM>
+  static void dehierarchize(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
+                            const std::vector<bool>& dims,
                             const std::vector<BasisFunctionBasis*>& hierarchicalBases,
                             const LevelVector& lmin) {
     assert(!lmin.empty());
@@ -1269,8 +1273,8 @@ class DistributedHierarchization {
 #pragma omp barrier
   }
 
-  template <typename FG_ELEMENT, class T = HierarchicalHatBasisFunction>
-  static void dehierarchizeHierachicalBasis(DistributedFullGrid<FG_ELEMENT>& dfg,
+  template <typename FG_ELEMENT, class T = HierarchicalHatBasisFunction, DimType DIM>
+  static void dehierarchizeHierachicalBasis(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                                             const std::vector<bool>& dims,
                                             LevelVector lmin = LevelVector(0)) {
     T basisFctn;
@@ -1278,11 +1282,11 @@ class DistributedHierarchization {
     if (lmin.size() == 0) {
       lmin = LevelVector(dfg.getDimension(), 0);
     }
-    return dehierarchize<FG_ELEMENT>(dfg, dims, bases, lmin);
+    return dehierarchize<FG_ELEMENT, DIM>(dfg, dims, bases, lmin);
   }
 
-  template <typename FG_ELEMENT>
-  static void dehierarchize(DistributedFullGrid<FG_ELEMENT>& dfg,
+  template <typename FG_ELEMENT, DimType DIM>
+  static void dehierarchize(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                             LevelVector lmin = LevelVector(0)) {
     std::vector<bool> dims(dfg.getDimension(), true);
     if (lmin.size() == 0) {
@@ -1291,63 +1295,63 @@ class DistributedHierarchization {
     return dehierarchizeHierachicalBasis<FG_ELEMENT, HierarchicalHatBasisFunction>(dfg, dims, lmin);
   }
 
-  template <typename FG_ELEMENT>
-  static void dehierarchizeDFG(DistributedFullGrid<FG_ELEMENT>& dfg,
+  template <typename FG_ELEMENT, DimType DIM>
+  static void dehierarchizeDFG(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                                const std::vector<bool>& hierarchizationDims,
                                const std::vector<BasisFunctionBasis*>& hierarchicalBases,
                                LevelVector lmin = LevelVector(0)) {
     // dehierarchize dfg
-    DistributedHierarchization::dehierarchize<FG_ELEMENT>(dfg, hierarchizationDims,
-                                                          hierarchicalBases, lmin);
+    DistributedHierarchization::dehierarchize<FG_ELEMENT, DIM>(dfg, hierarchizationDims,
+                                                               hierarchicalBases, lmin);
   }
 
-  template <typename FG_ELEMENT>
-  using FunctionPointer = void (*)(DistributedFullGrid<FG_ELEMENT>& dfg,
+  template <typename FG_ELEMENT, DimType DIM>
+  using FunctionPointer = void (*)(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                                    const std::vector<bool>& dims, LevelVector lmin);
   // make template specifications visible by alias, hat is the default
-  template <typename FG_ELEMENT>
-  constexpr static FunctionPointer<FG_ELEMENT> hierarchizeHierarchicalHat =
-      &hierarchizeHierachicalBasis<FG_ELEMENT, HierarchicalHatBasisFunction>;
+  template <typename FG_ELEMENT, DimType DIM>
+  constexpr static FunctionPointer<FG_ELEMENT, DIM> hierarchizeHierarchicalHat =
+      &hierarchizeHierachicalBasis<FG_ELEMENT, HierarchicalHatBasisFunction, DIM>;
 
-  template <typename FG_ELEMENT>
-  constexpr static FunctionPointer<FG_ELEMENT> hierarchizeHierarchicalHatPeriodic =
-      &hierarchizeHierachicalBasis<FG_ELEMENT, HierarchicalHatPeriodicBasisFunction>;
+  template <typename FG_ELEMENT, DimType DIM>
+  constexpr static FunctionPointer<FG_ELEMENT, DIM> hierarchizeHierarchicalHatPeriodic =
+      &hierarchizeHierachicalBasis<FG_ELEMENT, HierarchicalHatPeriodicBasisFunction, DIM>;
 
-  template <typename FG_ELEMENT>
-  constexpr static FunctionPointer<FG_ELEMENT> hierarchizeFullWeighting =
-      &hierarchizeHierachicalBasis<FG_ELEMENT, FullWeightingBasisFunction>;
+  template <typename FG_ELEMENT, DimType DIM>
+  constexpr static FunctionPointer<FG_ELEMENT, DIM> hierarchizeFullWeighting =
+      &hierarchizeHierachicalBasis<FG_ELEMENT, FullWeightingBasisFunction, DIM>;
 
-  template <typename FG_ELEMENT>
-  constexpr static FunctionPointer<FG_ELEMENT> hierarchizeFullWeightingPeriodic =
-      &hierarchizeHierachicalBasis<FG_ELEMENT, FullWeightingPeriodicBasisFunction>;
+  template <typename FG_ELEMENT, DimType DIM>
+  constexpr static FunctionPointer<FG_ELEMENT, DIM> hierarchizeFullWeightingPeriodic =
+      &hierarchizeHierachicalBasis<FG_ELEMENT, FullWeightingPeriodicBasisFunction, DIM>;
 
-  template <typename FG_ELEMENT>
-  constexpr static FunctionPointer<FG_ELEMENT> hierarchizeBiorthogonal =
-      &hierarchizeHierachicalBasis<FG_ELEMENT, BiorthogonalBasisFunction>;
+  template <typename FG_ELEMENT, DimType DIM>
+  constexpr static FunctionPointer<FG_ELEMENT, DIM> hierarchizeBiorthogonal =
+      &hierarchizeHierachicalBasis<FG_ELEMENT, BiorthogonalBasisFunction, DIM>;
 
-  template <typename FG_ELEMENT>
-  constexpr static FunctionPointer<FG_ELEMENT> hierarchizeBiorthogonalPeriodic =
-      &hierarchizeHierachicalBasis<FG_ELEMENT, BiorthogonalPeriodicBasisFunction>;
+  template <typename FG_ELEMENT, DimType DIM>
+  constexpr static FunctionPointer<FG_ELEMENT, DIM> hierarchizeBiorthogonalPeriodic =
+      &hierarchizeHierachicalBasis<FG_ELEMENT, BiorthogonalPeriodicBasisFunction, DIM>;
 
-  template <typename FG_ELEMENT>
-  constexpr static FunctionPointer<FG_ELEMENT> dehierarchizeHierarchicalHat =
-      &dehierarchizeHierachicalBasis<FG_ELEMENT, HierarchicalHatBasisFunction>;
+  template <typename FG_ELEMENT, DimType DIM>
+  constexpr static FunctionPointer<FG_ELEMENT, DIM> dehierarchizeHierarchicalHat =
+      &dehierarchizeHierachicalBasis<FG_ELEMENT, HierarchicalHatBasisFunction, DIM>;
 
-  template <typename FG_ELEMENT>
-  constexpr static FunctionPointer<FG_ELEMENT> dehierarchizeFullWeighting =
-      &dehierarchizeHierachicalBasis<FG_ELEMENT, FullWeightingBasisFunction>;
+  template <typename FG_ELEMENT, DimType DIM>
+  constexpr static FunctionPointer<FG_ELEMENT, DIM> dehierarchizeFullWeighting =
+      &dehierarchizeHierachicalBasis<FG_ELEMENT, FullWeightingBasisFunction, DIM>;
 
-  template <typename FG_ELEMENT>
-  constexpr static FunctionPointer<FG_ELEMENT> dehierarchizeFullWeightingPeriodic =
-      &dehierarchizeHierachicalBasis<FG_ELEMENT, FullWeightingPeriodicBasisFunction>;
+  template <typename FG_ELEMENT, DimType DIM>
+  constexpr static FunctionPointer<FG_ELEMENT, DIM> dehierarchizeFullWeightingPeriodic =
+      &dehierarchizeHierachicalBasis<FG_ELEMENT, FullWeightingPeriodicBasisFunction, DIM>;
 
-  template <typename FG_ELEMENT>
-  constexpr static FunctionPointer<FG_ELEMENT> dehierarchizeBiorthogonal =
-      &dehierarchizeHierachicalBasis<FG_ELEMENT, BiorthogonalBasisFunction>;
+  template <typename FG_ELEMENT, DimType DIM>
+  constexpr static FunctionPointer<FG_ELEMENT, DIM> dehierarchizeBiorthogonal =
+      &dehierarchizeHierachicalBasis<FG_ELEMENT, BiorthogonalBasisFunction, DIM>;
 
-  template <typename FG_ELEMENT>
-  constexpr static FunctionPointer<FG_ELEMENT> dehierarchizeBiorthogonalPeriodic =
-      &dehierarchizeHierachicalBasis<FG_ELEMENT, BiorthogonalPeriodicBasisFunction>;
+  template <typename FG_ELEMENT, DimType DIM>
+  constexpr static FunctionPointer<FG_ELEMENT, DIM> dehierarchizeBiorthogonalPeriodic =
+      &dehierarchizeHierachicalBasis<FG_ELEMENT, BiorthogonalPeriodicBasisFunction, DIM>;
 };
 // class DistributedHierarchization
 

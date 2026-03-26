@@ -80,6 +80,11 @@ inline bool isPowerOfTwo(const T& x) {
  */
 std::vector<LevelVector> getDownSet(combigrid::LevelVector const& l);
 
+template <std::size_t NumDimensions>
+inline std::vector<LevelVector> getDownSet(std::array<LevelType, NumDimensions> const& l) {
+  return getDownSet(LevelVector(l.begin(), l.end()));
+}
+
 struct AllKOutOfDDimensions {
   /**
    * @brief Get all combinations of k out of d dimensions (from 0 to d-1)

@@ -9,24 +9,25 @@
 
 // to resolve https://github.com/open-mpi/ompi/issues/5157
 #define OMPI_SKIP_MPICXX 1
-#include "mpi.h"
 #include <vector>
+
+#include "mpi.h"
 
 namespace combigrid {
 
-void createCommunicators( size_t ngroup, size_t nprocs, int globalID, int globalSize,
-    int& managerIDgcomm, int& grank, int& lrank, MPI_Comm& gcomm, MPI_Comm& lcomm){
+void createCommunicators(size_t ngroup, size_t nprocs, int globalID, int globalSize,
+                         int &managerIDgcomm, int &grank, int &lrank, MPI_Comm &gcomm,
+                         MPI_Comm &lcomm) {
   /* determine global rank of each process
    * the manager process always has the highest rank
    * all other processes are worker processes */
-
 
   /* create a local communicator for each process group
    * lcomm is the local communicator of its own process group for each worker process
    * for manager, lcomm is a group which contains only manager process and can be ignored
    */
-  int color = globalID / nprocs;
-  int key = globalID - color * nprocs;
+  int color = globalID / static_cast<int>(nprocs);
+  int key = globalID - color * static_cast<int>(nprocs);
   MPI_Comm_split(MPI_COMM_WORLD, color, key, &lcomm);
   MPI_Comm_rank(lcomm, &lrank);
   const int managerIDworld = globalSize - 1;
@@ -43,12 +44,12 @@ void createCommunicators( size_t ngroup, size_t nprocs, int globalID, int global
 
   std::vector<int> ranks(ngroup + 1);
   for (size_t i = 0; i < ngroup; i++) {
-    ranks[i] = i * nprocs;
+    ranks[i] = static_cast<int>(i * nprocs);
   }
   ranks.back() = managerIDworld;
 
   MPI_Group rootGroup;
-  MPI_Group_incl(worldGroup, (int) ranks.size(), &ranks[0], &rootGroup);
+  MPI_Group_incl(worldGroup, (int)ranks.size(), &ranks[0], &rootGroup);
 
   MPI_Comm_create(MPI_COMM_WORLD, rootGroup, &gcomm);
 
@@ -93,14 +94,13 @@ void readParameterFile(const std::string &fileName, size_t &ngroup, size_t &npro
   faultsInfo.iterationFaults_.resize(faultsInfo.numFaults_);
   faultsInfo.globalRankFaults_.resize(faultsInfo.numFaults_);
 
-if( faultsInfo.numFaults_ > 0 ){
-  cfg.get<std::string>("faults.iteration_faults") >> faultsInfo.iterationFaults_;
-  cfg.get<std::string>("faults.global_rank_faults") >> faultsInfo.globalRankFaults_;
-}
+  if (faultsInfo.numFaults_ > 0) {
+    cfg.get<std::string>("faults.iteration_faults") >> faultsInfo.iterationFaults_;
+    cfg.get<std::string>("faults.global_rank_faults") >> faultsInfo.globalRankFaults_;
+  }
 }
 
-void writeSolutionToFile(std::ofstream& outFile, const FullGrid<CombiDataType>& fg_eval){
-
+void writeSolutionToFile(std::ofstream &outFile, const FullGrid<CombiDataType> &fg_eval) {
   DimType dim = fg_eval.getDimension();
 
   std::vector<double> coords(dim, 0.0);
@@ -111,13 +111,12 @@ void writeSolutionToFile(std::ofstream& outFile, const FullGrid<CombiDataType>& 
     }
 
     fg_eval.getCoords(i, coords);
-    outFile << coords[0] << "\t" << coords[1] << "\t"
-           << fg_eval.getElementVector()[i] << std::endl;
+    outFile << coords[0] << "\t" << coords[1] << "\t" << fg_eval.getElementVector()[i] << std::endl;
   }
 
   outFile << std::endl << std::endl;
 }
 
-} // namespace combigrid
+}  // namespace combigrid
 
 #endif /* TASKEXAMPLE_HPP_ */

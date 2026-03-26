@@ -245,10 +245,9 @@ template <typename T>
 void compressBufferToLZ4FrameAndGatherHeader(const T* buffer, MPI_Offset numValues,
                                              combigrid::CommunicatorType comm,
                                              std::vector<char>& compressedString) {
+#ifdef DISCOTEC_USE_LZ4
   auto commSize = getCommSize(comm);
   auto commRank = getCommRank(comm);
-
-#ifdef DISCOTEC_USE_LZ4
   LZ4F_preferences_t lz4PreferencesHeader;
   size_t headerFrameBound;
   auto compressedHeaderSize =

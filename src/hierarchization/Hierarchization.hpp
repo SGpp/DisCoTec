@@ -2,6 +2,7 @@
 #define HIERARCHIZATION_HPP_
 
 #include <cstdlib>
+
 #include "boost/lexical_cast.hpp"
 #include "fullgrid/FullGrid.hpp"
 #include "utils/Stats.hpp"
@@ -43,7 +44,7 @@ static void printValues2DArr(FG_ELEMENT* val, IndexType size, IndexType offset, 
 
 template <typename FG_ELEMENT>
 static void printValues(combigrid::FullGrid<FG_ELEMENT>& fg);
-}
+}  // namespace
 
 namespace combigrid {
 
@@ -103,23 +104,23 @@ class Hierarchization {
       //      std::cout << "dim " << dim << "size " << size << "ndim " << ndim << "nbrpoles" <<
       //      nbrOfPoles << std::endl;
       if (fg.returnBoundaryFlags()[dim] == 0) {
-#pragma omp parallel for schedule(static) firstprivate(divresult, stride, dim, ndim, nbrOfPoles, \
-                                                       start, jump)
+#pragma omp parallel for schedule(static) \
+    firstprivate(divresult, stride, dim, ndim, nbrOfPoles, start, jump)
 
         for (IndexType nn = 0; nn < nbrOfPoles;
              nn++) {  // integer operations form bottleneck here -- nested loops are twice as slow
           divresult = std::lldiv(nn, stride);
-          start = divresult.quot * jump + divresult.rem;
+          start = static_cast<IndexType>(divresult.quot * jump + divresult.rem);
           hierarchize1DUnoptimizedNoBoundary(fg, start, stride, ndim, dim);
         }
       } else {
-#pragma omp parallel for schedule(static) firstprivate(divresult, stride, dim, ndim, nbrOfPoles, \
-                                                       start, jump)
+#pragma omp parallel for schedule(static) \
+    firstprivate(divresult, stride, dim, ndim, nbrOfPoles, start, jump)
 
         for (IndexType nn = 0; nn < nbrOfPoles;
              nn++) {  // integer operations form bottleneck here -- nested loops are twice as slow
           divresult = std::lldiv(nn, stride);
-          start = divresult.quot * jump + divresult.rem;
+          start = static_cast<IndexType>(divresult.quot * jump + divresult.rem);
           hierarchize1DUnoptimizedBoundary(fg, start, stride, ndim, dim);
         }
       }
@@ -188,23 +189,23 @@ class Hierarchization {
       nbrOfPoles = size / ndim;
 
       if (fg.returnBoundaryFlags()[dim] == 0) {
-#pragma omp parallel for schedule(static) firstprivate(divresult, stride, dim, ndim, nbrOfPoles, \
-                                                       start, jump)
+#pragma omp parallel for schedule(static) \
+    firstprivate(divresult, stride, dim, ndim, nbrOfPoles, start, jump)
 
         for (IndexType nn = 0; nn < nbrOfPoles;
              nn++) {  // integer operations form bottleneck here -- nested loops are twice as slow
           divresult = std::lldiv(nn, stride);
-          start = divresult.quot * jump + divresult.rem;
+          start = static_cast<IndexType>(divresult.quot * jump + divresult.rem);
           dehierarchize1DUnoptimizedNoBoundary(fg, start, stride, ndim, dim);
         }
       } else {
-#pragma omp parallel for schedule(static) firstprivate(divresult, stride, dim, ndim, nbrOfPoles, \
-                                                       start, jump)
+#pragma omp parallel for schedule(static) \
+    firstprivate(divresult, stride, dim, ndim, nbrOfPoles, start, jump)
 
         for (IndexType nn = 0; nn < nbrOfPoles;
              nn++) {  // integer operations form bottleneck here -- nested loops are twice as slow
           divresult = std::lldiv(nn, stride);
-          start = divresult.quot * jump + divresult.rem;
+          start = static_cast<IndexType>(divresult.quot * jump + divresult.rem);
           dehierarchize1DUnoptimizedBoundary(fg, start, stride, ndim, dim);
         }
       }

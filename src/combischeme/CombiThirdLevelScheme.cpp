@@ -46,7 +46,8 @@ void CombiThirdLevelScheme::decomposeScheme(const std::vector<LevelVector>& full
   auto beginNextC = fullSchemeCoeffs.begin();
   for (auto frac : fractionsOfScheme) {
     scannedFrac += frac;
-    auto currentSystemUpToIndex = std::round(static_cast<real>(fullScheme.size()) * scannedFrac);
+    auto currentSystemUpToIndex =
+        static_cast<long>(std::round(static_cast<real>(fullScheme.size()) * scannedFrac));
     auto endIntervalL = fullScheme.begin() + currentSystemUpToIndex;
     auto endIntervalC = fullSchemeCoeffs.begin() + currentSystemUpToIndex;
     decomposedScheme.emplace_back(beginNextL, endIntervalL);
@@ -60,7 +61,7 @@ void CombiThirdLevelScheme::decomposeScheme(const std::vector<LevelVector>& full
                          [](size_t a, const std::vector<LevelVector>& l) {
                            return a + l.size();
                          }) == fullScheme.size());
-  assert(std::accumulate(decomposedCoeffs.begin(), decomposedCoeffs.end(), 0,
+  assert(std::accumulate(decomposedCoeffs.begin(), decomposedCoeffs.end(), static_cast<size_t>(0),
                          [](size_t a, const std::vector<real>& c) { return a + c.size(); }) ==
          fullSchemeCoeffs.size());
 }

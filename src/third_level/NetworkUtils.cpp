@@ -29,11 +29,10 @@ bool ClientSocket::init() {
     return false;
   }
   servAddr.sin_family = AF_INET;
-  bcopy((char*) server->h_addr, (char*)& servAddr.sin_addr.s_addr,
-      static_cast<size_t>(server->h_length));
-  servAddr.sin_port = static_cast<uint16_t>(htons(remotePort_));
-  int connStat = connect(sockfd_, (struct sockaddr*) &servAddr,
-      sizeof(servAddr));
+  bcopy((char*)server->h_addr, (char*)&servAddr.sin_addr.s_addr,
+        static_cast<size_t>(server->h_length));
+  servAddr.sin_port = htons(static_cast<uint16_t>(remotePort_));
+  int connStat = connect(sockfd_, (struct sockaddr*)&servAddr, sizeof(servAddr));
   if (connStat < 0) {
     perror("ClientSocket::init() connect failed");
     return false;

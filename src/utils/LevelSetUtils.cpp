@@ -65,7 +65,7 @@ void createTruncatedHierarchicalLevelsRec(DimType dim, size_t n, LevelVector& l,
                                           std::vector<LevelVector>& created) {
   assert(lmax.size() == lmin.size());
   auto dimensionality = static_cast<DimType>(lmax.size());
-  assert(lmax[dim] == lmin[dim] + n);
+  assert(static_cast<size_t>(lmax[dim]) == static_cast<size_t>(lmin[dim]) + n);
 
   // sum leftmost entries of level vector
   LevelType lsum(0);

@@ -1,6 +1,7 @@
 #include "fault_tolerance/FTUtils.hpp"
-#include <random>
+
 #include <numeric>
+#include <random>
 #include <valarray>
 
 namespace combigrid {
@@ -278,7 +279,7 @@ bool test_greater(const LevelVector& b, const LevelVector& a) {
   bool test = true;
 
   for (int i = 0; i < dim; ++i) {
-    test *= (b[i] >= a[i]) ? true : false;
+    test = test && (b[i] >= a[i]);
   }
 
   return test;
@@ -327,7 +328,7 @@ LevelVectorList check_dimensionality(const LevelVectorList& input_levels,
 
   for (size_t i = 0; i < l_min.size(); ++i) {
     if (l_max[i] == l_min[i]) {
-      ignored_dimensions.push_back(i);
+      ignored_dimensions.push_back(static_cast<int>(i));
     } else {
       new_l_min.push_back(l_min[i]);
       new_l_max.push_back(l_max[i]);
@@ -365,7 +366,7 @@ CombigridDict set_new_given_dict(const CombigridDict& given_dict,
   real key = 0.0;
   CombigridDict new_given_dict;
 
-  for (const auto & ii : given_dict) {
+  for (const auto& ii : given_dict) {
     LevelVector new_level;
 
     for (int i = 0; i < dim; ++i) {
@@ -388,16 +389,16 @@ void check_input_levels(const LevelVectorList& levels) {
   LevelVector c;
 
   // cf. https://stackoverflow.com/questions/3642700/vector-addition-operation
-  c.reserve( l_min.size() );
+  c.reserve(l_min.size());
   // for (unsigned int i = 0; i < l_min.size(); ++i) {
   //   c.push_back(l_max[i] - l_min[i]);
   // }
-  std::transform(l_max.begin(), l_max.end(), l_min.begin(), std::back_inserter(c), std::minus<IndexType>());
+  std::transform(l_max.begin(), l_max.end(), l_min.begin(), std::back_inserter(c),
+                 std::minus<IndexType>());
 
-  assert (std::adjacent_find(c.begin(), c.end(), std::not_equal_to<int>()) == c.end() &&
-    "Input levels are incorrect!" &&
-    "Please input them of the form: l_max = l_min + c*ones(dim), c>=1, integer"
-  );
+  assert(std::adjacent_find(c.begin(), c.end(), std::not_equal_to<int>()) == c.end() &&
+         "Input levels are incorrect!" &&
+         "Please input them of the form: l_max = l_min + c*ones(dim), c>=1, integer");
 }
 
 std::vector<double> select_coeff_downset(const std::vector<double>& all_c,
@@ -406,7 +407,7 @@ std::vector<double> select_coeff_downset(const std::vector<double>& all_c,
   int given_downset_index = 0;
   std::vector<double> donwset_c;
 
-  for (const auto & ii : aux_downset) {
+  for (const auto& ii : aux_downset) {
     if (given_downset.find(ii.first) != given_downset.end()) {
       given_downset_index = static_cast<int>(ii.second);
       donwset_c.push_back(all_c.at(given_downset_index));

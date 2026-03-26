@@ -20,13 +20,13 @@
 #include "manager/ProcessGroupWorker.hpp"
 #include "manager/ProcessManager.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
+#include "stdlib.h"
 #include "task/Task.hpp"
+#include "test_helper.hpp"
 #include "utils/Config.hpp"
 #include "utils/DecompositionUtils.hpp"
 #include "utils/MonteCarlo.hpp"
 #include "utils/Types.hpp"
-#include "stdlib.h"
-#include "test_helper.hpp"
 
 using namespace combigrid;
 
@@ -96,24 +96,26 @@ bool checkReducedFullGrid(ProcessGroupWorker<>& worker, int nrun) {
 
   for (const auto& t : tasks) {
     for (int g = 0; g < numGrids; g++) {
-      const DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
-      // dfg.print(std::cout);
-      // std::cout << std::endl;
-      // TestFnCount<CombiDataType> initialFunction;
-      ParaboloidFn<CombiDataType> initialFunction;
-      for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
-        std::vector<double> coords(dfg.getDimension());
-        dfg.getCoordsLocal(li, coords);
-        // CombiDataType expected = initialFunction(coords, nrun);
-        CombiDataType expected = initialFunction(coords);
-        CombiDataType occuring = dfg.getData()[li];
-        if (expected == 0.) {
-          BOOST_CHECK_SMALL(occuring, 1e-300);
-        } else {
-          BOOST_REQUIRE_CLOSE(occuring, expected, TestHelper::tolerance);
-        }
-        any = true;
-      }
+      auto dfgRef = t->getDistributedFullGrid(g);
+      visitDFG(
+          [&](auto& dfg) {
+            // TestFnCount<CombiDataType> initialFunction;
+            ParaboloidFn<CombiDataType> initialFunction;
+            for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+              std::vector<double> coords(dfg.getDimension());
+              dfg.getCoordsLocal(li, coords);
+              // CombiDataType expected = initialFunction(coords, nrun);
+              CombiDataType expected = initialFunction(coords);
+              CombiDataType occuring = dfg.getData()[li];
+              if (expected == 0.) {
+                BOOST_CHECK_SMALL(occuring, 1e-300);
+              } else {
+                BOOST_REQUIRE_CLOSE(occuring, expected, TestHelper::tolerance);
+              }
+              any = true;
+            }
+          },
+          dfgRef);
     }
   }
   BOOST_CHECK(any);
@@ -152,8 +154,8 @@ void assignProcsToSystems(unsigned int procsPerSys, unsigned int numSystems, uns
 /** Runs the third level manager in the background as a forked child process */
 void runThirdLevelManager(unsigned short port) {
   std::cout << "starting thirdLevelManager..." << std::endl;
-  std::string command = "../third_level_manager/thirdLevelManager --port=" +
-                        std::to_string(port) + " &";
+  std::string command =
+      "../third_level_manager/thirdLevelManager --port=" + std::to_string(port) + " &";
   auto status = system(command.c_str());
   BOOST_WARN_GE(status, 0);
 }
@@ -163,7 +165,7 @@ void runThirdLevelManager(unsigned short port) {
 void startInfrastructure(unsigned short port = 9999) {
 #else
 void startInfrastructure(unsigned short port = 7777) {
-#endif // NDEBUG
+#endif  // NDEBUG
   // give former infrastructure some time to shut down
   sleep(5);
   int rank;
@@ -274,33 +276,36 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
       Stats::startEvent("manager combine third level");
       // // do two TCP-based communications and one or more file-based ones
       // if (i < 2) {
-        BOOST_CHECK_NO_THROW(manager.combineThirdLevel());
-//       } else {
-//         // remove previously interpolated files
-//         auto status =
-//             system(("rm tl_group" + std::to_string(testParams.sysNum) + "_diagonal*").c_str());
-//         BOOST_WARN_GE(status, 0);
-//         // write sparse grid data
-//         std::string filenamePrefixToWrite = "dsgu_combine_" + std::to_string(testParams.sysNum);
-//         std::string writeCompleteTokenFileName = filenamePrefixToWrite + "_complete.txt";
-//         std::string filenamePrefixToRead =
-//             "dsgu_combine_" + std::to_string((testParams.sysNum + 1) % 2);
-//         std::string startReadingTokenFileName = filenamePrefixToRead + "_complete.txt";
-//         manager.combineThirdLevelFileBasedWrite(filenamePrefixToWrite, writeCompleteTokenFileName);
-// #ifdef DISCOTEC_USE_HIGHFIVE
-//         // write interpolated values
-//         std::vector<std::vector<real>> interpolationCoords = {
-//             std::vector<real>(testParams.dim, 0.001), std::vector<real>(testParams.dim, 0.2),
-//             std::vector<real>(testParams.dim, 0.5), std::vector<real>(testParams.dim, 0.7),
-//             std::vector<real>(testParams.dim, 0.999)};
-//         manager.writeInterpolatedValuesSingleFile(
-//             interpolationCoords, "tl_group" + std::to_string(testParams.sysNum) + "_diagonal");
-// #else   // def DISCOTEC_USE_HIGHFIVE
-//         sleep(1);
-// #endif  // def DISCOTEC_USE_HIGHFIVE
-//         manager.combineThirdLevelFileBasedReadReduce(filenamePrefixToRead,
-//                                                      startReadingTokenFileName);
-//       }
+      BOOST_CHECK_NO_THROW(manager.combineThirdLevel());
+      //       } else {
+      //         // remove previously interpolated files
+      //         auto status =
+      //             system(("rm tl_group" + std::to_string(testParams.sysNum) +
+      //             "_diagonal*").c_str());
+      //         BOOST_WARN_GE(status, 0);
+      //         // write sparse grid data
+      //         std::string filenamePrefixToWrite = "dsgu_combine_" +
+      //         std::to_string(testParams.sysNum); std::string writeCompleteTokenFileName =
+      //         filenamePrefixToWrite + "_complete.txt"; std::string filenamePrefixToRead =
+      //             "dsgu_combine_" + std::to_string((testParams.sysNum + 1) % 2);
+      //         std::string startReadingTokenFileName = filenamePrefixToRead + "_complete.txt";
+      //         manager.combineThirdLevelFileBasedWrite(filenamePrefixToWrite,
+      //         writeCompleteTokenFileName);
+      // #ifdef DISCOTEC_USE_HIGHFIVE
+      //         // write interpolated values
+      //         std::vector<std::vector<real>> interpolationCoords = {
+      //             std::vector<real>(testParams.dim, 0.001), std::vector<real>(testParams.dim,
+      //             0.2), std::vector<real>(testParams.dim, 0.5), std::vector<real>(testParams.dim,
+      //             0.7), std::vector<real>(testParams.dim, 0.999)};
+      //         manager.writeInterpolatedValuesSingleFile(
+      //             interpolationCoords, "tl_group" + std::to_string(testParams.sysNum) +
+      //             "_diagonal");
+      // #else   // def DISCOTEC_USE_HIGHFIVE
+      //         sleep(1);
+      // #endif  // def DISCOTEC_USE_HIGHFIVE
+      //         manager.combineThirdLevelFileBasedReadReduce(filenamePrefixToRead,
+      //                                                      startReadingTokenFileName);
+      //       }
       Stats::stopEvent("manager combine third level");
     }
 
@@ -316,7 +321,8 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
     manager.monteCarloThirdLevel(numMCValues, interpolationCoords, values);
     real l2ErrorTwoSystems = 0.;
     for (size_t i = 0; i < interpolationCoords.size(); ++i) {
-      // l2ErrorTwoSystems += std::pow(initialFunction(interpolationCoords[i], testParams.ncombi) - values[i], 2);
+      // l2ErrorTwoSystems += std::pow(initialFunction(interpolationCoords[i], testParams.ncombi) -
+      // values[i], 2);
       l2ErrorTwoSystems += std::pow(initialFunction(interpolationCoords[i]) - values[i], 2);
     }
 
@@ -583,7 +589,7 @@ void testCombineThirdLevelWithoutManagers(
                                     true);
 
   if (testParams.nprocs > 1 && thirdLevelExtraSparseGrid) {
-    theMPISystem()->initOutputGroupComm(testParams.nprocs / 2);
+    theMPISystem()->initOutputGroupComm(static_cast<uint16_t>(testParams.nprocs / 2));
   }
   auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
   std::vector<BoundaryType> boundary(testParams.dim, testParams.boundary);
@@ -614,7 +620,8 @@ void testCombineThirdLevelWithoutManagers(
 
     for (size_t i = 0; i < systemLevels.size(); ++i) {
       // assign round-robin to process groups
-      if (static_cast<RankType>(i % theMPISystem()->getNumGroups()) == theMPISystem()->getProcessGroupNumber()) {
+      if (static_cast<RankType>(i % theMPISystem()->getNumGroups()) ==
+          theMPISystem()->getProcessGroupNumber()) {
         // find index in full list
         auto position = std::find(systemLevels.begin(), systemLevels.end(), systemLevels[i]);
         BOOST_REQUIRE(position != systemLevels.end());
@@ -928,7 +935,7 @@ BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance)
   CommunicatorType newcomm;
 
   for (auto boundary : std::vector<BoundaryType>({0, 1, 2})) {
-    for (bool extraSparseGrid : {false}) { //TODO add true again
+    for (bool extraSparseGrid : {false}) {  // TODO add true again
       assignProcsToSystems(ngroup * nprocs + 1, numSystems, sysNum, newcomm);
 
       if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
@@ -1013,7 +1020,7 @@ BOOST_AUTO_TEST_CASE(test_6, *boost::unit_test::tolerance(TestHelper::tolerance)
     BOOST_TEST_CHECKPOINT("static group assignment. sysNum: " + std::to_string(sysNum));
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
       BOOST_TEST_CHECKPOINT("static sysNum: " + std::to_string(sysNum));
-      for (bool extraSparseGrid : {false}) { //TODO add true again
+      for (bool extraSparseGrid : {false}) {  // TODO add true again
         TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
         startInfrastructure();
         testCombineThirdLevelStaticTaskAssignment(testParams, extraSparseGrid);
@@ -1107,7 +1114,7 @@ BOOST_AUTO_TEST_CASE(test_8, *boost::unit_test::tolerance(TestHelper::tolerance)
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
       startInfrastructure();
-      BOOST_CHECK_NO_THROW(testCombineThirdLevel(testParams, false)); //TODO make true again
+      BOOST_CHECK_NO_THROW(testCombineThirdLevel(testParams, false));  // TODO make true again
     }
 
     MPI_Barrier(MPI_COMM_WORLD);

@@ -266,10 +266,6 @@ class ProcessGroupManager {
     return foundIt != tasks_.end();
   }
 
-  /**
-   * @brief signal to write the group's component grids to vtk plot file each
-   */
-  bool writeCombigridsToVTKPlotFile();
 
   /**
    * @brief signal to write the group's sparse grid data structures to disk

@@ -3,27 +3,28 @@
 #include "manager/TaskWorker.hpp"
 #include "mpi/MPISystem.hpp"
 #include "utils/Types.hpp"
-#include "vtk/DFGPlotFileWriter.hpp"
 
 namespace combigrid {
 
-template <typename CombinableType, typename CombiDataType = double>
-static std::vector<CombinableType> interpolateValues(
+template <typename CombiDataType = double>
+static std::vector<CombiDataType> interpolateValues(
     const std::vector<std::unique_ptr<Task<CombiDataType>>>& tasks,
     const std::vector<std::vector<real>>& interpolationCoords) {
   auto numCoordinates = interpolationCoords.size();
 
   // call interpolation function on tasks and reduce with combination coefficient
-  std::vector<CombinableType> values(numCoordinates, 0.);
-  std::vector<CombinableType> kahanTrailingTerm(numCoordinates, 0.);
+  std::vector<CombiDataType> values(numCoordinates, 0.);
+  std::vector<CombiDataType> kahanTrailingTerm(numCoordinates, 0.);
 
   for (const auto& task : tasks) {
     const auto coeff = task->getCoefficient();
 #pragma omp parallel for default(none) firstprivate(numCoordinates, coeff) \
     shared(values, kahanTrailingTerm, interpolationCoords, task) schedule(dynamic)
     for (size_t i = 0; i < numCoordinates; ++i) {
-      auto localValue = task->getDistributedFullGrid().evalLocal(interpolationCoords[i]);
-      auto summand = localValue * static_cast<CombinableType>(coeff);
+      auto localValue = task->visitDistributedFullGrid(
+          [&](const auto& dfg) { return dfg.evalLocal(interpolationCoords[i]); });
+      auto summand = localValue;
+      summand *= static_cast<decltype(std::abs(summand))>(coeff);
       // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
       auto y = summand - kahanTrailingTerm[i];
       auto t = values[i] + y;
@@ -33,14 +34,14 @@ static std::vector<CombinableType> interpolateValues(
   }
   // reduce interpolated values within process group
   MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numCoordinates),
-                abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombinableType>()),
+                abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
                 MPI_SUM, theMPISystem()->getLocalComm());
   // TODO is it necessary to correct for the kahan terms across process groups too?
   //  need to reduce across process groups too
   //  these do not strictly need to be allreduce (could be reduce), but it is easier to maintain
   //  that way (all processes end up with valid values)
   MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numCoordinates),
-                abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombinableType>()),
+                abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
                 MPI_SUM, theMPISystem()->getGlobalReduceComm());
 
   // hope for RVO or change
@@ -54,9 +55,10 @@ static void writeInterpolatedValuesPerGrid(
     IndexType currentCombinationStep) {
   // call interpolation function on tasks and write out task-wise
   for (size_t i = 0; i < tasks.size(); ++i) {
-    auto taskVals = tasks[i]->getDistributedFullGrid().getInterpolatedValues(interpolationCoords);
+    auto taskVals = tasks[i]->visitDistributedFullGrid(
+        [&](const auto& dfg) { return dfg.getInterpolatedValues(interpolationCoords); });
     // cycle through ranks to write
-    if (i % (theMPISystem()->getNumProcs()) == theMPISystem()->getLocalRank()) {
+    if (i % (theMPISystem()->getNumProcs()) == static_cast<size_t>(theMPISystem()->getLocalRank())) {
       std::string saveFilePath =
           fileNamePrefix + "_task_" + std::to_string(tasks[i]->getID()) + ".h5";
       std::string groupName = "run_";
@@ -67,13 +69,13 @@ static void writeInterpolatedValuesPerGrid(
   }
 }
 
-template <typename CombinableType, typename CombiDataType = double>
+template <typename CombiDataType = double>
 static void writeInterpolatedValuesSingleFile(
     const std::vector<std::unique_ptr<Task<CombiDataType>>>& tasks,
     const std::vector<std::vector<real>>& interpolationCoords, const std::string& filenamePrefix,
     IndexType currentCombinationStep) {
   // all processes interpolate
-  auto values = interpolateValues<CombinableType>(tasks, interpolationCoords);
+  auto values = interpolateValues<CombiDataType>(tasks, interpolationCoords);
   // one process writes
   OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION {
     MASTER_EXCLUSIVE_SECTION {
@@ -89,19 +91,4 @@ static void writeInterpolatedValuesSingleFile(
   }
 }
 
-template <typename CombiDataType = double>
-static void writeVTKPlotFilesOfAllTasks(
-    const std::vector<std::unique_ptr<Task<CombiDataType>>>& tasks, int numberOfGrids) {
-#ifdef USE_VTK
-  for (const auto& task : tasks) {
-    for (int g = 0; g < numberOfGrids; ++g) {
-      DistributedFullGrid<CombiDataType>& dfg = task->getDistributedFullGrid(g);
-      DFGPlotFileWriter<CombiDataType> writer{dfg, g};
-      writer.writePlotFile();
-    }
-  }
-#else
-  std::cout << "Warning: no vtk output produced as DisCoTec was compiled without VTK." << std::endl;
-#endif /* USE_VTK */
-}
 } /* namespace combigrid */

@@ -348,7 +348,8 @@ class SparseGridWorker {
    * @param g the dimension index (in the case that there are multiple different full grids per
    * task)
    */
-  inline void fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, size_t g,
+  template <DimType DIM>
+  inline void fillDFGFromDSGU(DistributedFullGrid<CombiDataType, DIM>& dfg, size_t g,
                               const std::vector<BoundaryType>& boundary,
                               const std::vector<bool>& hierarchizationDims,
                               const std::vector<BasisFunctionBasis*>& hierarchicalBases,
@@ -399,8 +400,11 @@ inline void SparseGridWorker<CombiDataType>::collectReduceDistribute(
 
         // local reduce (fg -> sg, within rank)
         for (const auto& t : this->taskWorkerRef_.getTasks()) {
-          const DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
-          dsg->template addDistributedFullGrid<false>(dfg, t->getCoefficient());
+          t->visitDistributedFullGrid(
+              [&](const auto& dfg) {
+                dsg->template addDistributedFullGrid<false>(dfg, t->getCoefficient());
+              },
+              g);
         }
         // global reduce (across process groups)
         CombiCom::distributedGlobalSubspaceReduce<DistributedSparseGridUniform<CombiDataType>,
@@ -416,7 +420,8 @@ inline void SparseGridWorker<CombiDataType>::collectReduceDistribute(
         // distribute (sg -> fg, within rank)
         for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
           // fill dfg with hierarchical coefficients from distributed sparse grid
-          taskToUpdate->getDistributedFullGrid(g).template extractFromUniformSG<false>(*dsg);
+          taskToUpdate->visitDistributedFullGrid(
+              [&](auto& dfg) { dfg.template extractFromUniformSG<false>(*dsg); }, g);
         }
       }
     }
@@ -430,9 +435,11 @@ inline void SparseGridWorker<CombiDataType>::collectReduceDistribute(
 
       // local reduce (fg -> sg, within rank)
       for (const auto& t : this->taskWorkerRef_.getTasks()) {
-        const DistributedFullGrid<CombiDataType>& dfg =
-            t->getDistributedFullGrid(static_cast<int>(g));
-        dsg->template addDistributedFullGrid<false>(dfg, t->getCoefficient());
+        t->visitDistributedFullGrid(
+            [&](const auto& dfg) {
+              dsg->template addDistributedFullGrid<false>(dfg, t->getCoefficient());
+            },
+            static_cast<size_t>(g));
       }
       if constexpr (keepValuesInExtraSparseGrid) {
         this->copyFromPartialDsgToExtraDSG(g);
@@ -444,7 +451,8 @@ inline void SparseGridWorker<CombiDataType>::collectReduceDistribute(
       // distribute (sg -> fg, within rank)
       for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
         // fill dfg with hierarchical coefficients from distributed sparse grid
-        taskToUpdate->getDistributedFullGrid(g).template extractFromUniformSG<false>(*dsg);
+        taskToUpdate->visitDistributedFullGrid(
+            [&](auto& dfg) { dfg.template extractFromUniformSG<false>(*dsg); }, g);
       }
     }
     dsg->deleteSubspaceData();
@@ -568,7 +576,8 @@ inline void SparseGridWorker<CombiDataType>::distributeChunkedBroadcasts(
       // distribute (sg -> fg, within rank)
       for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
         // fill dfg with hierarchical coefficients from distributed sparse grid
-        taskToUpdate->getDistributedFullGrid(0).template extractFromUniformSG<false>(*dsg);
+        taskToUpdate->visitDistributedFullGrid(
+            [&](auto& dfg) { dfg.template extractFromUniformSG<false>(*dsg); }, 0);
       }
       OUTPUT_GROUP_EXCLUSIVE_SECTION {
         // output ranks can wait later
@@ -603,7 +612,8 @@ inline void SparseGridWorker<CombiDataType>::distributeChunkedBroadcasts(
         this->copyFromExtraDsgToPartialDSG(0);
         // distribute (sg -> fg, within rank)
         for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
-          taskToUpdate->getDistributedFullGrid(0).template extractFromUniformSG<false>(*dsg);
+          taskToUpdate->visitDistributedFullGrid(
+              [&](auto& dfg) { dfg.template extractFromUniformSG<false>(*dsg); }, 0);
         }
         ++roundNumber;
       }
@@ -618,16 +628,17 @@ inline void SparseGridWorker<CombiDataType>::distributeCombinedSolutionToTasks()
   for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
     for (size_t g = 0; g < this->getNumberOfGrids(); ++g) {
       // fill dfg with hierarchical coefficients from distributed sparse grid
-      taskToUpdate->getDistributedFullGrid(g).extractFromUniformSG(
-          *this->getCombinedUniDSGVector()[g]);
+      taskToUpdate->visitDistributedFullGrid(
+          [&](auto& dfg) { dfg.extractFromUniformSG(*this->getCombinedUniDSGVector()[g]); }, g);
     }
   }
 }
 
 template <typename CombiDataType>
+template <DimType DIM>
 inline void SparseGridWorker<CombiDataType>::fillDFGFromDSGU(
-    DistributedFullGrid<CombiDataType>& dfg, size_t g, const std::vector<BoundaryType>& boundary,
-    const std::vector<bool>& hierarchizationDims,
+    DistributedFullGrid<CombiDataType, DIM>& dfg, size_t g,
+    const std::vector<BoundaryType>& boundary, const std::vector<bool>& hierarchizationDims,
     const std::vector<BasisFunctionBasis*>& hierarchicalBases, const LevelVector& lmin) const {
   // fill dfg with hierarchical coefficients from distributed sparse grid
   dfg.extractFromUniformSG(*this->getCombinedUniDSGVector()[g]);
@@ -650,8 +661,12 @@ inline void SparseGridWorker<CombiDataType>::fillDFGFromDSGU(
     const std::vector<BasisFunctionBasis*>& hierarchicalBases, const LevelVector& lmin) const {
   for (size_t g = 0; g < this->getNumberOfGrids(); g++) {
     assert(this->getCombinedUniDSGVector()[g] != nullptr);
-    this->fillDFGFromDSGU(t.getDistributedFullGrid(g), g, t.getBoundary(), hierarchizationDims,
-                          hierarchicalBases, lmin);
+    t.visitDistributedFullGrid(
+        [&](auto& dfg) {
+          this->fillDFGFromDSGU(dfg, g, t.getBoundary(), hierarchizationDims, hierarchicalBases,
+                                lmin);
+        },
+        g);
   }
 }
 
@@ -727,9 +742,12 @@ inline void SparseGridWorker<CombiDataType>::initCombinedUniDSGVector(
   }
   for (size_t g = 0; g < combinedUniDSGVector_.size(); ++g) {
     for (const auto& t : this->taskWorkerRef_.getTasks()) {
-      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
-      // set subspace sizes locally
-      combinedUniDSGVector_[g]->registerDistributedFullGrid(dfg);
+      t->visitDistributedFullGrid(
+          [&](auto& dfg) {
+            // set subspace sizes locally
+            combinedUniDSGVector_[g]->registerDistributedFullGrid(dfg);
+          },
+          static_cast<size_t>(g));
     }
     // we may clear the levels_ member of the sparse grids here to save memory
     // but only if we need no new full grids initialized from the sparse grids!
@@ -762,23 +780,27 @@ inline void SparseGridWorker<CombiDataType>::interpolateAndPlotOnLevel(
     const std::vector<int>& parallelization, const std::vector<IndexVector>& decomposition) const {
   assert(levelToEvaluate.size() == parallelization.size());
   // create dfg
-  OwningDistributedFullGrid<CombiDataType> dfg(static_cast<DimType>(levelToEvaluate.size()),
-                                               levelToEvaluate, theMPISystem()->getLocalComm(),
-                                               boundary, parallelization, false, decomposition);
+  auto dfgVariant = makeOwningDistributedFullGrid<CombiDataType>(
+      static_cast<DimType>(levelToEvaluate.size()), levelToEvaluate, theMPISystem()->getLocalComm(),
+      boundary, parallelization, false, decomposition);
   for (size_t g = 0; g < this->getNumberOfGrids(); ++g) {  // loop over all grids and plot them
-    this->fillDFGFromDSGU(dfg, g, boundary, hierarchizationDims, hierarchicalBases, lmin);
-    // save dfg to file with MPI-IO
-    if (endsWith(filename, ".vtk")) {
-      dfg.writePlotFileVTK(filename.c_str());
-    } else {
-      std::string fn = filename;
-      auto pos = fn.find(".");
-      if (pos != std::string::npos) {
-        // if filename contains ".", insert grid number before that
-        fn.insert(pos, "_" + std::to_string(g));
-      }
-      dfg.writePlotFile(fn.c_str());
-    }
+    std::visit(
+        [&](auto& dfg) {
+          this->fillDFGFromDSGU(dfg, g, boundary, hierarchizationDims, hierarchicalBases, lmin);
+          // save dfg to file with MPI-IO
+          if (endsWith(filename, ".vtk")) {
+            dfg.writePlotFileVTK(filename.c_str());
+          } else {
+            std::string fn = filename;
+            auto pos = fn.find(".");
+            if (pos != std::string::npos) {
+              // if filename contains ".", insert grid number before that
+              fn.insert(pos, "_" + std::to_string(g));
+            }
+            dfg.writePlotFile(fn.c_str());
+          }
+        },
+        dfgVariant);
   }
 }
 
@@ -1007,9 +1029,11 @@ inline void SparseGridWorker<CombiDataType>::reduceLocalAndGlobal(
   // local reduce (within rank)
   for (const auto& t : this->taskWorkerRef_.getTasks()) {
     for (size_t g = 0; g < numGrids; ++g) {
-      const DistributedFullGrid<CombiDataType>& dfg =
-          t->getDistributedFullGrid(static_cast<int>(g));
-      this->getCombinedUniDSGVector()[g]->addDistributedFullGrid(dfg, t->getCoefficient());
+      t->visitDistributedFullGrid(
+          [&](const auto& dfg) {
+            this->getCombinedUniDSGVector()[g]->addDistributedFullGrid(dfg, t->getCoefficient());
+          },
+          static_cast<size_t>(g));
     }
   }
   // global reduce (across process groups)

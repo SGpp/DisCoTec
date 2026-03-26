@@ -156,13 +156,21 @@ With `YourSolver`, that will be as simple as:
 
 #include "YourSolver.h"
 
-class YourTask : public combigrid::Task {
+// The CombiDataType template parameter defaults to double.
+// In this tutorial we use a plain double so the example compiles in isolation.
+// In your own code, you can instead alias this to combigrid::CombiDataType
+// (from your project's Config.hpp or equivalent) once you include that header.
+// DIM is a compile-time constant for the dimensionality (1-6).
+using CombiDataType = double;
+static constexpr combigrid::DimType DIM = 6;
+
+class YourTask : public combigrid::Task<CombiDataType> {
  public:
-  YourTask(combigrid::LevelVector& l, 
+  YourTask(combigrid::LevelVector& l,
            const std::vector<combigrid::BoundaryType>& boundary,
-           combigrid::real coeff, 
+           combigrid::real coeff,
            combigrid::real dt)
-      : Task(4, l, boundary, coeff, nullptr, nullptr), 
+      : Task<CombiDataType>(DIM, l, boundary, coeff, nullptr, nullptr),
         sim_(nullptr), dfg_(nullptr), dt_(dt) {}
 
   virtual ~YourTask(){
@@ -189,34 +197,41 @@ class YourTask : public combigrid::Task {
     // if all are 1, we are only using the parallelism between grids
     std::vector<int> p = {1, 1, 1, 1, 1, 1};
 
-    // if using MPI within your solver, 
+    // if using MPI within your solver,
     // pass p and the lcomm communicator to sim_, too
     sim_ =
-        std::make_unique<YourSolver>(num_points_x, num_points_y, num_points_z, 
+        std::make_unique<YourSolver>(num_points_x, num_points_y, num_points_z,
                                      num_points_vx, num_points_vy, num_points_vz);
     // wrap tensor in a DistributedFullGrid
-    dfg_ = std::make_unique<combigrid::DistributedFullGrid<combigrid::CombiDataType>>(
-        this->getDim(), this->getLevelVector(), lcomm, this->getBoundary(),
+    dfg_ = std::make_unique<combigrid::DistributedFullGrid<CombiDataType, DIM>>(
+        DIM, this->getLevelVector(), lcomm, this->getBoundary(),
         sim_->get_tensor_pointer(), p, false, decomposition);
   }
 
   void run(combigrid::CommunicatorType lcomm) override { sim_->run(dt_); }
 
-  combigrid::DistributedFullGrid<combigrid::CombiDataType>& getDistributedFullGrid(
-      size_t n) override {
+  combigrid::DistributedFullGridRef<CombiDataType> getDistributedFullGrid(
+      size_t n = 0) override {
     return *dfg_;
   }
 
   void setZero() override { dfg_->setZero(); }
 
   std::unique_ptr<YourSolver> sim_;
-  std::unique_ptr<combigrid::DistributedFullGrid<combigrid::CombiDataType>> dfg_;
+  std::unique_ptr<combigrid::DistributedFullGrid<CombiDataType, DIM>> dfg_;
   double dt_;
 };
 ```
 
 Note that this also turns your data into a `DistributedFullGrid`, without
 making a copy of the data.
+`DistributedFullGrid<CombiDataType, DIM>` takes two template parameters:
+the data type (`CombiDataType`, typically `double`) and the dimensionality
+`DIM` as a compile-time constant (between 1 and 6).
+The compile-time `DIM` enables fixed-size `std::array` types internally
+for better performance.
+`Task<CombiDataType>` and `ProcessGroupWorker<CombiDataType>` are also
+templated on the data type (defaulting to `double`).
 DisCoTec just assumes that you pass it a pointer to a correctly-sized
 contiguous array.
 The size of the whole "global" grid is $2^{l_d}$, with $l_d$ the level vector
@@ -307,7 +322,8 @@ The remaining part of the code looks a lot like your initial time loop again:
 
 ```cpp
   {
-    combigrid::ProcessGroupWorker worker;
+    // ProcessGroupWorker is also templated on CombiDataType (defaults to double)
+    combigrid::ProcessGroupWorker<> worker;
 
     // create combiparamters
     combigrid::CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs,
@@ -320,7 +336,7 @@ The remaining part of the code looks a lot like your initial time loop again:
     // initialize individual tasks (component grids)
     for (size_t i = 0; i < levels.size(); i++) {
       worker.initializeTask(
-          std::unique_ptr<combigrid::Task>(new YourTask(levels[i], boundary, coeffs[i], dt)));
+          std::unique_ptr<combigrid::Task<>>(new YourTask(levels[i], boundary, coeffs[i], dt)));
     }
 
     worker.initCombinedDSGVector();

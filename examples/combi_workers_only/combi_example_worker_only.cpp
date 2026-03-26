@@ -144,7 +144,8 @@ int main(int argc, char** argv) {
       // if the file does not exist, one rank creates it
       if (theMPISystem()->getWorldRank() == 0) {
         if (!std::filesystem::exists(interpolationCoordsFile)) {
-          interpolationCoords = montecarlo::getRandomCoordinates(interpolationCoords.size(), dim);
+          interpolationCoords =
+              montecarlo::getRandomCoordinates(static_cast<int>(interpolationCoords.size()), dim);
           h5io::writeValuesToH5File(interpolationCoords, interpolationCoordsFile, "worker_group",
                                     "only");
         }
@@ -204,7 +205,7 @@ int main(int argc, char** argv) {
       // run tasks for next time interval
       MPI_Barrier(theMPISystem()->getWorldComm());
       worker.runAllTasks();
-      auto durationRun = Stats::getDuration("run") / 1000.0;
+      auto durationRun = static_cast<double>(Stats::getDuration("run")) / 1000.0;
       MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "calculation " << i
                                                  << " took: " << durationRun << " seconds"
                                                  << std::endl;
@@ -218,8 +219,8 @@ int main(int argc, char** argv) {
         Stats::stopEvent("write interpolated");
         OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION {
           MASTER_EXCLUSIVE_SECTION {
-            std::cout << getTimeStamp() << "interpolation " << i
-                      << " took: " << Stats::getDuration("write interpolated") / 1000.0
+            std::cout << getTimeStamp() << "interpolation " << i << " took: "
+                      << static_cast<double>(Stats::getDuration("write interpolated")) / 1000.0
                       << " seconds" << std::endl;
           }
         }
@@ -230,7 +231,9 @@ int main(int argc, char** argv) {
       worker.combineAtOnce();
       auto endCombine = std::chrono::high_resolution_clock::now();
       auto durationCombine =
-          std::chrono::duration_cast<std::chrono::milliseconds>(endCombine - startCombine).count() /
+          static_cast<double>(
+              std::chrono::duration_cast<std::chrono::milliseconds>(endCombine - startCombine)
+                  .count()) /
           1000.0;
       MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "combination " << i
                                                  << " took: " << durationCombine << " seconds"
@@ -239,7 +242,7 @@ int main(int argc, char** argv) {
 
     // run tasks for last time interval
     worker.runAllTasks();
-    auto durationRun = Stats::getDuration("run") / 1000.0;
+    auto durationRun = static_cast<double>(Stats::getDuration("run")) / 1000.0;
     MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "last calculation " << ncombi
                                                << " took: " << durationRun << " seconds"
                                                << std::endl;
@@ -249,9 +252,9 @@ int main(int argc, char** argv) {
       Stats::stopEvent("write interpolated");
       OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION {
         MASTER_EXCLUSIVE_SECTION {
-          std::cout << getTimeStamp() << "last interpolation " << ncombi
-                    << " took: " << Stats::getDuration("write interpolated") / 1000.0 << " seconds"
-                    << std::endl;
+          std::cout << getTimeStamp() << "last interpolation " << ncombi << " took: "
+                    << static_cast<double>(Stats::getDuration("write interpolated")) / 1000.0
+                    << " seconds" << std::endl;
         }
       }
     }

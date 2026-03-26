@@ -41,9 +41,7 @@ BOOST_CLASS_EXPORT(StaticFaults)
 BOOST_CLASS_EXPORT(WeibullFaults)
 BOOST_CLASS_EXPORT(FaultCriterion)
 
-
 int main(int argc, char** argv) {
-  
   // only one rank reads parameter file and broadcasts to others
   std::string paramfile = "ctparam";
   if (argc > 1) paramfile = argv[1];
@@ -51,47 +49,46 @@ int main(int argc, char** argv) {
       broadcastParameters::getParametersFromRankZero(paramfile, MPI_COMM_WORLD);
   Stats::initialize();
 
-    std::cout << "DisCoTec! reading " << paramfile << std::endl;
-    DimType dim = cfg.get<DimType>("ct.dim");
-    combigrid::real dt;
-    size_t nsteps, ncombi;
-    ncombi = cfg.get<size_t>("ct.ncombi");
-    dt = cfg.get<combigrid::real>("application.dt");
-    nsteps = cfg.get<size_t>("application.nsteps");
+  std::cout << "DisCoTec! reading " << paramfile << std::endl;
+  DimType dim = cfg.get<DimType>("ct.dim");
+  combigrid::real dt;
+  size_t nsteps, ncombi;
+  ncombi = cfg.get<size_t>("ct.ncombi");
+  dt = cfg.get<combigrid::real>("application.dt");
+  nsteps = cfg.get<size_t>("application.nsteps");
 
-
-    std::vector<size_t> numValuesToTry{1000, 10000, 100000, 1000000, 10000000};
-    std::vector<CombiDataType> l2Values;
-    for (auto& numValues : numValuesToTry) {
-      l2Values.clear();
-      for (int i = 0; i < 20; ++i) {
-        Stats::startEvent("manager calculate errors");
-	auto interpolationCoords = montecarlo::getRandomCoordinates(numValues, dim);
-        // calculate monte carlo errors
-        TestFn initialFunction;
-        real l0Reference = 0., l1Reference = 0., l2Reference = 0.;
-        for (size_t i = 0; i < interpolationCoords.size(); ++i) {
-          auto analyticalSln =
-              initialFunction(interpolationCoords[i], static_cast<double>(ncombi * nsteps) * dt);
-          l0Reference = std::max(analyticalSln, l0Reference);
-          l1Reference += analyticalSln;
-          l2Reference += std::pow(analyticalSln, 2);
-        }
-	l1Reference /= numValues;
-        l2Reference /= numValues;
-
-        Stats::stopEvent("manager calculate errors");
-	std::cout << "Monte carlo values on " << numValues << " points are " << l0Reference << ", "
-                  << l1Reference << ", and " << l2Reference << " in total." << std::endl;
-	l2Values.push_back(l2Reference);
+  std::vector<size_t> numValuesToTry{1000, 10000, 100000, 1000000, 10000000};
+  std::vector<CombiDataType> l2Values;
+  for (auto& numValues : numValuesToTry) {
+    l2Values.clear();
+    for (int i = 0; i < 20; ++i) {
+      Stats::startEvent("manager calculate errors");
+      auto interpolationCoords = montecarlo::getRandomCoordinates(static_cast<int>(numValues), dim);
+      // calculate monte carlo errors
+      TestFn initialFunction;
+      real l0Reference = 0., l1Reference = 0., l2Reference = 0.;
+      for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+        auto analyticalSln =
+            initialFunction(interpolationCoords[i], static_cast<double>(ncombi * nsteps) * dt);
+        l0Reference = std::max(analyticalSln, l0Reference);
+        l1Reference += analyticalSln;
+        l2Reference += std::pow(analyticalSln, 2);
       }
-	double sum = std::accumulate(l2Values.begin(), l2Values.end(), 0.0);
-	double mean = sum / l2Values.size();
+      l1Reference /= static_cast<real>(numValues);
+      l2Reference /= static_cast<real>(numValues);
 
-	double sq_sum = std::inner_product(l2Values.begin(), l2Values.end(), l2Values.begin(), 0.0);
-	double variance = sq_sum / l2Values.size() - mean * mean;
-	std::cout << "Monte carlo variance on " << numValues << " points is " << variance << std::endl;
+      Stats::stopEvent("manager calculate errors");
+      std::cout << "Monte carlo values on " << numValues << " points are " << l0Reference << ", "
+                << l1Reference << ", and " << l2Reference << " in total." << std::endl;
+      l2Values.push_back(l2Reference);
     }
+    double sum = std::accumulate(l2Values.begin(), l2Values.end(), 0.0);
+    double mean = sum / static_cast<double>(l2Values.size());
+
+    double sq_sum = std::inner_product(l2Values.begin(), l2Values.end(), l2Values.begin(), 0.0);
+    double variance = sq_sum / static_cast<double>(l2Values.size()) - mean * mean;
+    std::cout << "Monte carlo variance on " << numValues << " points is " << variance << std::endl;
+  }
   Stats::finalize();
   return 0;
 }

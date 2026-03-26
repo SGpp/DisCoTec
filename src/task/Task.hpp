@@ -274,7 +274,8 @@ class Task {
    */
   virtual void getFullGrid(FullGrid<CombiDataType>& fg, RankType lroot, CommunicatorType lcomm,
                            int n = 0) {
-    this->getDistributedFullGrid(n).gatherFullGrid(fg, lroot);
+    auto ref = this->getDistributedFullGrid(n);
+    visitDFG([&](auto& dfg) { dfg.gatherFullGrid(fg, lroot); }, ref);
   }
 
   /**
@@ -286,10 +287,25 @@ class Task {
    *
    * @param n index of the distributed full grid to get
    */
-  virtual DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) = 0;
+  virtual DistributedFullGridRef<CombiDataType> getDistributedFullGrid(size_t n = 0) = 0;
 
-  virtual const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n) const {
+  virtual ConstDistributedFullGridRef<CombiDataType> getDistributedFullGrid(size_t n) const {
     throw std::runtime_error("const getDistributedFullGrid called but not implemented");
+  }
+
+  /**
+   * @brief visit the DistributedFullGrid with a visitor (convenience wrapper)
+   */
+  template <typename Visitor>
+  decltype(auto) visitDistributedFullGrid(Visitor&& visitor, size_t n = 0) {
+    auto ref = getDistributedFullGrid(n);
+    return visitDFG(std::forward<Visitor>(visitor), ref);
+  }
+
+  template <typename Visitor>
+  decltype(auto) visitDistributedFullGrid(Visitor&& visitor, size_t n = 0) const {
+    auto ref = getDistributedFullGrid(n);
+    return visitDFG(std::forward<Visitor>(visitor), ref);
   }
 
   /**

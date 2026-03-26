@@ -12,7 +12,7 @@
 
 namespace combigrid {
 // forward declarations
-template <typename FG_ELEMENT>
+template <typename FG_ELEMENT, DimType DIM>
 class DistributedFullGrid;
 
 template <typename FG_ELEMENT>
@@ -84,7 +84,7 @@ class DistributedSparseGridDataContainer {
     size_t numDataPoints = dsgu_.getAccumulatedDataSize(subspacesWithData_);
     kahanData_.resize(numDataPoints, 0.);
     kahanDataBegin_.resize(dsgu_.getSubspaceDataSizes().size());
-    std::memset(kahanData_.data(), 0, kahanData_.size() * sizeof(FG_ELEMENT*));
+    std::memset(kahanData_.data(), 0, kahanData_.size() * sizeof(FG_ELEMENT));
     std::memset(kahanDataBegin_.data(), 0, kahanDataBegin_.size() * sizeof(FG_ELEMENT*));
 
     // update pointers for begin of subspacen in kahan buffer
@@ -336,7 +336,8 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
    * overwrites this' subspace sizes for all subspaces contained in the full grid, but does not
    * allocate memory
    */
-  inline void registerDistributedFullGrid(const DistributedFullGrid<FG_ELEMENT>& dfg);
+  template <DimType DIM>
+  inline void registerDistributedFullGrid(const DistributedFullGrid<FG_ELEMENT, DIM>& dfg);
 
   /**
    * @brief add a DistributedFullGrid to this DistributedSparseGridUniform
@@ -348,8 +349,8 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
    * @param coeff the coefficient to multiply the data with
    * @tparam sparseGridFullyAllocated if true, assumes that all subspaces are allocated here
    */
-  template <bool sparseGridFullyAllocated = true>
-  inline void addDistributedFullGrid(const DistributedFullGrid<FG_ELEMENT>& dfg,
+  template <bool sparseGridFullyAllocated = true, DimType DIM>
+  inline void addDistributedFullGrid(const DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                                      combigrid::real coeff);
 
   /**
@@ -771,8 +772,9 @@ void DistributedSparseGridUniform<FG_ELEMENT>::accumulateMinMaxCoefficients() {
  * @param dfg the DFG to register
  */
 template <typename FG_ELEMENT>
+template <DimType DIM>
 inline void DistributedSparseGridUniform<FG_ELEMENT>::registerDistributedFullGrid(
-    const DistributedFullGrid<FG_ELEMENT>& dfg) {
+    const DistributedFullGrid<FG_ELEMENT, DIM>& dfg) {
   assert(dfg.getDimension() == dim_);
   // all the hierarchical subspaces contained in the full grid
   const auto downwardClosedSet = combigrid::getDownSet(dfg.getLevels());
@@ -810,9 +812,13 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::registerDistributedFullGri
  * @param coeff the coefficient that gets multiplied to all entries in DFG
  */
 template <typename FG_ELEMENT>
-template <bool sparseGridFullyAllocated>
+template <bool sparseGridFullyAllocated, DimType DIM>
 inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
-    const DistributedFullGrid<FG_ELEMENT>& dfg, combigrid::real coeff) {
+    const DistributedFullGrid<FG_ELEMENT, DIM>& dfg, combigrid::real coeff) {
+  static_assert(
+      std::is_same_v<FG_ELEMENT, typename DistributedFullGrid<FG_ELEMENT, DIM>::ElementType>,
+      "element type of the distributed full grid must match the element type of this "
+      "distributed sparse grid -- remove this check if you know what you are doing");
   assert(this->isSubspaceDataCreated());
   if (this->subspacesDataContainer_.kahanData_.empty() ||
       this->subspacesDataContainer_.kahanDataBegin_.empty()) {
@@ -850,8 +856,8 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
       subspaceIndices = std::move(dfg.getFGPointsOfSubspace(level));
       // #pragma omp simd linear(sPointer, kPointer : 1)
       for (size_t fIndex = 0; fIndex < subspaceIndices.size(); ++fIndex) {
-        FG_ELEMENT summand =
-            static_cast<FG_ELEMENT>(coeff) * dfg.getData()[subspaceIndices[fIndex]];
+        FG_ELEMENT summand = dfg.getData()[subspaceIndices[fIndex]];
+        summand *= static_cast<decltype(std::abs(summand))>(coeff);
         // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
         FG_ELEMENT y = summand - *kPointer;  // TODO check if these should be volatile
         FG_ELEMENT t = *sPointer + y;

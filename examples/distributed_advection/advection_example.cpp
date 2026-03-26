@@ -36,15 +36,16 @@ using namespace combigrid;
 BOOST_CLASS_EXPORT(TaskAdvection)
 
 namespace shellCommand {
-  // cf. https://stackoverflow.com/questions/478898/how-do-i-execute-a-command-and-get-the-output-of-the-command-within-c-using-po
-  void exec(const char* cmd) {
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
-    if (!pipe) {
-        throw std::runtime_error("popen() failed!");
-    }
-    sleep(2);         // wait for 2 seconds before closing
+// cf.
+// https://stackoverflow.com/questions/478898/how-do-i-execute-a-command-and-get-the-output-of-the-command-within-c-using-po
+void exec(const char* cmd) {
+  std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+  if (!pipe) {
+    throw std::runtime_error("popen() failed!");
   }
+  sleep(2);  // wait for 2 seconds before closing
 }
+}  // namespace shellCommand
 
 void managerMonteCarlo(ProcessManager<>& manager, DimType dim, double time) {
   // 100000 was tested to be sufficient for the 6D Gaussian blob
@@ -54,8 +55,8 @@ void managerMonteCarlo(ProcessManager<>& manager, DimType dim, double time) {
   static std::vector<std::vector<real>> interpolationCoords;
   std::vector<CombiDataType> values;
   if (interpolationCoords.empty()) {
-      interpolationCoords = montecarlo::getRandomCoordinates(numValues, dim);
-      manager.writeInterpolationCoordinates(interpolationCoords, "advection");
+    interpolationCoords = montecarlo::getRandomCoordinates(static_cast<int>(numValues), dim);
+    manager.writeInterpolationCoordinates(interpolationCoords, "advection");
   }
   values = manager.interpolateValues(interpolationCoords);
   manager.writeInterpolatedValuesSingleFile(interpolationCoords, "advection");
@@ -65,7 +66,7 @@ void managerMonteCarlo(ProcessManager<>& manager, DimType dim, double time) {
   // calculate monte carlo errors
   TestFn initialFunction;
   real l0Error = 0., l1Error = 0., l2Error = 0., l0Reference = 0., l1Reference = 0.,
-        l2Reference = 0.;
+       l2Reference = 0.;
 
   for (size_t i = 0; i < interpolationCoords.size(); ++i) {
     auto analyticalSln = initialFunction(interpolationCoords[i], time);
@@ -78,8 +79,8 @@ void managerMonteCarlo(ProcessManager<>& manager, DimType dim, double time) {
     l2Error += std::pow(difference, 2);
   }
   std::cout << "Monte carlo errors on " << numValues << " points are \n"
-            << time << ", " << l0Error << ", " << l1Error / numValues << ", "
-            << l2Error / numValues << " " << std::endl;
+            << time << ", " << l0Error << ", " << l1Error / static_cast<real>(numValues) << ", "
+            << l2Error / static_cast<real>(numValues) << " " << std::endl;
 
   // make them relative errors
   l0Error = l0Error / l0Reference;
@@ -120,7 +121,7 @@ int main(int argc, char** argv) {
      */
     ProcessGroupManagerContainer<> pgroups;
     for (size_t i = 0; i < ngroup; ++i) {
-      int pgroupRootID(i);
+      int pgroupRootID(static_cast<int>(i));
       pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
 
@@ -196,7 +197,7 @@ int main(int argc, char** argv) {
     std::cout << "set up component grids and run until first combination point" << std::endl;
 
     /* distribute task according to load model and start computation for
-      * the first time */
+     * the first time */
     Stats::startEvent("manager run first");
     manager.runfirst();
     Stats::stopEvent("manager run first");
@@ -226,8 +227,8 @@ int main(int argc, char** argv) {
 
       if (i % 100 == 0) {
         Stats::startEvent("manager get norms");
-        std::cout << " " << i * dt << " " << manager.getLpNorm(0) << " " << manager.getLpNorm(1)
-                  << std::endl;
+        std::cout << " " << static_cast<real>(i) * dt << " " << manager.getLpNorm(0) << " "
+                  << manager.getLpNorm(1) << std::endl;
         // std::cout <<  " " << i * dt << " " << manager.getLpNorms(0)[0] << " " <<
         // manager.getLpNorms(1)[0] << std::endl;
         Stats::stopEvent("manager get norms");
@@ -243,8 +244,8 @@ int main(int argc, char** argv) {
     Stats::stopEvent("combine");
 
     Stats::startEvent("manager get norms");
-    std::cout << " " << static_cast<double>(ncombi * nsteps) * dt << " " << manager.getLpNorm(0) << " " << manager.getLpNorm(1)
-              << std::endl;
+    std::cout << " " << static_cast<double>(ncombi * nsteps) * dt << " " << manager.getLpNorm(0)
+              << " " << manager.getLpNorm(1) << std::endl;
     Stats::stopEvent("manager get norms");
 
     if (evalMCError) {

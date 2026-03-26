@@ -34,15 +34,18 @@ class TaskWorker {
         std::any_of(boundary.cbegin(), boundary.cend(), [](BoundaryType b) { return b == 0; });
     for (auto& t : this->getTasks()) {
       for (IndexType g = 0; g < this->numGridsPerTask_; g++) {
-        auto& dfg = t->getDistributedFullGrid(static_cast<int>(g));
-        if (anyNotBoundary) {
-          std::remove_reference_t<decltype(lmin)> zeroLMin(lmin.size(), 0);
-          DistributedHierarchization::dehierarchizeDFG(dfg, hierarchizationDims, hierarchicalBases,
-                                                       zeroLMin);
-        } else {
-          DistributedHierarchization::dehierarchizeDFG(dfg, hierarchizationDims, hierarchicalBases,
-                                                       lmin);
-        }
+        t->visitDistributedFullGrid(
+            [&](auto& dfg) {
+              if (anyNotBoundary) {
+                std::remove_reference_t<decltype(lmin)> zeroLMin(lmin.size(), 0);
+                DistributedHierarchization::dehierarchizeDFG(dfg, hierarchizationDims,
+                                                             hierarchicalBases, zeroLMin);
+              } else {
+                DistributedHierarchization::dehierarchizeDFG(dfg, hierarchizationDims,
+                                                             hierarchicalBases, lmin);
+              }
+            },
+            static_cast<size_t>(g));
       }
     }
   }
@@ -67,7 +70,7 @@ class TaskWorker {
     std::vector<double> lpnorms;
     lpnorms.reserve(this->getTasks().size());
     for (const auto& t : this->getTasks()) {
-      auto lpnorm = t->getDistributedFullGrid().getLpNorm(p);
+      auto lpnorm = t->visitDistributedFullGrid([&](const auto& dfg) { return dfg.getLpNorm(p); });
       lpnorms.push_back(lpnorm);
     }
     return lpnorms;
@@ -91,15 +94,18 @@ class TaskWorker {
         std::any_of(boundary.cbegin(), boundary.cend(), [](BoundaryType b) { return b == 0; });
     for (const auto& t : this->getTasks()) {
       for (IndexType g = 0; g < this->numGridsPerTask_; g++) {
-        auto& dfg = t->getDistributedFullGrid(static_cast<int>(g));
-        if (anyNotBoundary) {
-          std::remove_reference_t<decltype(lmin)> zeroLMin(lmin.size(), 0);
-          DistributedHierarchization::hierarchize(dfg, hierarchizationDims, hierarchicalBases,
-                                                  zeroLMin);
-        } else {
-          DistributedHierarchization::hierarchize(dfg, hierarchizationDims, hierarchicalBases,
-                                                  lmin);
-        }
+        t->visitDistributedFullGrid(
+            [&](auto& dfg) {
+              if (anyNotBoundary) {
+                std::remove_reference_t<decltype(lmin)> zeroLMin(lmin.size(), 0);
+                DistributedHierarchization::hierarchize(dfg, hierarchizationDims, hierarchicalBases,
+                                                        zeroLMin);
+              } else {
+                DistributedHierarchization::hierarchize(dfg, hierarchizationDims, hierarchicalBases,
+                                                        lmin);
+              }
+            },
+            static_cast<size_t>(g));
       }
     }
   }

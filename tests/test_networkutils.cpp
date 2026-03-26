@@ -170,10 +170,9 @@ BOOST_AUTO_TEST_CASE(testLengthPrefix) {
 
   // create communicator with first two procs only
   MPI_Comm newComm = TestHelper::getComm(2);
-  if (newComm == MPI_COMM_NULL)
-    return;
+  if (newComm == MPI_COMM_NULL) return;
 
-  for (unsigned short port : {11111}) {
+  for (unsigned short port : {static_cast<unsigned short>(11111)}) {
     BOOST_TEST_CHECKPOINT(std::to_string(port));
     MPI_Comm_rank(newComm, &rank);
     if (rank == 0) {
@@ -194,16 +193,13 @@ BOOST_AUTO_TEST_CASE(testBinarySendRecv) {
 
   // create communicator with first two procs only
   MPI_Comm newComm = TestHelper::getComm(2);
-  if (newComm == MPI_COMM_NULL)
-    return;
+  if (newComm == MPI_COMM_NULL) return;
 
-  for (unsigned short port : {11113}) {
+  for (unsigned short port : {static_cast<unsigned short>(11113)}) {
     BOOST_TEST_CHECKPOINT(std::to_string(port));
     MPI_Comm_rank(newComm, &rank);
-    if (rank == 0)
-      testBinarySendRecvServer(newComm, port);
-    if (rank == 1)
-      testBinarySendClient(newComm, port);
+    if (rank == 0) testBinarySendRecvServer(newComm, port);
+    if (rank == 1) testBinarySendClient(newComm, port);
   }
 }
 
@@ -214,15 +210,12 @@ BOOST_AUTO_TEST_CASE(testBinarySendReduce) {
 
   // create communicator with first two procs only
   MPI_Comm newComm = TestHelper::getComm(2);
-  if (newComm == MPI_COMM_NULL)
-    return;
+  if (newComm == MPI_COMM_NULL) return;
 
-  for (unsigned short port : {11115}) {
+  for (unsigned short port : {static_cast<unsigned short>(11115)}) {
     MPI_Comm_rank(newComm, &rank);
-    if (rank == 0)
-      testBinarySendReduceServer(newComm, port);
-    if (rank == 1)
-      testBinarySendClient(newComm, port);
+    if (rank == 0) testBinarySendReduceServer(newComm, port);
+    if (rank == 1) testBinarySendClient(newComm, port);
   }
 }
 

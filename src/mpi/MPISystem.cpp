@@ -23,9 +23,7 @@ MpiOnOff::MpiOnOff(int* argc, char*** argv) {
     }
   }
 }
-MpiOnOff::~MpiOnOff() {
-  MPI_Finalize();
-}
+MpiOnOff::~MpiOnOff() { MPI_Finalize(); }
 
 MPISystem::MPISystem()
     : initialized_(false),
@@ -429,7 +427,7 @@ std::vector<int>& getDiagonalRanks(size_t nprocs, size_t ngroup) {
     for (size_t p = 0; p < ngroup; ++p) {
       auto rankToAdd = static_cast<int>((nprocs + 1) * p + diagonal * ngroup);
       ranks.push_back(rankToAdd);
-      assert(rankToAdd < nprocs * ngroup);
+      assert(static_cast<size_t>(rankToAdd) < nprocs * ngroup);
       if (ranks.size() == nprocs) return ranks;
     }
   }

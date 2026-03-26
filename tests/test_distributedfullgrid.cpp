@@ -39,12 +39,13 @@ class TestFn {
   }
 };
 
+template <DimType DIM>
 void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
   auto commSize = getCommSize(MPI_COMM_WORLD);
   std::vector<size_t> groupSizes;
   // TODO allow non-pow2 group sizes
   size_t groupSize = 1;
-  while (groupSize <= commSize) {
+  while (groupSize <= static_cast<size_t>(commSize)) {
     groupSizes.push_back(groupSize);
     groupSize *= 2;
   }
@@ -81,7 +82,7 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
       }
       {
         // create dfg and get same footprint
-        OwningDistributedFullGrid<double> dfg(dim, levels, comm, boundary, procs, forward);
+        OwningDistributedFullGrid<double, DIM> dfg(dim, levels, comm, boundary, procs, forward);
         mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSize, comm);
 
         // check that the local number of points is what we expect
@@ -102,7 +103,8 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
                            std::to_string(vmSizesReference[i]) +
                            ", vmSize: " + std::to_string(vmSizes[i]));
         if (i > 0) {
-          BOOST_TEST(static_cast<double>(vmSizes[i]) <= ((vmSizes[0] + 500) * 2.));
+          BOOST_TEST(static_cast<double>(vmSizes[i]) <=
+                     (static_cast<double>(vmSizes[0] + 500) * 2.));
         }
       }
     }
@@ -114,8 +116,8 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
   BOOST_CHECK(!TestHelper::testStrayMessages());
 }
 
-template <typename T>
-real checkInnerBasisFunctionIntegral(const DistributedFullGrid<T>& dfg) {
+template <typename DFGType>
+real checkInnerBasisFunctionIntegral(const DFGType& dfg) {
   auto dim = dfg.getDimension();
   auto& levels = dfg.getLevels();
   auto& boundary = dfg.returnBoundaryFlags();
@@ -134,8 +136,8 @@ real checkInnerBasisFunctionIntegral(const DistributedFullGrid<T>& dfg) {
   return innerNodalBasisFunctionIntegral;
 }
 
-template <typename T>
-std::vector<double> checkCoordinates(const DistributedFullGrid<T>& dfg) {
+template <typename DFGType>
+std::vector<double> checkCoordinates(const DFGType& dfg) {
   // check coordinates
   std::vector<double> coordsGlobal(dfg.getDimension());
   std::vector<double> coordsGlobalAgain(dfg.getDimension());
@@ -153,6 +155,7 @@ std::vector<double> checkCoordinates(const DistributedFullGrid<T>& dfg) {
   return coordsGlobalAgain;
 }
 
+template <DimType DIM>
 void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
                               std::vector<BoundaryType>& boundary, bool forward = false) {
   std::vector<int> periodic;
@@ -170,7 +173,8 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   const auto dim = static_cast<DimType>(levels.size());
 
   BOOST_TEST_CHECKPOINT("create dfg");
-  OwningDistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
+  OwningDistributedFullGrid<std::complex<double>, DIM> dfg(dim, levels, comm, boundary, procs,
+                                                           forward);
 
   // set function values
   for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
@@ -189,7 +193,8 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   DistributedSparseGridUniform<std::complex<double>> dsg(dim, lmax, lmin, comm);
   dsg.registerDistributedFullGrid(dfg);
   BOOST_TEST_CHECKPOINT("register uniform sg");
-  OwningDistributedFullGrid<std::complex<double>> dfg2(dim, levels, comm, boundary, procs, forward);
+  OwningDistributedFullGrid<std::complex<double>, DIM> dfg2(dim, levels, comm, boundary, procs,
+                                                            forward);
   dsg.registerDistributedFullGrid(dfg2);
   dsg.createSubspaceData();
   dsg.setZero();
@@ -248,7 +253,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   std::vector<int> subarrayExtents;
   for (DimType d = 0; d < dim; ++d) {
     auto ghostLayer = dfg.exchangeGhostLayerUpward(d, subarrayExtents);
-    IndexVector offsets(dim);
+    IndexArray<DIM> offsets{};
     IndexType numElements = 1;
     for (DimType j = 0; j < dim; ++j) {
       offsets[j] = numElements;
@@ -257,10 +262,10 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
     BOOST_CHECK_EQUAL(ghostLayer.size(), numElements);
     if (numElements > 0) {
       BOOST_CHECK_EQUAL(subarrayExtents[d], 1);
-      for (size_t j = 0; j < numElements; ++j) {
+      for (IndexType j = 0; j < numElements; ++j) {
         // calculate local axis indices of ghost layer points
         // == axis index of lowest layer in dim d for dfg
-        IndexVector locAxisIndex(dim), globAxisIndex(dim);
+        IndexArray<DIM> locAxisIndex{}, globAxisIndex{};
         IndexType tmp = j;
         for (int i = static_cast<int>(dim) - 1; i >= 0; i--) {
           locAxisIndex[i] = tmp / offsets[i];
@@ -288,7 +293,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   if (TestHelper::getRank(comm) == 0) {
     for (size_t i = 0; i < static_cast<size_t>(fg.getNrElements()); ++i) {
       std::vector<double> coords(dim);
-      fg.getCoords(i, coords);
+      fg.getCoords(static_cast<IndexType>(i), coords);
       BOOST_TEST(fg.getData()[i] == f(coords));
     }
   }
@@ -298,9 +303,10 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   // dfg.writePlotFileVTK(ss.str().c_str());
 
   // create distributed fg and copy values
-  OwningDistributedFullGrid<std::complex<double>> dfgCopy(
-      dim, dfg.getLevels(), dfg.getCommunicator(), dfg.returnBoundaryFlags(),
-      dfg.getParallelization(), true, dfg.getDecomposition());
+  OwningDistributedFullGrid<std::complex<double>, DIM> dfgCopy(
+      dim, toVector<DIM>(dfg.getLevels()), dfg.getCommunicator(),
+      toVector<DIM>(dfg.returnBoundaryFlags()), toVector<DIM>(dfg.getParallelization()), true,
+      toVector<DIM>(dfg.getDecomposition()));
   for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
     dfgCopy.getData()[li] = dfg.getData()[li];
   }
@@ -360,21 +366,21 @@ BOOST_AUTO_TEST_CASE(test_minus3) {
   LevelVector levels = {1, 2};
   std::vector<int> procs = {1, 1};
   std::vector<BoundaryType> boundary(2, 2);
-  checkDistributedFullgrid(levels, procs, boundary);
+  checkDistributedFullgrid<2>(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_minus2) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
   LevelVector levels = {2, 3};
   std::vector<int> procs = {1, 1};
   std::vector<BoundaryType> boundary(2, 2);
-  checkDistributedFullgrid(levels, procs, boundary);
+  checkDistributedFullgrid<2>(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_minus1) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
   LevelVector levels = {1, 1, 2};
   std::vector<int> procs = {1, 1, 1};
   std::vector<BoundaryType> boundary(3, 2);
-  checkDistributedFullgrid(levels, procs, boundary);
+  checkDistributedFullgrid<3>(levels, procs, boundary);
 }
 
 BOOST_AUTO_TEST_CASE(test_0) {
@@ -382,28 +388,28 @@ BOOST_AUTO_TEST_CASE(test_0) {
   LevelVector levels = {2, 3};
   std::vector<int> procs = {1, 1};
   std::vector<BoundaryType> boundary(2, 2);
-  checkDistributedFullgrid(levels, procs, boundary);
+  checkDistributedFullgrid<2>(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_1) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(6));
   LevelVector levels = {2, 2};
   std::vector<int> procs = {2, 3};
   std::vector<BoundaryType> boundary(2, 2);
-  checkDistributedFullgrid(levels, procs, boundary);
+  checkDistributedFullgrid<2>(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_2) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {3, 3, 3};
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 2);
-  checkDistributedFullgrid(levels, procs, boundary);
+  checkDistributedFullgrid<3>(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_3) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {3, 3, 3};
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 2);
-  checkDistributedFullgrid(levels, procs, boundary, true);
+  checkDistributedFullgrid<3>(levels, procs, boundary, true);
 }
 
 // anisotropic
@@ -413,21 +419,21 @@ BOOST_AUTO_TEST_CASE(test_4) {
   LevelVector levels = {2, 3};
   std::vector<int> procs = {2, 2};
   std::vector<BoundaryType> boundary(2, 2);
-  checkDistributedFullgrid(levels, procs, boundary);
+  checkDistributedFullgrid<2>(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_5) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 4, 6};
   std::vector<int> procs = {1, 4, 2};
   std::vector<BoundaryType> boundary(3, 2);
-  checkDistributedFullgrid(levels, procs, boundary);
+  checkDistributedFullgrid<3>(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_6) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 4, 6};
   std::vector<int> procs = {1, 4, 2};
   std::vector<BoundaryType> boundary(3, 2);
-  checkDistributedFullgrid(levels, procs, boundary, true);
+  checkDistributedFullgrid<3>(levels, procs, boundary, true);
 }
 
 // without boundary
@@ -438,21 +444,21 @@ BOOST_AUTO_TEST_CASE(test_7) {
   LevelVector levels = {3, 3};
   std::vector<int> procs = {2, 1};
   std::vector<BoundaryType> boundary(2, 0);
-  checkDistributedFullgrid(levels, procs, boundary);
+  checkDistributedFullgrid<2>(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_8) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 0);
-  checkDistributedFullgrid(levels, procs, boundary);
+  checkDistributedFullgrid<3>(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_9) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 0);
-  checkDistributedFullgrid(levels, procs, boundary, true);
+  checkDistributedFullgrid<3>(levels, procs, boundary, true);
 }
 
 // anisotropic
@@ -462,21 +468,21 @@ BOOST_AUTO_TEST_CASE(test_10) {
   LevelVector levels = {2, 3};
   std::vector<int> procs = {2, 2};
   std::vector<BoundaryType> boundary(2, 0);
-  checkDistributedFullgrid(levels, procs, boundary);
+  checkDistributedFullgrid<2>(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_11) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 3, 4};
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 0);
-  checkDistributedFullgrid(levels, procs, boundary);
+  checkDistributedFullgrid<3>(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_12) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 3, 4};
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 0);
-  checkDistributedFullgrid(levels, procs, boundary, true);
+  checkDistributedFullgrid<3>(levels, procs, boundary, true);
 }
 
 // partial boundary
@@ -488,7 +494,7 @@ BOOST_AUTO_TEST_CASE(test_13) {
   std::vector<int> procs = {2, 2};
   std::vector<BoundaryType> boundary(2, 1);
   boundary[1] = 2;
-  checkDistributedFullgrid(levels, procs, boundary);
+  checkDistributedFullgrid<2>(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_14) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -496,7 +502,7 @@ BOOST_AUTO_TEST_CASE(test_14) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 1);
   boundary[0] = 2;
-  checkDistributedFullgrid(levels, procs, boundary);
+  checkDistributedFullgrid<3>(levels, procs, boundary);
 }
 
 // anisotropic
@@ -507,7 +513,7 @@ BOOST_AUTO_TEST_CASE(test_16) {
   std::vector<int> procs = {2, 2};
   std::vector<BoundaryType> boundary(2, 1);
   boundary[0] = 2;
-  checkDistributedFullgrid(levels, procs, boundary);
+  checkDistributedFullgrid<2>(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_17) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -515,7 +521,7 @@ BOOST_AUTO_TEST_CASE(test_17) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 1);
   boundary[2] = 2;
-  checkDistributedFullgrid(levels, procs, boundary);
+  checkDistributedFullgrid<3>(levels, procs, boundary);
 }
 
 // memory
@@ -524,19 +530,19 @@ BOOST_AUTO_TEST_CASE(test_19) {
   // the grid's payload should be ~1 MB
   // (2^17 * 8 / 2^20 = 1)
   LevelVector levels = {9, 8};
-  checkDistributedFullgridMemory(levels, false);
+  checkDistributedFullgridMemory<2>(levels, false);
 }
 BOOST_AUTO_TEST_CASE(test_20) {
   LevelVector levels = {6, 6, 5};
-  checkDistributedFullgridMemory(levels, false);
+  checkDistributedFullgridMemory<3>(levels, false);
 }
 BOOST_AUTO_TEST_CASE(test_21) {
   LevelVector levels = {5, 4, 4, 4};
-  checkDistributedFullgridMemory(levels, false);
+  checkDistributedFullgridMemory<4>(levels, false);
 }
 BOOST_AUTO_TEST_CASE(test_22) {
   LevelVector levels = {3, 3, 3, 3, 3, 2};
-  checkDistributedFullgridMemory(levels, false);
+  checkDistributedFullgridMemory<6>(levels, false);
 }
 
 BOOST_AUTO_TEST_CASE(compare_coordinates_by_boundary) {
@@ -548,12 +554,12 @@ BOOST_AUTO_TEST_CASE(compare_coordinates_by_boundary) {
     std::vector<BoundaryType> boundary(dim, 2);
     std::vector<BoundaryType> oneboundary(dim, 1);
     std::vector<BoundaryType> noboundary(dim, 0);
-    OwningDistributedFullGrid<real> dfgTwoBoundary(dim, fullGridLevel, comm, boundary, procs,
-                                                   false);
-    OwningDistributedFullGrid<real> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs,
-                                                   false);
-    OwningDistributedFullGrid<real> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs,
-                                                  false);
+    OwningDistributedFullGrid<real, 4> dfgTwoBoundary(dim, fullGridLevel, comm, boundary, procs,
+                                                      false);
+    OwningDistributedFullGrid<real, 4> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs,
+                                                      false);
+    OwningDistributedFullGrid<real, 4> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs,
+                                                     false);
 
     auto twoBoundaryIntegral = checkInnerBasisFunctionIntegral(dfgTwoBoundary);
     auto oneBoundaryIntegral = checkInnerBasisFunctionIntegral(dfgOneBoundary);
@@ -593,7 +599,8 @@ BOOST_AUTO_TEST_CASE(compare_coordinates_by_boundary) {
                                     boundsDiff.end());
       auto globalSizes = dfg->getGlobalSizes();
       BOOST_CHECK(localSizes <= globalSizes);
-      auto numDof = combigrid::getNumDofNodal(fullGridLevel, dfg->returnBoundaryFlags());
+      auto numDof =
+          combigrid::getNumDofNodal(fullGridLevel, toVector<4>(dfg->returnBoundaryFlags()));
       BOOST_CHECK_EQUAL(numDof, std::accumulate(globalSizes.begin(), globalSizes.end(), 1,
                                                 std::multiplies<IndexType>()));
 
@@ -622,12 +629,12 @@ BOOST_AUTO_TEST_CASE(interpolation_test) {
     std::vector<BoundaryType> boundary(dim, 2);
     std::vector<BoundaryType> oneboundary(dim, 1);
     std::vector<BoundaryType> noboundary(dim, 0);
-    OwningDistributedFullGrid<real> dfgTwoBoundary(dim, fullGridLevel, comm, boundary, procs,
-                                                   false);
-    OwningDistributedFullGrid<real> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs,
-                                                   false);
-    OwningDistributedFullGrid<real> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs,
-                                                  false);
+    OwningDistributedFullGrid<real, 6> dfgTwoBoundary(dim, fullGridLevel, comm, boundary, procs,
+                                                      false);
+    OwningDistributedFullGrid<real, 6> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs,
+                                                      false);
+    OwningDistributedFullGrid<real, 6> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs,
+                                                     false);
 
     // set function values on dfgs
     // choose function that will be 0 on boundary
@@ -649,8 +656,8 @@ BOOST_AUTO_TEST_CASE(interpolation_test) {
     }
 
     auto numMCCoordinates = 1e2;
-    std::vector<std::vector<double>> interpolationCoords =
-        montecarlo::getRandomCoordinates(numMCCoordinates, static_cast<size_t>(dim));
+    std::vector<std::vector<double>> interpolationCoords = montecarlo::getRandomCoordinates(
+        static_cast<int>(numMCCoordinates), static_cast<size_t>(dim));
 
     auto interpolatedValuesTwoBoundary = dfgTwoBoundary.getInterpolatedValues(interpolationCoords);
     auto interpolatedValuesOneBoundary = dfgOneBoundary.getInterpolatedValues(interpolationCoords);
@@ -677,16 +684,16 @@ BOOST_AUTO_TEST_CASE(interpolation_speed_test) {
     std::vector<BoundaryType> boundary(dim, 2);
     std::vector<BoundaryType> oneboundary(dim, 1);
     std::vector<BoundaryType> noboundary(dim, 0);
-    OwningDistributedFullGrid<real> dfgTwoBoundary(dim, fullGridLevel, comm, boundary, procs,
-                                                   false);
-    OwningDistributedFullGrid<real> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs,
-                                                   false);
-    OwningDistributedFullGrid<real> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs,
-                                                  false);
+    OwningDistributedFullGrid<real, 6> dfgTwoBoundary(dim, fullGridLevel, comm, boundary, procs,
+                                                      false);
+    OwningDistributedFullGrid<real, 6> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs,
+                                                      false);
+    OwningDistributedFullGrid<real, 6> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs,
+                                                     false);
 
     auto numMCCoordinates = 1e6;
-    std::vector<std::vector<double>> interpolationCoords =
-        montecarlo::getRandomCoordinates(numMCCoordinates, static_cast<size_t>(dim));
+    std::vector<std::vector<double>> interpolationCoords = montecarlo::getRandomCoordinates(
+        static_cast<int>(numMCCoordinates), static_cast<size_t>(dim));
 
     MPI_Barrier(comm);
     auto start = std::chrono::high_resolution_clock::now();
@@ -728,12 +735,12 @@ BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal) {
     std::vector<BoundaryType> noboundary(dim, 0);
     LevelVector fullGridLevel = {3};
     std::vector<IndexVector> decomposition = {{0, 4, 6}};
-    OwningDistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true,
-                                        decomposition);
-    OwningDistributedFullGrid<real> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs,
-                                                   true, decomposition);
-    OwningDistributedFullGrid<real> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs, true,
-                                                  decomposition);
+    OwningDistributedFullGrid<real, 1> dfg(dim, fullGridLevel, comm, boundary, procs, true,
+                                           decomposition);
+    OwningDistributedFullGrid<real, 1> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs,
+                                                      true, decomposition);
+    OwningDistributedFullGrid<real, 1> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs,
+                                                     true, decomposition);
 
     IndexVector indices;
     IndexVector expected;
@@ -836,8 +843,8 @@ BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal_boundary_firstdim) {
         {0, 98304, 196609, 327680, 425985}, {0}, {0}, {0}, {0}, {0}};
     std::vector<BoundaryType> boundary(dim, 2);
 
-    OwningDistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true,
-                                        decomposition);
+    OwningDistributedFullGrid<real, 6> dfg(dim, fullGridLevel, comm, boundary, procs, true,
+                                           decomposition);
 
     LevelVector level = {6, 5, 4, 3, 2, 1};  //{18, 1, 2, 3, 4, 5},
     for (DimType d = 0; d < dim; ++d) {
@@ -889,8 +896,8 @@ BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal_boundary_threedim) {
 
     std::vector<BoundaryType> boundary(dim, 2);
 
-    OwningDistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true,
-                                        decomposition);
+    OwningDistributedFullGrid<real, 6> dfg(dim, fullGridLevel, comm, boundary, procs, true,
+                                           decomposition);
 
     LevelVector level = {5, 3, 4, 5, 2, 5};  //{18, 1, 2, 3, 4, 5},
     for (DimType d = 0; d < dim; ++d) {
@@ -953,8 +960,8 @@ BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal_noboundary_firstdim) {
 
     std::vector<BoundaryType> boundary(dim, 0);
 
-    OwningDistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true,
-                                        decomposition);
+    OwningDistributedFullGrid<real, 6> dfg(dim, fullGridLevel, comm, boundary, procs, true,
+                                           decomposition);
 
     LevelVector level = {6, 5, 4, 3, 2, 1};
     for (DimType d = 0; d < dim; ++d) {
@@ -1006,8 +1013,8 @@ BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal_noboundary_threedim) {
 
     std::vector<BoundaryType> boundary(dim, 0);
 
-    OwningDistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true,
-                                        decomposition);
+    OwningDistributedFullGrid<real, 6> dfg(dim, fullGridLevel, comm, boundary, procs, true,
+                                           decomposition);
 
     LevelVector level = {5, 3, 4, 5, 2, 5};  //{18, 1, 2, 3, 4, 5},
     for (DimType d = 0; d < dim; ++d) {
@@ -1073,8 +1080,8 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
 
     MPI_Barrier(comm);
     auto start = std::chrono::high_resolution_clock::now();
-    OwningDistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true,
-                                        decomposition);
+    OwningDistributedFullGrid<real, 6> dfg(dim, fullGridLevel, comm, boundary, procs, true,
+                                           decomposition);
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("time to create full grid w/ level sum 23: " << duration.count()
@@ -1088,8 +1095,8 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
     decomposition[0] = {0, 1, 2, 3, 4};
     MPI_Barrier(comm);
     start = std::chrono::high_resolution_clock::now();
-    OwningDistributedFullGrid<real> otherDfg(dim, fullGridLevel, comm, boundary, procs, true,
-                                             decomposition);
+    OwningDistributedFullGrid<real, 6> otherDfg(dim, fullGridLevel, comm, boundary, procs, true,
+                                                decomposition);
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("time to create other full grid w/ level sum 23: " << duration.count()
@@ -1194,7 +1201,8 @@ BOOST_AUTO_TEST_CASE(test_evalDFG) {
   if (comm != MPI_COMM_NULL) {
     DimType dim = static_cast<DimType>(procs.size());
     size_t numCoordinates = 1000;
-    auto interpolationCoords = montecarlo::getRandomCoordinates(numCoordinates, dim);
+    auto interpolationCoords =
+        montecarlo::getRandomCoordinates(static_cast<int>(numCoordinates), dim);
     // make sure there are some corner cases
     interpolationCoords.push_back(std::vector<double>(dim, 1e-10));
     interpolationCoords.push_back(std::vector<double>(dim, 1. - 1e-10));
@@ -1204,7 +1212,7 @@ BOOST_AUTO_TEST_CASE(test_evalDFG) {
       BOOST_TEST_CHECKPOINT("Testing boundary type " + std::to_string(b));
       std::vector<BoundaryType> boundary(dim, b);
       // create and initialize DFG
-      OwningDistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, false);
+      OwningDistributedFullGrid<real, 2> dfg(dim, fullGridLevel, comm, boundary, procs, false);
       std::vector<double> coords(dim);
       for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
         dfg.getCoordsLocal(li, coords);
@@ -1284,7 +1292,7 @@ BOOST_AUTO_TEST_CASE(test_massLoss2D) {
         auto basisTypeVector = std::vector<BasisFunctionBasis*>(dim, bases[b]);
 
         // create and initialize DFG
-        std::vector<OwningDistributedFullGrid<real>> dfgs;
+        std::vector<OwningDistributedFullGrid<real, 2>> dfgs;
         for (size_t i = 0; i < fullGridLevels.size(); ++i) {
           dfgs.emplace_back(dim, fullGridLevels[i], comm, boundary, procs, false);
           std::vector<double> coords(dim);

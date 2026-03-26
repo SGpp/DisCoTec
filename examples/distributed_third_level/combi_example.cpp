@@ -25,10 +25,10 @@
 #include "manager/ProcessGroupManager.hpp"
 #include "manager/ProcessGroupWorker.hpp"
 #include "manager/ProcessManager.hpp"
+#include "mpi/MPIMemory.hpp"
 #include "task/Task.hpp"
 #include "utils/MonteCarlo.hpp"
 #include "utils/Types.hpp"
-#include "mpi/MPIMemory.hpp"
 // include user specific task. this is the interface to your application
 
 // to allow using test tasks
@@ -67,7 +67,7 @@ void managerMonteCarlo(ProcessManager<>& manager, DimType dim, double time, bool
       if (hasThirdLevel) {
         manager.monteCarloThirdLevel(numValues, interpolationCoords, values);
       } else {
-        interpolationCoords = montecarlo::getRandomCoordinates(numValues, dim);
+        interpolationCoords = montecarlo::getRandomCoordinates(static_cast<int>(numValues), dim);
         values = manager.interpolateValues(interpolationCoords);
       }
       Stats::stopEvent("manager monte carlo");
@@ -198,13 +198,13 @@ int main(int argc, char** argv) {
   // check whether parallelization vector p agrees with nprocs
   int checkProcs = 1;
   for (auto k : p) checkProcs *= k;
-  if(checkProcs != IndexType(nprocs)){
+  if (checkProcs != IndexType(nprocs)) {
     throw std::invalid_argument("process group size and parallelization do not match");
   }
 
   std::vector<LevelVector> levels;
   std::vector<combigrid::real> coeffs;
-  std::vector<size_t> taskNumbers; // only used in case of static task assignment
+  std::vector<size_t> taskNumbers;  // only used in case of static task assignment
   bool useStaticTaskAssignment = false;
   if (ctschemeFile == "") {
     /* generate a list of levelvectors and coefficients
@@ -217,8 +217,8 @@ int main(int argc, char** argv) {
     std::vector<combigrid::real> fullCoeffs = combischeme.getCoeffs();
 
     // split scheme and assign each fraction to a system
-    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, systemNumber,
-                                                  numSystems, levels, coeffs, fractionsOfScheme);
+    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, systemNumber, numSystems,
+                                                  levels, coeffs, fractionsOfScheme);
     WORLD_MANAGER_EXCLUSIVE_SECTION {
       std::cout << fullLevels.size()
                 << " component grids in full combination scheme; this system will run "
@@ -246,7 +246,7 @@ int main(int argc, char** argv) {
         std::cout << scheme->getCombiSpaces().size() << " tasks to distribute." << std::endl;
       }
     }
-    WORLD_MANAGER_EXCLUSIVE_SECTION{
+    WORLD_MANAGER_EXCLUSIVE_SECTION {
       assert(coeffs.size() == 0);
       assert(levels.size() == 0);
       coeffs = scheme->getCoeffs();
@@ -322,13 +322,14 @@ int main(int argc, char** argv) {
 
     ProcessGroupManagerContainer<> pgroups;
     for (size_t i = 0; i < ngroup; ++i) {
-      int pgroupRootID(i);
+      int pgroupRootID(static_cast<int>(i));
       pgroups.emplace_back(std::make_shared<ProcessGroupManager<>>(pgroupRootID));
     }
     // create abstraction for Manager
     ProcessManager<> manager(pgroups, tasks, params, std::move(loadmodel));
     manager.updateCombiParameters();
-    auto durationParams = Stats::getDuration("manager update parameters")/ 1000.0;
+    auto durationParams =
+        static_cast<double>(Stats::getDuration("manager update parameters")) / 1000.0;
     std::cout << "manager: updated parameters in " << durationParams << " seconds" << std::endl;
 
     /* distribute task according to load model and start computation for
@@ -342,9 +343,10 @@ int main(int argc, char** argv) {
       manager.runfirst(true);
     }
     Stats::stopEvent("manager run first");
-    auto durationInit = Stats::getDuration("manager init dsgus")/ 1000.0;
-    auto durationRun = Stats::getDuration("manager run first")/ 1000.0;
-    std::cout << "manager: ran solver in " << durationRun << " seconds, of which SG init were " << durationInit << "" << std::endl;
+    auto durationInit = static_cast<double>(Stats::getDuration("manager init dsgus")) / 1000.0;
+    auto durationRun = static_cast<double>(Stats::getDuration("manager run first")) / 1000.0;
+    std::cout << "manager: ran solver in " << durationRun << " seconds, of which SG init were "
+              << durationInit << "" << std::endl;
 
     // exchange subspace sizes to unify the dsgs in the third level case
     if (hasThirdLevel) {
@@ -352,25 +354,27 @@ int main(int argc, char** argv) {
       std::cout << "manager: unify sparse grid data structures w/ remote" << std::endl;
       manager.unifySubspaceSizesThirdLevel(extraSparseGrid);
       Stats::stopEvent("manager unify subspace sizes with remote");
-      auto durationUnify = Stats::getDuration("manager unify subspace sizes with remote") / 1000.0;
+      auto durationUnify =
+          static_cast<double>(Stats::getDuration("manager unify subspace sizes with remote")) /
+          1000.0;
       std::cout << "manager: unified SG in " << durationUnify << " seconds" << std::endl;
     } else {
-      //Stats::startEvent("manager pretend unify subspace sizes with remote");
-      //std::cout << "manager: unify sparse grid data structures w/ remote" << std::endl;
-      //manager.pretendUnifySubspaceSizesThirdLevel();
-      //Stats::stopEvent("manager pretend unify subspace sizes with remote");
-      //auto durationUnify =
-      //    Stats::getDuration("manager pretend unify subspace sizes with remote") / 1000.0;
-      //std::cout << "manager: unified SG in " << durationUnify << " seconds" << std::endl;
+      // Stats::startEvent("manager pretend unify subspace sizes with remote");
+      // std::cout << "manager: unify sparse grid data structures w/ remote" << std::endl;
+      // manager.pretendUnifySubspaceSizesThirdLevel();
+      // Stats::stopEvent("manager pretend unify subspace sizes with remote");
+      // auto durationUnify =
+      //     static_cast<double>(Stats::getDuration("manager pretend unify subspace sizes with
+      //     remote") / 1000.0;
+      // std::cout << "manager: unified SG in " << durationUnify << " seconds" << std::endl;
     }
 
     for (size_t i = 1; i < ncombi; ++i) {
-
       Stats::startEvent("manager combine");
       if (hasThirdLevel) {
         manager.combineThirdLevel();
       } else {
-        //manager.pretendCombineThirdLevelForWorkers();
+        // manager.pretendCombineThirdLevelForWorkers();
         manager.combine();
       }
       // manager.waitAllFinished();
@@ -379,19 +383,21 @@ int main(int argc, char** argv) {
         std::cout << "manager: eval Monte Carlo" << std::endl;
         managerMonteCarlo(manager, dim, static_cast<double>(i * nsteps) * dt, hasThirdLevel);
       }
-      auto durationCombine = Stats::getDuration("manager combine")/ 1000.0;
+      auto durationCombine = static_cast<double>(Stats::getDuration("manager combine")) / 1000.0;
       std::cout << "combination " << i << " took: " << durationCombine << " seconds" << std::endl;
 
       Stats::startEvent("manager write to disk");
       manager.writeDSGsToDisk("uftp_dsgu_");
       Stats::stopEvent("manager write to disk");
-      auto durationWrite = Stats::getDuration("manager write to disk")/ 1000.0;
+      auto durationWrite =
+          static_cast<double>(Stats::getDuration("manager write to disk")) / 1000.0;
       std::cout << "write " << i << " took: " << durationWrite << " seconds" << std::endl;
 
       Stats::startEvent("manager read from disk");
       manager.readDSGsFromDisk("uftp_dsgu_");
       Stats::stopEvent("manager read from disk");
-      auto durationRead = Stats::getDuration("manager read from disk")/ 1000.0;
+      auto durationRead =
+          static_cast<double>(Stats::getDuration("manager read from disk")) / 1000.0;
       std::cout << "read " << i << " took: " << durationRead << " seconds" << std::endl;
 
       // run tasks for next time interval
@@ -399,7 +405,7 @@ int main(int argc, char** argv) {
       manager.runnext();
       // manager.waitAllFinished();
       Stats::stopEvent("manager run");
-      durationRun = Stats::getDuration("manager run")/ 1000.0;
+      durationRun = static_cast<double>(Stats::getDuration("manager run")) / 1000.0;
       std::cout << "calculation " << i << " took: " << durationRun << " seconds" << std::endl;
     }
 
@@ -407,7 +413,7 @@ int main(int argc, char** argv) {
     if (hasThirdLevel) {
       manager.combineThirdLevel();
     } else {
-      //manager.pretendCombineThirdLevelForWorkers();
+      // manager.pretendCombineThirdLevelForWorkers();
       manager.combine();
     }
     Stats::stopEvent("manager combine");

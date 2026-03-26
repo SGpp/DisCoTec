@@ -73,7 +73,6 @@ set(DISCOTEC_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/LevelVector.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/MonteCarlo.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/Stats.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/vtk/PlotFileWriter.cpp
         )
 
 add_library(discotec ${DISCOTEC_SOURCES})
@@ -105,7 +104,6 @@ option(DISCOTEC_ENABLEFT "DisCoTec with algorithm-based fault tolerance" OFF)
 if (DISCOTEC_ENABLEFT)
     add_compile_definitions(ENABLEFT)
 endif ()
-option(DISCOTEC_USE_VTK "Use VTK for visualization" OFF)
 option(DISCOTEC_USE_LTO "Use link-time optimization" ON)
 if (DISCOTEC_USE_LTO)
     include(CheckIPOSupported)
@@ -167,14 +165,6 @@ if (DISCOTEC_USE_HIGHFIVE)
     list(POP_BACK CMAKE_MESSAGE_INDENT)
 endif ()
 
-if (DISCOTEC_USE_VTK)
-    enable_language(C)
-    find_package(VTK REQUIRED) # TODO: add minimum version and components
-
-    target_link_libraries(discotec PRIVATE  VTK::CommonCore VTK::CommonDataModel VTK::IOParallelXML)
-    target_include_directories(discotec PRIVATE ${VTK_INCLUDE_DIRS})
-    target_compile_definitions(discotec PRIVATE USE_VTK)
-endif ()
 
 # Compiler flags
 target_compile_options(discotec PUBLIC

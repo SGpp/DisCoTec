@@ -189,17 +189,17 @@ void addIndexedElements(void* invec, void* inoutvec, int* len, MPI_Datatype* dty
   if (num_addresses != 0 || num_integers % 2 != 1) {
     throw std::runtime_error("addIndexedElements: num_addresses != 0 or num_integers%2 != 1.");
   }
-  int arrayOfInts[num_integers];
-  MPI_Aint addresses[1]; // actually, the requried size is num_addresses=0 but forbidden by ISO C++
+  std::vector<int> arrayOfInts(num_integers);
+  MPI_Aint addresses[1];  // actually, the required size is num_addresses=0 but forbidden by ISO C++
   MPI_Datatype types[1];
-  MPI_Type_get_contents(*dtype, num_integers, num_addresses, num_datatypes, arrayOfInts, addresses,
-                        types);
+  MPI_Type_get_contents(*dtype, num_integers, num_addresses, num_datatypes, arrayOfInts.data(),
+                        addresses, types);
   if (types[0] != getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>())) {
     throw std::runtime_error("addIndexedElements: datatype not as expected.");
   }
 
   int numBlocks = (num_integers - 1) / 2;
-  int* arrayOfBlocklengths = arrayOfInts + 1;
+  int* arrayOfBlocklengths = arrayOfInts.data() + 1;
   int* arrayOfDisplacements = arrayOfBlocklengths + numBlocks;
 #pragma omp parallel for default(none) firstprivate( \
         numBlocks, arrayOfDisplacements, arrayOfBlocklengths, invec, inoutvec) schedule(guided)
@@ -322,8 +322,8 @@ getReductionDatatypes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
  *
  * @tparam SparseGridType (derived from) DistributedSparseGridUniform
  * @tparam communicateAllAllocated if false, all subspaces stored by communicator in the distributed
- * sparse grid are communicated (different sets -> subspace reduce); if true, all allocated subspaces are
- * communicated (a single set of subspaces -> outgroup reduce).
+ * sparse grid are communicated (different sets -> subspace reduce); if true, all allocated
+ * subspaces are communicated (a single set of subspaces -> outgroup reduce).
  * @param dsg sparse grid of type SparseGridType
  * @param maxMiBToSendPerThread the maximum number of MiB to send per OpenMP thread (~= per core) at
  * once
@@ -408,11 +408,12 @@ static void sendSubspaceDataSizes(SparseGridType& dsg, RankType dest, Communicat
            TRANSFER_SUBSPACE_DATA_SIZES_TAG, comm);
 }
 
-/** 
+/**
  * @brief Performs a max-allreduce in communicator comm with subspace sizes of the sparse grids
  *
- * Typically used in the GlobalReduceComm to ensure that all workers have the same subspace sizes for sparse grid reduce.
- * 
+ * Typically used in the GlobalReduceComm to ensure that all workers have the same subspace sizes
+ * for sparse grid reduce.
+ *
  * @tparam SparseGridType (derived from) DistributedSparseGridUniform
  * @param dsg the sparse grid of type SparseGridType
  * @param comm the communicator
@@ -434,10 +435,12 @@ void reduceSubspaceSizes(SparseGridType& dsg, CommunicatorType comm) {
 }
 
 /**
- * @brief Performs a max-reduce in communicator globalReduceComm with subspace sizes of the sparse grids
- * 
- * this together with broadcastSubspaceSizes can be used as a two-step replacement for reduceSubspaceSizes.
- * 
+ * @brief Performs a max-reduce in communicator globalReduceComm with subspace sizes of the sparse
+ * grids
+ *
+ * this together with broadcastSubspaceSizes can be used as a two-step replacement for
+ * reduceSubspaceSizes.
+ *
  * @tparam SparseGridType (derived from) DistributedSparseGridUniform
  * @param dsg the sparse grid of type SparseGridType
  * @param globalReduceRankThatCollects the rank that collects the data
@@ -460,10 +463,12 @@ void maxReduceSubspaceSizesAcrossGroups(
 }
 
 /**
- * @brief Broadcasts the subspace sizes of the sparse grid from rank \p sendingRank in communicator \p comm
+ * @brief Broadcasts the subspace sizes of the sparse grid from rank \p sendingRank in communicator
+ * \p comm
  *
- * this together with maxReduceSubspaceSizesAcrossGroups can be used as a two-step replacement for reduceSubspaceSizes.
- * 
+ * this together with maxReduceSubspaceSizesAcrossGroups can be used as a two-step replacement for
+ * reduceSubspaceSizes.
+ *
  * @tparam SparseGridType (derived from) DistributedSparseGridUniform
  * @param dsg the sparse grid of type SparseGridType
  * @param comm the communicator
@@ -485,7 +490,7 @@ void broadcastSubspaceSizes(SparseGridType& dsg, CommunicatorType comm, RankType
 
 /**
  * @brief gather all subspace sizes on the different ranks of \p comm to the rank \p collectorRank
- * 
+ *
  * can be used for the widely-distributed combination technique
  */
 template <typename SparseGridType>
@@ -505,8 +510,9 @@ void sendSubspaceSizesWithGather(SparseGridType& dsg, CommunicatorType comm,
 }
 
 /**
- * @brief receive all subspace sizes on the different ranks of \p comm from the rank \p collectorRank
- * 
+ * @brief receive all subspace sizes on the different ranks of \p comm from the rank \p
+ * collectorRank
+ *
  * can be used for the widely-distributed combination technique
  */
 template <typename SparseGridType>
@@ -596,9 +602,10 @@ static void asyncBcastDsgData(SparseGridType& dsg, RankType root, CommunicatorTy
 
 /**
  * @brief asynchronous Bcast of the raw sparse grid data in the communicator \p comm
- * 
- * but only for the subspaces allocated by all process groups (and used by at least two groups -> outgroup sparse grid reduce)
- * 
+ *
+ * but only for the subspaces allocated by all process groups (and used by at least two groups ->
+ * outgroup sparse grid reduce)
+ *
  * @tparam SparseGridType the type of the sparse grid
  * @param dsg the sparse grid of type SparseGridType
  * @param root the rank that broadcasts the data
