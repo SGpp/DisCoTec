@@ -223,10 +223,49 @@ endif()
 #    target_compile_options(discotec PUBLIC $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-mmic>)
 #endif()
 
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
 install(TARGETS discotec
         EXPORT discotecTargets
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
-        RUNTIME DESTINATION bin
-        INCLUDES DESTINATION include
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        )
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/discotec
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        FILES_MATCHING
+        PATTERN "*.hpp"
+        PATTERN "*.h"
+        )
+
+install(EXPORT discotecTargets
+        FILE discotecTargets.cmake
+        NAMESPACE discotec::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/discotec
+        )
+
+configure_package_config_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/discotecConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/discotecConfig.cmake
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/discotec
+        )
+
+write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/discotecConfigVersion.cmake
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion
+        )
+
+install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/discotecConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/discotecConfigVersion.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/discotec
+        )
+
+install(FILES
+        ${PROJECT_SOURCE_DIR}/../CMakeModules/FindGLPK.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/discotec
         )

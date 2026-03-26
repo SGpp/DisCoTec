@@ -1,0 +1,23 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+find_dependency(MPI)
+
+if(@DISCOTEC_OPENMP@)
+    find_dependency(OpenMP)
+endif()
+
+if(@DISCOTEC_USE_HIGHFIVE@)
+    find_dependency(HighFive)
+endif()
+
+find_dependency(Boost COMPONENTS serialization program_options system date_time)
+
+# GLPK does not ship a standard CMake config; use the project's FindGLPK if needed
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
+find_dependency(GLPK)
+
+include("${CMAKE_CURRENT_LIST_DIR}/discotecTargets.cmake")
+
+check_required_components(discotec)
