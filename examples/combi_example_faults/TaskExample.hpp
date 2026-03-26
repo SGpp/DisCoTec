@@ -155,7 +155,7 @@ class TaskExample : public Task<> {
 
   real dt_;
   size_t nsteps_ = 0;
-  size_t stepsTotal_;
+  size_t stepsTotal_ = 0;
   std::vector<int> p_;
 
   bool initialized_;

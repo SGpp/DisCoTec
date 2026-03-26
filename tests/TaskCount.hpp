@@ -117,7 +117,7 @@ class TaskCount : public combigrid::Task<> {
 
   std::optional<OwningDistributedFullGridVariant<CombiDataType>> dfg_;
 
-  size_t nrun_;
+  size_t nrun_ = 0;
   combigrid::real time_ = 0.;
 
   template <class Archive>
