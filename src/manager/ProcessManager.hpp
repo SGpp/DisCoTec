@@ -373,10 +373,6 @@ class ProcessManager {
    */
   void reschedule();
 
-  /**
-   * @brief signal a single group to write the component grids to vtk plot file
-   */
-  void writeCombigridsToVTKPlotFile(ProcessGroupManagerID<CombiDataType> pg);
 
   /**
    * @brief signal all groups to write their sparse grid data structures to disk

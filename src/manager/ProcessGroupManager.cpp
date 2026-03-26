@@ -806,14 +806,6 @@ Task<CombiDataType>* ProcessGroupManager<CombiDataType>::rescheduleRemoveTask(
   return nullptr;
 }
 
-template <typename CombiDataType>
-bool ProcessGroupManager<CombiDataType>::writeCombigridsToVTKPlotFile() {
-  // can only send sync signal when in wait state
-  assert(waitStatus() == PROCESS_GROUP_WAIT);
-
-  sendSignalAndReceive(WRITE_DFGS_TO_VTK);
-  return true;
-}
 
 template <typename CombiDataType>
 bool ProcessGroupManager<CombiDataType>::writeDSGsToDisk(const std::string& filenamePrefix) {

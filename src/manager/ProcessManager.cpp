@@ -612,16 +612,6 @@ void ProcessManager<CombiDataType>::reschedule() {
   }
 }
 
-template <typename CombiDataType>
-void ProcessManager<CombiDataType>::writeCombigridsToVTKPlotFile(
-    ProcessGroupManagerID<CombiDataType> pg) {
-#if defined(USE_VTK)
-  pg->writeCombigridsToVTKPlotFile();
-  waitForPG(pg);
-#else
-  std::cout << "Warning: no vtk output produced as DisCoTec was compiled without VTK." << std::endl;
-#endif /* defined(USE_VTK) */
-}
 
 template <typename CombiDataType>
 void ProcessManager<CombiDataType>::writeDSGsToDisk(const std::string& filenamePrefix) {

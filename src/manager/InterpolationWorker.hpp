@@ -3,7 +3,6 @@
 #include "manager/TaskWorker.hpp"
 #include "mpi/MPISystem.hpp"
 #include "utils/Types.hpp"
-#include "vtk/DFGPlotFileWriter.hpp"
 
 namespace combigrid {
 
@@ -92,23 +91,4 @@ static void writeInterpolatedValuesSingleFile(
   }
 }
 
-template <typename CombiDataType = double>
-static void writeVTKPlotFilesOfAllTasks(
-    const std::vector<std::unique_ptr<Task<CombiDataType>>>& tasks, int numberOfGrids) {
-#ifdef USE_VTK
-  for (const auto& task : tasks) {
-    for (int g = 0; g < numberOfGrids; ++g) {
-      task->visitDistributedFullGrid(
-          [&](auto& dfg) {
-            constexpr DimType D = std::decay_t<decltype(dfg)>::getDimension();
-            DFGPlotFileWriter<CombiDataType, D> writer{dfg, g};
-            writer.writePlotFile();
-          },
-          static_cast<size_t>(g));
-    }
-  }
-#else
-  std::cout << "Warning: no vtk output produced as DisCoTec was compiled without VTK." << std::endl;
-#endif /* USE_VTK */
-}
 } /* namespace combigrid */

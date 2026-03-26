@@ -92,21 +92,19 @@ void DFGPlotFileWriter::writePlotFile<real>(const auto& dfg, IndexType speciesId
   */
 
   // write
-  vtkSmartPointer<vtkXMLImageDataWriter> writer =
-    vtkSmartPointer<vtkXMLImageDataWriter>::New();
+  vtkSmartPointer<vtkXMLImageDataWriter> writer = vtkSmartPointer<vtkXMLImageDataWriter>::New();
   writer->SetFileName(filename.c_str());
   writer->SetInputData(imageData);
   writer->Write();
 
   // write master file
   MASTER_EXCLUSIVE_SECTION {
-    //size_t numProcs = theMPISystem()->getNumProcs();
-    //writePlotMasterFile(numProcs, filenamePrefix);
+    // size_t numProcs = theMPISystem()->getNumProcs();
+    // writePlotMasterFile(numProcs, filenamePrefix);
     //
     size_t numberOfPieces = theMPISystem()->getNumProcs();
     std::string filename = filenamePrefix + ".pvti";
-    vtkSmartPointer<vtkXMLPImageDataWriter> writer =
-      vtkSmartPointer<vtkXMLPImageDataWriter>::New();
+    vtkSmartPointer<vtkXMLPImageDataWriter> writer = vtkSmartPointer<vtkXMLPImageDataWriter>::New();
     writer->SetFileName(filename.c_str());
     writer->SetNumberOfPieces(static_cast<int>(numberOfPieces));
     writer->SetInputData(imageData);
@@ -114,15 +112,13 @@ void DFGPlotFileWriter::writePlotFile<real>(const auto& dfg, IndexType speciesId
   }
 }
 
-std::string DFGPlotFileWriter::createFilenamePrefix(DimType dim,
-                                                    const LevelVector& level,
+std::string DFGPlotFileWriter::createFilenamePrefix(DimType dim, const LevelVector& level,
                                                     IndexType speciesId) {
   std::string filenamePrefix = std::string(outputDir) + "dfg_l";
-  for (DimType d = 0; d < dim; ++d)
-    filenamePrefix += std::to_string(level[d]) + "_";
+  for (DimType d = 0; d < dim; ++d) filenamePrefix += std::to_string(level[d]) + "_";
   filenamePrefix += "s" + std::to_string(speciesId);
   return filenamePrefix;
 }
 
-}
+}  // namespace combigrid
 #endif /* USE_VTK */

@@ -246,12 +246,6 @@ SignalType ProcessGroupWorker<CombiDataType>::wait() {
       Stats::stopEvent("wait third level size");
 
     } break;
-    case WRITE_DFGS_TO_VTK: {
-      Stats::startEvent("write vtk all tasks");
-      combigrid::writeVTKPlotFilesOfAllTasks(this->getTaskWorker().getTasks(),
-                                             static_cast<int>(combiParameters_.getNumGrids()));
-      Stats::stopEvent("write vtk all tasks");
-    } break;
     case WRITE_DSGS_TO_DISK: {
       Stats::startEvent("write to disk");
       std::string filenamePrefix = receiveStringFromManagerAndBroadcastToGroup();
