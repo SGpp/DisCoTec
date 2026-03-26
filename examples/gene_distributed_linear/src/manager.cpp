@@ -13,26 +13,26 @@
 #include <boost/serialization/export.hpp>
 
 // compulsory includes for basic functionality
-#include "utils/Stats.hpp"
-#include "task/Task.hpp"
-#include "utils/Types.hpp"
-#include "combischeme/CombiMinMaxScheme.hpp"
-#include "fullgrid/FullGrid.hpp"
-#include "loadmodel/LinearLoadModel.hpp"
-#include "manager/CombiParameters.hpp"
-#include "manager/ProcessGroupManager.hpp"
-#include "manager/ProcessGroupWorker.hpp"
-#include "manager/ProcessManager.hpp"
-#include "fault_tolerance/FaultCriterion.hpp"
-#include "fault_tolerance/StaticFaults.hpp"
-#include "fault_tolerance/WeibullFaults.hpp"
+#include "discotec/utils/Stats.hpp"
+#include "discotec/task/Task.hpp"
+#include "discotec/utils/Types.hpp"
+#include "discotec/combischeme/CombiMinMaxScheme.hpp"
+#include "discotec/fullgrid/FullGrid.hpp"
+#include "discotec/loadmodel/LinearLoadModel.hpp"
+#include "discotec/manager/CombiParameters.hpp"
+#include "discotec/manager/ProcessGroupManager.hpp"
+#include "discotec/manager/ProcessGroupWorker.hpp"
+#include "discotec/manager/ProcessManager.hpp"
+#include "discotec/fault_tolerance/FaultCriterion.hpp"
+#include "discotec/fault_tolerance/StaticFaults.hpp"
+#include "discotec/fault_tolerance/WeibullFaults.hpp"
 
 // include user specific task. this is the interface to your application
 #include "GeneTask.hpp"
 
 using namespace combigrid;
 // this is necessary for correct function of task serialization
-#include "utils/BoostExports.hpp"
+#include "discotec/utils/BoostExports.hpp"
 BOOST_CLASS_EXPORT(GeneTask)
 
 // helper funtion to read a bool vector from string

@@ -6,11 +6,11 @@
 #include <random>
 #include <thread>
 
-#include "loadmodel/AveragingLoadModel.hpp"
-#include "manager/ProcessGroupSignals.hpp"
-#include "mpi/MPISystem.hpp"
-#include "mpi/MPIUtils.hpp"
-#include "utils/Stats.hpp"
+#include "discotec/loadmodel/AveragingLoadModel.hpp"
+#include "discotec/manager/ProcessGroupSignals.hpp"
+#include "discotec/mpi/MPISystem.hpp"
+#include "discotec/mpi/MPIUtils.hpp"
+#include "discotec/utils/Stats.hpp"
 #include "test_helper.hpp"
 
 using namespace combigrid;

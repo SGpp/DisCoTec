@@ -9,15 +9,15 @@
 #include <algorithm>
 #include <sys/stat.h>
 
-#include "combischeme/CombiMinMaxScheme.hpp"
-#include "combischeme/CombiThirdLevelScheme.hpp"
-#include "io/BroadcastParameters.hpp"
-#include "loadmodel/LinearLoadModel.hpp"
-#include "manager/CombiParameters.hpp"
-#include "manager/ProcessGroupManager.hpp"
-#include "manager/ProcessManager.hpp"
-#include "utils/MonteCarlo.hpp"
-#include "utils/Types.hpp"
+#include "discotec/combischeme/CombiMinMaxScheme.hpp"
+#include "discotec/combischeme/CombiThirdLevelScheme.hpp"
+#include "discotec/io/BroadcastParameters.hpp"
+#include "discotec/loadmodel/LinearLoadModel.hpp"
+#include "discotec/manager/CombiParameters.hpp"
+#include "discotec/manager/ProcessGroupManager.hpp"
+#include "discotec/manager/ProcessManager.hpp"
+#include "discotec/utils/MonteCarlo.hpp"
+#include "discotec/utils/Types.hpp"
 
 // this is not a boost test, because it is intended to be actually run on different machines
 //
