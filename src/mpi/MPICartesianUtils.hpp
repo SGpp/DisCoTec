@@ -64,8 +64,8 @@ class MPICartesianUtils {
     }
   }
 
-  explicit MPICartesianUtils(const MPICartesianUtils& other) = default;
-  MPICartesianUtils& operator=(const MPICartesianUtils&) = default;
+  explicit MPICartesianUtils(const MPICartesianUtils& other) = delete;
+  MPICartesianUtils& operator=(const MPICartesianUtils&) = delete;
   explicit MPICartesianUtils(MPICartesianUtils&& other) = default;
   MPICartesianUtils& operator=(MPICartesianUtils&& other) = default;
   virtual ~MPICartesianUtils() = default;
