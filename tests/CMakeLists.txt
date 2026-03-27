@@ -24,6 +24,13 @@ find_package(Boost REQUIRED COMPONENTS unit_test_framework serialization)
 target_link_libraries(test_distributedcombigrid_boost PUBLIC discotec Boost::boost Boost::unit_test_framework Boost::serialization MPI::MPI_CXX)
 set_property(TARGET test_distributedcombigrid_boost PROPERTY CROSSCOMPILING_EMULATOR '${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 9')
 
+if (DISCOTEC_USE_PALIWA)
+    find_package(Paliwa REQUIRED)
+    find_package(DDC REQUIRED QUIET)
+    find_package(Kokkos REQUIRED COMPONENTS CXX)
+    target_link_libraries(test_distributedcombigrid_boost PRIVATE paliwa::core)
+endif ()
+
 if (DISCOTEC_USE_HIGHFIVE)
     enable_language(C)
     find_package(HDF5 REQUIRED)

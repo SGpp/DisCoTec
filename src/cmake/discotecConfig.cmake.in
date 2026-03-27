@@ -12,6 +12,12 @@ if(@DISCOTEC_USE_HIGHFIVE@)
     find_dependency(HighFive)
 endif()
 
+if(@DISCOTEC_USE_PALIWA@)
+    find_dependency(Paliwa)
+    find_dependency(DDC)
+    find_dependency(Kokkos COMPONENTS CXX)
+endif()
+
 find_dependency(Boost COMPONENTS serialization program_options system date_time)
 
 # GLPK does not ship a standard CMake config; use the project's FindGLPK if needed
