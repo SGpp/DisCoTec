@@ -8,6 +8,27 @@
 
 #include "discotec/mpi/MPISystem.hpp"
 
+#ifdef DISCOTEC_USE_PALIWA
+#include <Kokkos_Core.hpp>
+#include <ddc/ddc.hpp>
+
+struct KokkosDDCScopeGuard {
+  KokkosDDCScopeGuard() {
+    kokkosGuard_ = std::make_unique<Kokkos::ScopeGuard>();
+    ddcGuard_ = std::make_unique<ddc::ScopeGuard>();
+  }
+  ~KokkosDDCScopeGuard() {
+    ddcGuard_.reset();
+    kokkosGuard_.reset();
+  }
+  std::unique_ptr<Kokkos::ScopeGuard> kokkosGuard_;
+  std::unique_ptr<ddc::ScopeGuard> ddcGuard_;
+};
+#endif  // DISCOTEC_USE_PALIWA
+
 using namespace combigrid;
 
 BOOST_GLOBAL_FIXTURE(MpiOnOff);
+#ifdef DISCOTEC_USE_PALIWA
+BOOST_GLOBAL_FIXTURE(KokkosDDCScopeGuard);
+#endif
