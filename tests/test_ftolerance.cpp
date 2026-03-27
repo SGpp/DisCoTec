@@ -14,28 +14,28 @@
 #include <vector>
 
 // compulsory includes for basic functionality
-#include "combischeme/CombiMinMaxScheme.hpp"
-#include "fault_tolerance/FTUtils.hpp"
-#include "fault_tolerance/FaultCriterion.hpp"
-#include "fault_tolerance/LPOptimizationInterpolation.hpp"
-#include "fault_tolerance/StaticFaults.hpp"
-#include "fault_tolerance/WeibullFaults.hpp"
-#include "fullgrid/DistributedFullGrid.hpp"
-#include "fullgrid/FullGrid.hpp"
-#include "hierarchization/CombiLinearBasisFunction.hpp"
-#include "loadmodel/LearningLoadModel.hpp"
-#include "loadmodel/LinearLoadModel.hpp"
-#include "manager/CombiParameters.hpp"
-#include "manager/ProcessGroupManager.hpp"
-#include "manager/ProcessGroupWorker.hpp"
-#include "manager/ProcessManager.hpp"
-#include "task/Task.hpp"
+#include "discotec/combischeme/CombiMinMaxScheme.hpp"
+#include "discotec/fault_tolerance/FTUtils.hpp"
+#include "discotec/fault_tolerance/FaultCriterion.hpp"
+#include "discotec/fault_tolerance/LPOptimizationInterpolation.hpp"
+#include "discotec/fault_tolerance/StaticFaults.hpp"
+#include "discotec/fault_tolerance/WeibullFaults.hpp"
+#include "discotec/fullgrid/DistributedFullGrid.hpp"
+#include "discotec/fullgrid/FullGrid.hpp"
+#include "discotec/hierarchization/CombiLinearBasisFunction.hpp"
+#include "discotec/loadmodel/LearningLoadModel.hpp"
+#include "discotec/loadmodel/LinearLoadModel.hpp"
+#include "discotec/manager/CombiParameters.hpp"
+#include "discotec/manager/ProcessGroupManager.hpp"
+#include "discotec/manager/ProcessGroupWorker.hpp"
+#include "discotec/manager/ProcessManager.hpp"
+#include "discotec/task/Task.hpp"
 #include "test_helper.hpp"
-#include "utils/Config.hpp"
-#include "utils/Types.hpp"
+#include "discotec/utils/Config.hpp"
+#include "discotec/utils/Types.hpp"
 
 // this is necessary for correct function of task serialization
-#include "utils/BoostExports.hpp"
+#include "discotec/utils/BoostExports.hpp"
 
 using namespace combigrid;
 

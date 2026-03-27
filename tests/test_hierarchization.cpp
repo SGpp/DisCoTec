@@ -12,13 +12,13 @@
 #include <vector>
 
 #include "TaskConstParaboloid.hpp"
-#include "fullgrid/DistributedFullGrid.hpp"
-#include "fullgrid/FullGrid.hpp"
-#include "hierarchization/DistributedHierarchization.hpp"
-#include "hierarchization/Hierarchization.hpp"
+#include "discotec/fullgrid/DistributedFullGrid.hpp"
+#include "discotec/fullgrid/FullGrid.hpp"
+#include "discotec/hierarchization/DistributedHierarchization.hpp"
+#include "discotec/hierarchization/Hierarchization.hpp"
 #include "test_helper.hpp"
-#include "utils/MonteCarlo.hpp"
-#include "utils/Types.hpp"
+#include "discotec/utils/MonteCarlo.hpp"
+#include "discotec/utils/Types.hpp"
 
 /**
  * functor for test function $f(x) = \prod_{i=0}^d x_i^2$

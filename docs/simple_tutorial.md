@@ -149,10 +149,10 @@ With `YourSolver`, that will be as simple as:
 #include <memory>
 
 // discotec includes, you may have to use a longer path here
-#include "fullgrid/DistributedFullGrid.hpp"
-#include "task/Task.hpp"
-#include "utils/PowerOfTwo.hpp"
-#include "utils/Types.hpp"
+#include "discotec/fullgrid/DistributedFullGrid.hpp"
+#include "discotec/task/Task.hpp"
+#include "discotec/utils/PowerOfTwo.hpp"
+#include "discotec/utils/Types.hpp"
 
 #include "YourSolver.h"
 
@@ -253,12 +253,12 @@ parameters and generating input data structures:
 #include <vector>
 
 // discotec includes, you may have to use a longer path here
-#include "combischeme/CombiMinMaxScheme.hpp"
-#include "manager/CombiParameters.hpp"
-#include "manager/ProcessGroupWorker.hpp"
-#include "task/Task.hpp"
-#include "utils/Stats.hpp"
-#include "utils/Types.hpp"
+#include "discotec/combischeme/CombiMinMaxScheme.hpp"
+#include "discotec/manager/CombiParameters.hpp"
+#include "discotec/manager/ProcessGroupWorker.hpp"
+#include "discotec/task/Task.hpp"
+#include "discotec/utils/Stats.hpp"
+#include "discotec/utils/Types.hpp"
 
 // include user task
 #include "YourTask.h"

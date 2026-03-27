@@ -17,13 +17,13 @@
 #include <string>
 #include <vector>
 
-#include "fault_tolerance/FTUtils.hpp"
-#include "fullgrid/DistributedFullGrid.hpp"
-#include "hierarchization/DistributedHierarchization.hpp"
-#include "task/Task.hpp"
-#include "utils/IndexVector.hpp"
-#include "utils/LevelVector.hpp"
-#include "utils/Types.hpp"
+#include "discotec/fault_tolerance/FTUtils.hpp"
+#include "discotec/fullgrid/DistributedFullGrid.hpp"
+#include "discotec/hierarchization/DistributedHierarchization.hpp"
+#include "discotec/task/Task.hpp"
+#include "discotec/utils/IndexVector.hpp"
+#include "discotec/utils/LevelVector.hpp"
+#include "discotec/utils/Types.hpp"
 
 extern "C" {
 void sll_s_allocate_collective();

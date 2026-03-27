@@ -6,8 +6,8 @@
 #include <boost/serialization/export.hpp>
 #include <optional>
 
-#include "task/Task.hpp"
-#include "utils/PowerOfTwo.hpp"
+#include "discotec/task/Task.hpp"
+#include "discotec/utils/PowerOfTwo.hpp"
 
 using namespace combigrid;
 

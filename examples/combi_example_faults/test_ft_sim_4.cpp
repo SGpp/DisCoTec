@@ -2,7 +2,7 @@
 #include <cassert>
 #include <iostream>
 #include <unistd.h>
-#include "mpi_fault_simulator/MPI-FT.h"
+#include "discotec/mpi_fault_simulator/MPI-FT.h"
 
 int main(int argc, char** argv) {
   assert( argc == 2 );

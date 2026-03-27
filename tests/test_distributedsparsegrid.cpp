@@ -13,19 +13,19 @@
 #include <vector>
 
 #include "TaskConstParaboloid.hpp"
-#include "combicom/CombiCom.hpp"
-#include "combischeme/CombiMinMaxScheme.hpp"
-#include "fullgrid/FullGrid.hpp"
-#include "manager/CombiParameters.hpp"
-#include "sparsegrid/DistributedSparseGridIO.hpp"
-#include "sparsegrid/DistributedSparseGridUniform.hpp"
-#include "sparsegrid/SGrid.hpp"
+#include "discotec/combicom/CombiCom.hpp"
+#include "discotec/combischeme/CombiMinMaxScheme.hpp"
+#include "discotec/fullgrid/FullGrid.hpp"
+#include "discotec/manager/CombiParameters.hpp"
+#include "discotec/sparsegrid/DistributedSparseGridIO.hpp"
+#include "discotec/sparsegrid/DistributedSparseGridUniform.hpp"
+#include "discotec/sparsegrid/SGrid.hpp"
 #include "test_helper.hpp"
-#include "utils/DecompositionUtils.hpp"
-#include "utils/IndexVector.hpp"
-#include "utils/LevelSetUtils.hpp"
-#include "utils/MonteCarlo.hpp"
-#include "utils/Types.hpp"
+#include "discotec/utils/DecompositionUtils.hpp"
+#include "discotec/utils/IndexVector.hpp"
+#include "discotec/utils/LevelSetUtils.hpp"
+#include "discotec/utils/MonteCarlo.hpp"
+#include "discotec/utils/Types.hpp"
 
 using namespace combigrid;
 

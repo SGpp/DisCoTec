@@ -6,12 +6,12 @@
 #include <string>
 #include <vector>
 
-#include "combischeme/CombiMinMaxScheme.hpp"
-#include "fullgrid/DistributedFullGrid.hpp"
-#include "hierarchization/DistributedHierarchization.hpp"
-#include "sparsegrid/DistributedSparseGridUniform.hpp"
-#include "utils/Stats.hpp"
-#include "utils/Types.hpp"
+#include "discotec/combischeme/CombiMinMaxScheme.hpp"
+#include "discotec/fullgrid/DistributedFullGrid.hpp"
+#include "discotec/hierarchization/DistributedHierarchization.hpp"
+#include "discotec/sparsegrid/DistributedSparseGridUniform.hpp"
+#include "discotec/utils/Stats.hpp"
+#include "discotec/utils/Types.hpp"
 
 using namespace combigrid;
 int main(int argc, char** argv) {

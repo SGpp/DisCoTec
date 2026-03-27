@@ -12,72 +12,75 @@ project("DisCoTec"
 
 
 set(DISCOTEC_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/combischeme/CombiMinMaxScheme.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/combischeme/CombiThirdLevelScheme.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/FaultCriterion.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/FTUtils.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/LPOptimizationInterpolation.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/StaticFaults.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/WeibullFaults.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/io/FileInputOutput.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/io/H5InputOutput.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/io/BroadcastParameters.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/loadmodel/AverageOfLastNLoadModel.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/loadmodel/AveragingLoadModel.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/loadmodel/LinearLoadModel.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/manager/ProcessGroupManager.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/manager/ProcessGroupWorker.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/manager/ProcessManager.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi/MPIMemory.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi/MPISystem.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi/OpenMPUtils.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/MPI-FT_bitflips.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/MPI-FT_ULFM.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/MPI-FT.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_abort.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_allreduce.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_barrier.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_bcast.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_cart_coords.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_cart_create.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_cart_rank.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_create.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_free.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_group.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_rank.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_set_errhandler.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_size.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_split.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_finalize.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_get_count.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_iallreduce.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_ibarrier.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_ibcast.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_init.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_irecv.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_isend.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_probe.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_recv.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_reduce.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_request_free.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_send.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_test.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_wait.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_waitall.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/rescheduler/RebalancingTaskRescheduler.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/sparsegrid/AnyDistributedSparseGrid.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/task/Task.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_level/NetworkUtils.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_level/ThirdLevelUtils.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/utils/LevelSetUtils.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/utils/LevelVector.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/utils/MonteCarlo.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/utils/Stats.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/combischeme/CombiMinMaxScheme.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/combischeme/CombiThirdLevelScheme.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/fault_tolerance/FaultCriterion.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/fault_tolerance/FTUtils.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/fault_tolerance/LPOptimizationInterpolation.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/fault_tolerance/StaticFaults.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/fault_tolerance/WeibullFaults.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/io/FileInputOutput.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/io/H5InputOutput.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/io/BroadcastParameters.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/loadmodel/AverageOfLastNLoadModel.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/loadmodel/AveragingLoadModel.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/loadmodel/LinearLoadModel.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/manager/ProcessGroupManager.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/manager/ProcessGroupWorker.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/manager/ProcessManager.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi/MPIMemory.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi/MPISystem.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi/OpenMPUtils.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/MPI-FT_bitflips.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/MPI-FT_ULFM.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/MPI-FT.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_abort.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_allreduce.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_barrier.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_bcast.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_cart_coords.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_cart_create.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_cart_rank.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_comm_create.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_comm_free.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_comm_group.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_comm_rank.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_comm_set_errhandler.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_comm_size.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_comm_split.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_finalize.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_get_count.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_iallreduce.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_ibarrier.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_ibcast.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_init.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_irecv.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_isend.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_probe.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_recv.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_reduce.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_request_free.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_send.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_wait.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/mpi_fault_simulator/Sim_FT_waitall.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/rescheduler/RebalancingTaskRescheduler.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/sparsegrid/AnyDistributedSparseGrid.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/task/Task.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/third_level/NetworkUtils.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/third_level/ThirdLevelUtils.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/utils/LevelSetUtils.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/utils/LevelVector.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/utils/MonteCarlo.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/discotec/utils/Stats.cpp
         )
 
 add_library(discotec ${DISCOTEC_SOURCES})
 target_compile_features(discotec PRIVATE cxx_std_17)
-target_include_directories(discotec PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(discotec PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:include>)
+add_library(discotec::discotec ALIAS discotec)
 
 target_compile_options(discotec PUBLIC $<$<CXX_COMPILER_ID:Intel>:-fp-model=precise>)
 
@@ -118,7 +121,7 @@ endif ()
 option(DISCOTEC_WITH_COMPRESSION "Enable Compressed output with LZ4" OFF)
 if(DISCOTEC_WITH_COMPRESSION)
     find_path(LZ4_INCLUDE_DIR NAMES "lz4.h")
-    target_include_directories(discotec PUBLIC ${LZ4_INCLUDE_DIR})
+    target_include_directories(discotec PUBLIC $<BUILD_INTERFACE:${LZ4_INCLUDE_DIR}>)
     if(NOT EXISTS ${LZ4_INCLUDE_DIR}/lz4.h)
         message(FATAL_ERROR "LZ4: ${LZ4_INCLUDE_DIR}/lz4.h not found")
     endif()
@@ -151,7 +154,7 @@ target_link_libraries(discotec PRIVATE Boost::serialization Boost::program_optio
 
 find_package(GLPK REQUIRED)
 target_link_libraries(discotec PUBLIC ${GLPK_LIBRARIES})
-target_include_directories(discotec PUBLIC ${GLPK_INCLUDE_DIRS})
+target_include_directories(discotec PUBLIC $<BUILD_INTERFACE:${GLPK_INCLUDE_DIRS}>)
 
 if (DISCOTEC_USE_HIGHFIVE)
     enable_language(C)
@@ -220,10 +223,49 @@ endif()
 #    target_compile_options(discotec PUBLIC $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-mmic>)
 #endif()
 
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
 install(TARGETS discotec
         EXPORT discotecTargets
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
-        RUNTIME DESTINATION bin
-        INCLUDES DESTINATION include
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        )
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/discotec
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        FILES_MATCHING
+        PATTERN "*.hpp"
+        PATTERN "*.h"
+        )
+
+install(EXPORT discotecTargets
+        FILE discotecTargets.cmake
+        NAMESPACE discotec::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/discotec
+        )
+
+configure_package_config_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/discotecConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/discotecConfig.cmake
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/discotec
+        )
+
+write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/discotecConfigVersion.cmake
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion
+        )
+
+install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/discotecConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/discotecConfigVersion.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/discotec
+        )
+
+install(FILES
+        ${PROJECT_SOURCE_DIR}/../CMakeModules/FindGLPK.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/discotec
         )

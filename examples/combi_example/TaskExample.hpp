@@ -10,8 +10,8 @@
 
 #include <optional>
 
-#include "fullgrid/DistributedFullGrid.hpp"
-#include "task/Task.hpp"
+#include "discotec/fullgrid/DistributedFullGrid.hpp"
+#include "discotec/task/Task.hpp"
 
 namespace combigrid {
 

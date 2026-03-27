@@ -11,11 +11,11 @@
 #include <optional>
 #include <vector>
 
-#include "fullgrid/DistributedFullGrid.hpp"
-#include "loadmodel/LinearLoadModel.hpp"
-#include "task/Task.hpp"
+#include "discotec/fullgrid/DistributedFullGrid.hpp"
+#include "discotec/loadmodel/LinearLoadModel.hpp"
+#include "discotec/task/Task.hpp"
 #include "test_helper.hpp"
-#include "utils/Config.hpp"
+#include "discotec/utils/Config.hpp"
 
 using namespace combigrid;
 

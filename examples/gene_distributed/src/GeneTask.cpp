@@ -13,11 +13,11 @@
 #include <unistd.h>
 #include <fstream>
 //#include "CombiGeneConverter.hpp"
-#include "mpi/MPISystem.hpp"
-#include "manager/ProcessGroupSignals.hpp"
+#include "discotec/mpi/MPISystem.hpp"
+#include "discotec/manager/ProcessGroupSignals.hpp"
 #include <math.h>
 
-//#include "utils/StatsContainer.hpp"
+//#include "discotec/utils/StatsContainer.hpp"
 
 namespace combigrid
 {

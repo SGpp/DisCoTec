@@ -10,9 +10,9 @@
 
 #include <optional>
 
-#include "fault_tolerance/FTUtils.hpp"
-#include "fullgrid/DistributedFullGrid.hpp"
-#include "task/Task.hpp"
+#include "discotec/fault_tolerance/FTUtils.hpp"
+#include "discotec/fullgrid/DistributedFullGrid.hpp"
+#include "discotec/task/Task.hpp"
 
 namespace combigrid {
 
