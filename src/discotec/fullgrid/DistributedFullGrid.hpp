@@ -1965,6 +1965,12 @@ class OwningDistributedFullGrid : public DistributedFullGrid<FG_ELEMENT, DIM> {
 
 // Variant types for runtime dimension selection (DIM 1-6)
 template <typename FG_ELEMENT>
+using DistributedFullGridVariant =
+    std::variant<DistributedFullGrid<FG_ELEMENT, 1>, DistributedFullGrid<FG_ELEMENT, 2>,
+                 DistributedFullGrid<FG_ELEMENT, 3>, DistributedFullGrid<FG_ELEMENT, 4>,
+                 DistributedFullGrid<FG_ELEMENT, 5>, DistributedFullGrid<FG_ELEMENT, 6>>;
+
+template <typename FG_ELEMENT>
 using OwningDistributedFullGridVariant =
     std::variant<OwningDistributedFullGrid<FG_ELEMENT, 1>, OwningDistributedFullGrid<FG_ELEMENT, 2>,
                  OwningDistributedFullGrid<FG_ELEMENT, 3>, OwningDistributedFullGrid<FG_ELEMENT, 4>,
@@ -1991,8 +1997,22 @@ using ConstDistributedFullGridRef =
                  std::reference_wrapper<const DistributedFullGrid<FG_ELEMENT, 6>>>;
 
 /**
- * @brief Convert an OwningDistributedFullGridVariant to a DistributedFullGridRef
+ * @brief Convert an (Owning)DistributedFullGridVariant to a DistributedFullGridRef
  */
+template <typename FG_ELEMENT>
+DistributedFullGridRef<FG_ELEMENT> toRef(DistributedFullGridVariant<FG_ELEMENT>& var) {
+  return std::visit([](auto& dfg) -> DistributedFullGridRef<FG_ELEMENT> { return std::ref(dfg); },
+                    var);
+}
+
+template <typename FG_ELEMENT>
+ConstDistributedFullGridRef<FG_ELEMENT> toConstRef(
+    const DistributedFullGridVariant<FG_ELEMENT>& var) {
+  return std::visit(
+      [](const auto& dfg) -> ConstDistributedFullGridRef<FG_ELEMENT> { return std::cref(dfg); },
+      var);
+}
+
 template <typename FG_ELEMENT>
 DistributedFullGridRef<FG_ELEMENT> toRef(OwningDistributedFullGridVariant<FG_ELEMENT>& var) {
   return std::visit(
@@ -2012,6 +2032,40 @@ ConstDistributedFullGridRef<FG_ELEMENT> toConstRef(
         return std::cref(static_cast<const DistributedFullGrid<FG_ELEMENT, D>&>(owning));
       },
       var);
+}
+
+/**
+ * @brief Factory for a non-owning DistributedFullGrid with runtime dimensionality.
+ */
+template <typename FG_ELEMENT>
+DistributedFullGridVariant<FG_ELEMENT> makeDistributedFullGrid(
+    DimType dim, const LevelVector& levels, CommunicatorType const& comm,
+    const std::vector<BoundaryType>& hasBdrPoints, FG_ELEMENT* dataPointer,
+    const std::vector<int>& procs, bool forwardDecomposition = true,
+    const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) {
+  switch (dim) {
+    case 1:
+      return DistributedFullGrid<FG_ELEMENT, 1>(dim, levels, comm, hasBdrPoints, dataPointer, procs,
+                                                forwardDecomposition, decomposition);
+    case 2:
+      return DistributedFullGrid<FG_ELEMENT, 2>(dim, levels, comm, hasBdrPoints, dataPointer, procs,
+                                                forwardDecomposition, decomposition);
+    case 3:
+      return DistributedFullGrid<FG_ELEMENT, 3>(dim, levels, comm, hasBdrPoints, dataPointer, procs,
+                                                forwardDecomposition, decomposition);
+    case 4:
+      return DistributedFullGrid<FG_ELEMENT, 4>(dim, levels, comm, hasBdrPoints, dataPointer, procs,
+                                                forwardDecomposition, decomposition);
+    case 5:
+      return DistributedFullGrid<FG_ELEMENT, 5>(dim, levels, comm, hasBdrPoints, dataPointer, procs,
+                                                forwardDecomposition, decomposition);
+    case 6:
+      return DistributedFullGrid<FG_ELEMENT, 6>(dim, levels, comm, hasBdrPoints, dataPointer, procs,
+                                                forwardDecomposition, decomposition);
+    default:
+      throw std::invalid_argument("Unsupported dimensionality: " + std::to_string(dim) +
+                                  " (must be 1-6)");
+  }
 }
 
 /**
