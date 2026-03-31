@@ -40,13 +40,14 @@ This will first build all dependencies, and then build DisCoTec inside the
 cloned folder.
 The executables are placed in the respective `example` and `test` folders.
 
-To use DisCoTec in another CMake project, you can then add the line
+To use DisCoTec in another CMake project, you can use `find_package`:
 
 ```CMake
-add_subdirectory(DisCoTec/src)
+find_package(discotec REQUIRED)
+target_link_libraries(your_target discotec::discotec)
 ```
 
-in your project's CMake files.
+Alternatively, for development builds you can use `add_subdirectory(DisCoTec/src)`.
 
 If you encounter problems with the Spack installation, check out
 the [Spack command documentation](https://spack.readthedocs.io/en/latest/getting_started.html),
@@ -70,7 +71,7 @@ Additional (optional) dependencies:
 - HighFive
 - lz4
 - glpk
-- vtk
+- paliwa (with DDC and Kokkos, for wavelet-based hierarchization)
 
 You can also install the dependencies with Spack, and `spack load`
 them, before executing the next steps.
@@ -104,22 +105,15 @@ source folder.
 #### Optional CMake Options
 
 - `DISCOTEC_TEST=**ON**|OFF` - Build tests if you build the complete project.
-- `DISCOTEC_BUILD_MISSING_DEPS=**ON**|OFF`- First order dependencies that are
-  not found are built automatically (glpk is always built).
 - `DISCOTEC_TIMING=**ON**|OFF` - Enables internal timing
-- `DISCOTEC_USE_HDF5=**ON**|OFF`
-- `DISCOTEC_USE_HIGHFIVE=**ON**|OFF` - Enables HDF5 support via HighFive. If
-  `DISCOTEC_USE_HIGHFIVE=ON`, `DISCOTEC_USE_HDF5` has also to be `ON`.
-- `DISCOTEC_UNIFORMDECOMPOSITION=**ON **|OFF` - Enables the uniform
-  decomposition of the grid.
-- `DISCOTEC_GENE=ON|**OFF**` - Currently GEne is not supported with CMake!
+- `DISCOTEC_USE_HIGHFIVE=**ON**|OFF` - Enables HDF5 support via HighFive.
 - `DISCOTEC_OPENMP=ON|**OFF**` - Enables OpenMP support.
-- `DISCOTEC_ENABLEFT=ON|**OFF**` - Enables the use of the FT library.
+- `DISCOTEC_ENABLEFT=ON|**OFF**` - Enables algorithm-based fault tolerance.
 - `DISCOTEC_USE_LTO=**ON**|OFF` - Enables link time optimization if the compiler
   supports it.
-- `DISCOTEC_OMITREADYSIGNAL=ON|**OFF**` - Omit the ready signal in the MPI
-  communication. This can be used to reduce the communication overhead.
-- `DISCOTEC_USENONBLOCKINGMPICOLLECTIVE=ON|**OFF**` - Flag currently unused
+- `DISCOTEC_WITH_COMPRESSION=ON|**OFF**` - Enables compressed output with LZ4.
+- `DISCOTEC_USE_PALIWA=ON|**OFF**` - Enables wavelet-based hierarchization via
+  the paliwa library. Requires paliwa, DDC, and Kokkos.
 - `DISCOTEC_WITH_SELALIB=ON|**OFF**` - Looks for SeLaLib dependencies and
   compiles [the matching example](https://github.com/SGpp/DisCoTec/blob/main/examples/selalib_distributed/)
 

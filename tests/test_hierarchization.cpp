@@ -16,9 +16,9 @@
 #include "discotec/fullgrid/FullGrid.hpp"
 #include "discotec/hierarchization/DistributedHierarchization.hpp"
 #include "discotec/hierarchization/Hierarchization.hpp"
-#include "test_helper.hpp"
 #include "discotec/utils/MonteCarlo.hpp"
 #include "discotec/utils/Types.hpp"
+#include "test_helper.hpp"
 
 /**
  * functor for test function $f(x) = \prod_{i=0}^d x_i^2$
@@ -360,6 +360,71 @@ void fillDFGrandom(DistributedFullGrid<FG_ELEMENT, DIM>& dfg, real&& a, real&& b
   for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
     dfg.getData()[li] = static_cast<FG_ELEMENT>(
         montecarlo::getRandomNumber(std::forward<real>(a), std::forward<real>(b)));
+  }
+}
+
+
+template <DimType DIM>
+void addOffsetToLminCoefficients(DistributedFullGrid<real, DIM>& dfg,
+                                 const LevelVector& levels, const LevelVector& lmin,
+                                 real offset) {
+  // The lmin subgrid has 2^lmin[d] points per dimension, spaced by
+  // 2^(level[d]-lmin[d]) in the full grid (column-major).  Precompute
+  // the linear-index step for each dimension, then flat-loop over all
+  // lmin points and reconstruct the linear index from the flat counter.
+  constexpr auto dim = static_cast<std::size_t>(DIM);
+  std::array<IndexType, dim> nLmin{};
+  std::array<IndexType, dim> step{};
+  IndexType nLminTotal = 1;
+  IndexType colStride = 1;
+  for (DimType d = 0; d < DIM; ++d) {
+    nLmin[d] = static_cast<IndexType>(1) << lmin[d];
+    step[d] = colStride * (static_cast<IndexType>(1) << (levels[d] - lmin[d]));
+    colStride *= static_cast<IndexType>(1) << levels[d];
+    nLminTotal *= nLmin[d];
+  }
+  for (IndexType flat = 0; flat < nLminTotal; ++flat) {
+    IndexType remainder = flat;
+    IndexType linearIdx = 0;
+    for (DimType d = 0; d < DIM; ++d) {
+      linearIdx += (remainder % nLmin[d]) * step[d];
+      remainder /= nLmin[d];
+    }
+    dfg.getData()[linearIdx] += offset;
+  }
+}
+
+// Test the partition-of-unity property: hierarchize, add a constant to
+// lmin-level coefficients, dehierarchize, and verify all values shifted
+// by that constant.
+template <typename BasisType, DimType DIM>
+void checkHierarchicalOffset(
+    const LevelVector& levels, const LevelVector& lmin,
+    HierarchizationBackend backend = HierarchizationBackend::DISCOTEC) {
+  std::vector<int> procs(DIM, 1);
+  std::vector<BoundaryType> boundary(DIM, 1);  // periodic
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm == MPI_COMM_NULL) return;
+
+  OwningDistributedFullGrid<real, DIM> dfg(DIM, levels, comm, boundary, procs, false);
+  fillDFGrandom(dfg, -100.0, 100.0);
+
+  std::vector<real> original(dfg.getData(), dfg.getData() + dfg.getNrLocalElements());
+
+  BasisType basis;
+  std::vector<BasisFunctionBasis*> bases(DIM, &basis);
+  std::vector<bool> dims(DIM, true);
+
+  DistributedHierarchization::hierarchize(dfg, dims, bases, lmin, backend);
+
+  const real offset = 42.0;
+  addOffsetToLminCoefficients<DIM>(dfg, levels, lmin, offset);
+
+  DistributedHierarchization::dehierarchize(dfg, dims, bases, lmin, backend);
+
+  for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i) {
+    BOOST_TEST(dfg.getData()[i] == original[static_cast<size_t>(i)] + offset,
+               boost::test_tools::tolerance(1e-10));
   }
 }
 
@@ -1510,6 +1575,31 @@ BOOST_AUTO_TEST_CASE(momentum) {
   }
 }
 
+BOOST_AUTO_TEST_CASE(test_hierarchical_offset_hat_2d) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  checkHierarchicalOffset<HierarchicalHatBasisFunction, 2>({4, 4}, {1, 1});
+}
+
+BOOST_AUTO_TEST_CASE(test_hierarchical_offset_hat_periodic_3d) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  checkHierarchicalOffset<HierarchicalHatPeriodicBasisFunction, 3>({3, 3, 3}, {1, 1, 1});
+}
+
+BOOST_AUTO_TEST_CASE(test_hierarchical_offset_biorthogonal_periodic_2d) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  checkHierarchicalOffset<BiorthogonalPeriodicBasisFunction, 2>({4, 4}, {1, 1});
+}
+
+BOOST_AUTO_TEST_CASE(test_hierarchical_offset_fullweighting_periodic_2d) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  checkHierarchicalOffset<FullWeightingPeriodicBasisFunction, 2>({4, 4}, {1, 1});
+}
+
+BOOST_AUTO_TEST_CASE(test_hierarchical_offset_hat_periodic_anisotropic) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  checkHierarchicalOffset<HierarchicalHatPeriodicBasisFunction, 2>({5, 3}, {2, 1});
+}
+
 #ifdef NDEBUG
 BOOST_AUTO_TEST_CASE(test_timing_parallel) {
   // large test case with timing
@@ -1541,5 +1631,94 @@ BOOST_AUTO_TEST_CASE(test_timing_parallel) {
   }
 }
 #endif  // def NDEBUG
+
+#ifdef DISCOTEC_USE_PALIWA
+constexpr auto PALIWA = HierarchizationBackend::PALIWA;
+
+// ---------------------------------------------------------------------------
+// Paliwa hierarchization tests
+// ---------------------------------------------------------------------------
+
+template <DimType DIM>
+void checkRoundtrip(const LevelVector& levels, const LevelVector& lmin,
+                    HierarchizationBackend backend) {
+  std::vector<int> procs(DIM, 1);
+  std::vector<BoundaryType> boundary(DIM, 1);  // periodic
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm == MPI_COMM_NULL) return;
+
+  OwningDistributedFullGrid<real, DIM> dfg(DIM, levels, comm, boundary, procs, false);
+  auto testFn = [](const std::vector<double>& coords) {
+    real result = 1.0;
+    for (size_t d = 0; d < coords.size(); ++d) result *= coords[d] * coords[d];
+    return result;
+  };
+  fillDFGbyFunction(testFn, dfg);
+
+  std::vector<real> original(dfg.getData(), dfg.getData() + dfg.getNrLocalElements());
+
+  HierarchicalHatPeriodicBasisFunction hatPeriodic;
+  std::vector<BasisFunctionBasis*> bases(DIM, &hatPeriodic);
+  std::vector<bool> dims(DIM, true);
+
+  DistributedHierarchization::hierarchize(dfg, dims, bases, lmin, backend);
+  DistributedHierarchization::dehierarchize(dfg, dims, bases, lmin, backend);
+
+  for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i) {
+    BOOST_TEST(dfg.getData()[i] == original[static_cast<size_t>(i)],
+               boost::test_tools::tolerance(1e-12));
+  }
+}
+
+BOOST_AUTO_TEST_CASE(test_paliwa_roundtrip_2d) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  checkRoundtrip<2>({4, 4}, {0, 0}, PALIWA);
+}
+
+BOOST_AUTO_TEST_CASE(test_paliwa_roundtrip_3d) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  checkRoundtrip<3>({3, 3, 3}, {0, 0, 0}, PALIWA);
+}
+
+BOOST_AUTO_TEST_CASE(test_paliwa_roundtrip_anisotropic) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  checkRoundtrip<2>({5, 4}, {0, 0}, PALIWA);
+}
+
+BOOST_AUTO_TEST_CASE(test_paliwa_with_lmin) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  checkRoundtrip<2>({4, 4}, {2, 2}, PALIWA);
+}
+
+// ---------------------------------------------------------------------------
+// Paliwa partition-of-unity / hierarchical offset tests
+// (reuse checkHierarchicalOffset with PALIWA backend)
+// ---------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE(test_paliwa_hierarchical_offset_hat_2d) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  checkHierarchicalOffset<HierarchicalHatPeriodicBasisFunction, 2>({4, 4}, {1, 1}, PALIWA);
+}
+
+BOOST_AUTO_TEST_CASE(test_paliwa_hierarchical_offset_hat_3d) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  checkHierarchicalOffset<HierarchicalHatPeriodicBasisFunction, 3>({3, 3, 3}, {1, 1, 1}, PALIWA);
+}
+
+BOOST_AUTO_TEST_CASE(test_paliwa_hierarchical_offset_biorthogonal_2d) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  checkHierarchicalOffset<BiorthogonalPeriodicBasisFunction, 2>({4, 4}, {1, 1}, PALIWA);
+}
+
+BOOST_AUTO_TEST_CASE(test_paliwa_hierarchical_offset_fullweighting_2d) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  checkHierarchicalOffset<FullWeightingPeriodicBasisFunction, 2>({4, 4}, {1, 1}, PALIWA);
+}
+
+BOOST_AUTO_TEST_CASE(test_paliwa_hierarchical_offset_hat_higher_lmin) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  checkHierarchicalOffset<HierarchicalHatPeriodicBasisFunction, 2>({4, 4}, {2, 2}, PALIWA);
+}
+#endif  // DISCOTEC_USE_PALIWA
 
 BOOST_AUTO_TEST_SUITE_END()
