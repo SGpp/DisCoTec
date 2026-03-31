@@ -16,9 +16,9 @@
 #include "discotec/fullgrid/FullGrid.hpp"
 #include "discotec/hierarchization/DistributedHierarchization.hpp"
 #include "discotec/hierarchization/Hierarchization.hpp"
-#include "test_helper.hpp"
 #include "discotec/utils/MonteCarlo.hpp"
 #include "discotec/utils/Types.hpp"
+#include "test_helper.hpp"
 
 /**
  * functor for test function $f(x) = \prod_{i=0}^d x_i^2$
