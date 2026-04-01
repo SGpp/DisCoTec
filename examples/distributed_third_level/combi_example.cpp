@@ -19,7 +19,7 @@
 #include "discotec/fault_tolerance/FaultCriterion.hpp"
 #include "discotec/fault_tolerance/StaticFaults.hpp"
 #include "discotec/fault_tolerance/WeibullFaults.hpp"
-#include "discotec/io/BroadcastParameters.hpp"
+#include "discotec/io/ParameterIO.hpp"
 #include "discotec/loadmodel/LinearLoadModel.hpp"
 #include "discotec/manager/CombiParameters.hpp"
 #include "discotec/manager/ProcessGroupManager.hpp"
@@ -108,15 +108,10 @@ int main(int argc, char** argv) {
    */
   Stats::initialize();
 
-  // only one rank reads parameter file and broadcasts to others
+  // read ctparam: rank 0 reads and broadcasts
   std::string paramfile = "ctparam";
   if (argc > 1) paramfile = argv[1];
-  boost::property_tree::ptree cfg =
-      broadcastParameters::getParametersFromRankZero(paramfile, MPI_COMM_WORLD);
-
-  // number of process groups and number of processes per group
-  size_t ngroup = cfg.get<size_t>("manager.ngroup");
-  size_t nprocs = cfg.get<size_t>("manager.nprocs");
+  auto [ngroup, nprocs, cfg] = combigrid::readParameterFile(paramfile, MPI_COMM_WORLD);
 
   /* read in parameters from ctparam */
   DimType dim = cfg.get<DimType>("ct.dim");
