@@ -3,6 +3,7 @@
 
 #include "boost/lexical_cast.hpp"
 #include "discotec/fullgrid/DistributedFullGrid.hpp"
+#include "discotec/manager/CombiParameters.hpp"
 #include "discotec/utils/IndexVector.hpp"
 #include "discotec/utils/PowerOfTwo.hpp"
 #include "discotec/utils/Stats.hpp"
@@ -1128,7 +1129,7 @@ void dehierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
   }
 }
 
-enum class HierarchizationBackend { DISCOTEC, PALIWA };
+// HierarchizationBackend is defined in CombiParameters.hpp
 
 class DistributedHierarchization {
  public:
@@ -1223,7 +1224,9 @@ class DistributedHierarchization {
     if (lmin.size() == 0) {
       lmin = LevelVector(dfg.getDimension(), 0);
     }
-    return hierarchizeHierachicalBasis<FG_ELEMENT, HierarchicalHatBasisFunction>(dfg, dims, lmin);
+    HierarchicalHatBasisFunction basisFctn;
+    std::vector<BasisFunctionBasis*> bases(dfg.getDimension(), &basisFctn);
+    return hierarchize<FG_ELEMENT, DIM>(dfg, dims, bases, lmin, backend);
   }
 
   // inplace dehierarchization
@@ -1318,7 +1321,9 @@ class DistributedHierarchization {
     if (lmin.size() == 0) {
       lmin = LevelVector(dfg.getDimension(), 0);
     }
-    return dehierarchizeHierachicalBasis<FG_ELEMENT, HierarchicalHatBasisFunction>(dfg, dims, lmin);
+    HierarchicalHatBasisFunction basisFctn;
+    std::vector<BasisFunctionBasis*> bases(dfg.getDimension(), &basisFctn);
+    return dehierarchize<FG_ELEMENT, DIM>(dfg, dims, bases, lmin, backend);
   }
 
   template <typename FG_ELEMENT, DimType DIM>

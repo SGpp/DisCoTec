@@ -11,6 +11,8 @@
 #include "discotec/utils/Types.hpp"
 namespace combigrid {
 
+enum class HierarchizationBackend { DISCOTEC, PALIWA };
+
 /**
  * @brief Class for the parameters of the combination technique
  *
@@ -415,6 +417,14 @@ class CombiParameters {
    */
   inline CombinationVariant getCombinationVariant() const { return combinationVariant_; }
 
+  inline HierarchizationBackend getHierarchizationBackend() const {
+    return hierarchizationBackend_;
+  }
+
+  inline void setHierarchizationBackend(HierarchizationBackend backend) {
+    hierarchizationBackend_ = backend;
+  }
+
   /**
    * @brief get the reduction chunk size in MiB per OpenMP thread
    *
@@ -539,6 +549,8 @@ class CombiParameters {
 
   size_t thirdLevelPG_;
 
+  HierarchizationBackend hierarchizationBackend_ = HierarchizationBackend::DISCOTEC;
+
   // serialize
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version);
@@ -566,6 +578,7 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar & thirdLevelHost_;
   ar & thirdLevelPort_;
   ar & thirdLevelPG_;
+  ar & hierarchizationBackend_;
 }
 
 template <typename T>

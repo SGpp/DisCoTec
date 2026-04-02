@@ -170,6 +170,14 @@ inline std::pair<CombiParameters, LocalTasks> buildCombiParametersFromConfig(
   setCombiParametersHierarchicalBasesUniform(params, basis);
   params.setParallelization(p);
 
+  // Hierarchization backend (optional, default: discotec)
+  std::string backendStr = cfg.get<std::string>("ct.hierarchizationBackend", "discotec");
+  if (backendStr == "paliwa") {
+    params.setHierarchizationBackend(HierarchizationBackend::PALIWA);
+  } else {
+    params.setHierarchizationBackend(HierarchizationBackend::DISCOTEC);
+  }
+
   return {std::move(params), std::move(tasks)};
 }
 }  // namespace combigrid
