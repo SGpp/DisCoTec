@@ -3,6 +3,7 @@
 #include <mpi.h>
 
 #include <boost/test/unit_test.hpp>
+#include <cstdio>
 #include <fstream>
 
 #include "discotec/io/ParameterIO.hpp"
