@@ -26,10 +26,10 @@ class TaskWorker {
   /**
    * @brief dehierarchize all full grids
    */
-  inline void dehierarchizeFullGrids(const std::vector<BoundaryType>& boundary,
-                                     const std::vector<bool>& hierarchizationDims,
-                                     const std::vector<BasisFunctionBasis*>& hierarchicalBases,
-                                     const LevelVector& lmin) {
+  inline void dehierarchizeFullGrids(
+      const std::vector<BoundaryType>& boundary, const std::vector<bool>& hierarchizationDims,
+      const std::vector<BasisFunctionType>& hierarchicalBases, const LevelVector& lmin,
+      HierarchizationBackend backend = HierarchizationBackend::DISCOTEC) {
     bool anyNotBoundary =
         std::any_of(boundary.cbegin(), boundary.cend(), [](BoundaryType b) { return b == 0; });
     for (auto& t : this->getTasks()) {
@@ -39,10 +39,10 @@ class TaskWorker {
               if (anyNotBoundary) {
                 std::remove_reference_t<decltype(lmin)> zeroLMin(lmin.size(), 0);
                 DistributedHierarchization::dehierarchizeDFG(dfg, hierarchizationDims,
-                                                             hierarchicalBases, zeroLMin);
+                                                             hierarchicalBases, zeroLMin, backend);
               } else {
                 DistributedHierarchization::dehierarchizeDFG(dfg, hierarchizationDims,
-                                                             hierarchicalBases, lmin);
+                                                             hierarchicalBases, lmin, backend);
               }
             },
             static_cast<size_t>(g));
@@ -86,10 +86,10 @@ class TaskWorker {
   /**
    * @brief hierarchize all full grids
    */
-  inline void hierarchizeFullGrids(const std::vector<BoundaryType>& boundary,
-                                   const std::vector<bool>& hierarchizationDims,
-                                   const std::vector<BasisFunctionBasis*>& hierarchicalBases,
-                                   const LevelVector& lmin) {
+  inline void hierarchizeFullGrids(
+      const std::vector<BoundaryType>& boundary, const std::vector<bool>& hierarchizationDims,
+      const std::vector<BasisFunctionType>& hierarchicalBases, const LevelVector& lmin,
+      HierarchizationBackend backend = HierarchizationBackend::DISCOTEC) {
     bool anyNotBoundary =
         std::any_of(boundary.cbegin(), boundary.cend(), [](BoundaryType b) { return b == 0; });
     for (const auto& t : this->getTasks()) {
@@ -99,10 +99,10 @@ class TaskWorker {
               if (anyNotBoundary) {
                 std::remove_reference_t<decltype(lmin)> zeroLMin(lmin.size(), 0);
                 DistributedHierarchization::hierarchize(dfg, hierarchizationDims, hierarchicalBases,
-                                                        zeroLMin);
+                                                        zeroLMin, backend);
               } else {
                 DistributedHierarchization::hierarchize(dfg, hierarchizationDims, hierarchicalBases,
-                                                        lmin);
+                                                        lmin, backend);
               }
             },
             static_cast<size_t>(g));

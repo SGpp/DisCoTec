@@ -470,7 +470,8 @@ void ProcessGroupWorker<CombiDataType>::combineSystemWide() {
   Stats::startEvent("hierarchize");
   this->getTaskWorker().hierarchizeFullGrids(
       combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
-      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
+      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin(),
+      combiParameters_.getHierarchizationBackend());
   Stats::stopEvent("hierarchize");
 
   Stats::startEvent("reduce");
@@ -486,7 +487,8 @@ void ProcessGroupWorker<CombiDataType>::combineSystemWideAndWrite(
   Stats::startEvent("hierarchize");
   this->getTaskWorker().hierarchizeFullGrids(
       combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
-      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
+      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin(),
+      combiParameters_.getHierarchizationBackend());
   Stats::stopEvent("hierarchize");
 
   if (combiParameters_.getCombinationVariant() ==
@@ -522,7 +524,8 @@ void ProcessGroupWorker<CombiDataType>::dehierarchizeAllTasks() {
   Stats::startEvent("dehierarchize");
   this->getTaskWorker().dehierarchizeFullGrids(
       combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
-      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
+      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin(),
+      combiParameters_.getHierarchizationBackend());
   Stats::stopEvent("dehierarchize");
   currentCombi_++;
 }
@@ -532,7 +535,8 @@ void ProcessGroupWorker<CombiDataType>::combineAtOnce(bool collectMinMaxCoeffici
   Stats::startEvent("hierarchize");
   this->getTaskWorker().hierarchizeFullGrids(
       combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
-      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
+      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin(),
+      combiParameters_.getHierarchizationBackend());
   Stats::stopEvent("hierarchize");
 
   if (combiParameters_.getCombinationVariant() ==

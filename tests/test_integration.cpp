@@ -328,13 +328,8 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
 
 /**
  * @brief Test for integrated passing of the hierarchical basis type
- *        (needs a lot of boilerplate code to set up manager etc, but its really only the
- *        `setCombiParametersHierarchicalBasesUniform<T>(params);` and
- *        `BOOST_TEST(dynamic_cast<T*>(b) != nullptr)` parts that are interesting)
- * @tparam T the hierarchical basis class to test (needs to be derived from BasisFunctionBasis,
- * serializable, exported (cf. BoostExports.hpp))
  */
-template <typename T>
+template <BasisFunctionType BasisType>
 void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
   size_t size = ngroup * nprocs + 1;
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
@@ -378,7 +373,7 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
     // create combiparameters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, 2);
     params.setParallelization({static_cast<int>(nprocs), 1});
-    setCombiParametersHierarchicalBasesUniform<T>(params);
+    setCombiParametersHierarchicalBasesUniform(params, BasisType);
 
     // create abstraction for Manager
     ProcessManager<> manager{pgroups, tasks, params, std::move(loadmodel)};
@@ -407,7 +402,7 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
     }
     const auto& bases = pgroup.getCombiParameters().getHierarchicalBases();
     for (const auto& b : bases) {
-      BOOST_TEST(dynamic_cast<T*>(b) != nullptr);
+      BOOST_CHECK(b == BasisType);
     }
     BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getLocalComm()));
     MASTER_EXCLUSIVE_SECTION {
@@ -480,18 +475,18 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
                                                              << " milliseconds");
 }
 
-BOOST_AUTO_TEST_CASE(test_2) { checkPassingHierarchicalBases<HierarchicalHatBasisFunction>(1, 1); }
+BOOST_AUTO_TEST_CASE(test_2) { checkPassingHierarchicalBases<BasisFunctionType::HAT>(1, 1); }
 
-BOOST_AUTO_TEST_CASE(test_3) { checkPassingHierarchicalBases<FullWeightingBasisFunction>(1, 2); }
+BOOST_AUTO_TEST_CASE(test_3) { checkPassingHierarchicalBases<BasisFunctionType::FULLWEIGHTING>(1, 2); }
 
 BOOST_AUTO_TEST_CASE(test_4) {
-  checkPassingHierarchicalBases<FullWeightingPeriodicBasisFunction>(2, 2);
+  checkPassingHierarchicalBases<BasisFunctionType::FULLWEIGHTING_PERIODIC>(2, 2);
 }
 
-BOOST_AUTO_TEST_CASE(test_5) { checkPassingHierarchicalBases<BiorthogonalBasisFunction>(1, 4); }
+BOOST_AUTO_TEST_CASE(test_5) { checkPassingHierarchicalBases<BasisFunctionType::BIORTHOGONAL>(1, 4); }
 
 BOOST_AUTO_TEST_CASE(test_6) {
-  checkPassingHierarchicalBases<BiorthogonalPeriodicBasisFunction>(4, 2);
+  checkPassingHierarchicalBases<BasisFunctionType::BIORTHOGONAL_PERIODIC>(4, 2);
 }
 
 BOOST_AUTO_TEST_CASE(test_7) {

@@ -173,12 +173,8 @@ std::vector<real> getMonteCarloMomenta(DistributedFullGrid<FG_ELEMENT, DIM>& dfg
 }
 
 template <typename FG_ELEMENT, DimType DIM>
-using FunctionPointer = void (*)(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
-                                 const std::vector<bool>& dims, LevelVector lmin);
-
-template <typename FG_ELEMENT, DimType DIM>
 real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
-                                 FunctionPointer<FG_ELEMENT, DIM> hierarchizationOperator) {
+                                 BasisFunctionType basisType) {
   auto procs = std::vector<int>(dfg.getParallelization().begin(), dfg.getParallelization().end());
   BOOST_CHECK(procs.size() == dfg.getDimension());
   const auto& boundary = dfg.returnBoundaryFlags();
@@ -194,7 +190,8 @@ real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
   BOOST_TEST_CHECKPOINT("begin hierarchization");
   auto dim = dfg.getDimension();
   std::vector<bool> hierarchizationDimensions(dim, true);
-  hierarchizationOperator(dfg, hierarchizationDimensions, LevelVector(dim, 0));
+  std::vector<BasisFunctionType> bases(dim, basisType);
+  DistributedHierarchization::hierarchize(dfg, hierarchizationDimensions, bases, LevelVector(dim, 0));
   BOOST_TEST_CHECKPOINT("end hierarchization");
 
   // now, all of the momentum should be on the coarsest level -> the corners
@@ -276,9 +273,11 @@ void checkBiorthogonalHierarchization(Functor& f,
   }
 
   auto dim = dfg.getDimension();
+  if (lmin.size() == 0) lmin = LevelVector(dim, 0);
   std::vector<bool> hierarchizationDimensions(dim, true);
-  DistributedHierarchization::hierarchizeBiorthogonal<std::complex<double>, DIM>(
-      dfg, hierarchizationDimensions, lmin);
+  std::vector<BasisFunctionType> bioBases(dim, BasisFunctionType::BIORTHOGONAL);
+  DistributedHierarchization::hierarchize<std::complex<double>, DIM>(
+      dfg, hierarchizationDimensions, bioBases, lmin);
 
   // now, all of the mass should be on the coarsest level -> the corners
   if (checkValues) {
@@ -306,8 +305,8 @@ void checkBiorthogonalHierarchization(Functor& f,
     }
   }
 
-  DistributedHierarchization::dehierarchizeBiorthogonal<std::complex<double>, DIM>(
-      dfg, hierarchizationDimensions, lmin);
+  DistributedHierarchization::dehierarchize<std::complex<double>, DIM>(
+      dfg, hierarchizationDimensions, bioBases, lmin);
 }
 
 template <typename Functor, DimType DIM>
@@ -321,9 +320,11 @@ void checkFullWeightingHierarchization(Functor& f,
   }
 
   auto dim = dfg.getDimension();
+  if (lmin.size() == 0) lmin = LevelVector(dim, 0);
   std::vector<bool> hierarchizationDimensions(dim, true);
-  DistributedHierarchization::hierarchizeFullWeighting<std::complex<double>, DIM>(
-      dfg, hierarchizationDimensions, lmin);
+  std::vector<BasisFunctionType> fwBases(dim, BasisFunctionType::FULLWEIGHTING);
+  DistributedHierarchization::hierarchize<std::complex<double>, DIM>(
+      dfg, hierarchizationDimensions, fwBases, lmin);
 
   // now, all of the mass should be on the coarsest level -> the corners
   // but only if we hierarchize all the way down
@@ -338,8 +339,8 @@ void checkFullWeightingHierarchization(Functor& f,
     BOOST_TEST(currentL1 == formerL1, boost::test_tools::tolerance(TestHelper::tolerance));
   }
 
-  DistributedHierarchization::dehierarchizeFullWeighting<std::complex<double>, DIM>(
-      dfg, hierarchizationDimensions, lmin);
+  DistributedHierarchization::dehierarchize<std::complex<double>, DIM>(
+      dfg, hierarchizationDimensions, fwBases, lmin);
 }
 
 template <typename Functor>
@@ -363,11 +364,9 @@ void fillDFGrandom(DistributedFullGrid<FG_ELEMENT, DIM>& dfg, real&& a, real&& b
   }
 }
 
-
 template <DimType DIM>
-void addOffsetToLminCoefficients(DistributedFullGrid<real, DIM>& dfg,
-                                 const LevelVector& levels, const LevelVector& lmin,
-                                 real offset) {
+void addOffsetToLminCoefficients(DistributedFullGrid<real, DIM>& dfg, const LevelVector& levels,
+                                 const LevelVector& lmin, real offset) {
   // The lmin subgrid has 2^lmin[d] points per dimension, spaced by
   // 2^(level[d]-lmin[d]) in the full grid (column-major).  Precompute
   // the linear-index step for each dimension, then flat-loop over all
@@ -393,14 +392,9 @@ void addOffsetToLminCoefficients(DistributedFullGrid<real, DIM>& dfg,
     dfg.getData()[linearIdx] += offset;
   }
 }
-
-// Test the partition-of-unity property: hierarchize, add a constant to
-// lmin-level coefficients, dehierarchize, and verify all values shifted
-// by that constant.
-template <typename BasisType, DimType DIM>
-void checkHierarchicalOffset(
-    const LevelVector& levels, const LevelVector& lmin,
-    HierarchizationBackend backend = HierarchizationBackend::DISCOTEC) {
+template <BasisFunctionType BasisType, DimType DIM>
+void checkHierarchicalOffset(const LevelVector& levels, const LevelVector& lmin,
+                             HierarchizationBackend backend = HierarchizationBackend::DISCOTEC) {
   std::vector<int> procs(DIM, 1);
   std::vector<BoundaryType> boundary(DIM, 1);  // periodic
   CommunicatorType comm = TestHelper::getComm(procs);
@@ -411,8 +405,7 @@ void checkHierarchicalOffset(
 
   std::vector<real> original(dfg.getData(), dfg.getData() + dfg.getNrLocalElements());
 
-  BasisType basis;
-  std::vector<BasisFunctionBasis*> bases(DIM, &basis);
+  std::vector<BasisFunctionType> bases(DIM, BasisType);
   std::vector<bool> dims(DIM, true);
 
   DistributedHierarchization::hierarchize(dfg, dims, bases, lmin, backend);
@@ -497,8 +490,11 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>, 
   BOOST_TEST_CHECKPOINT("Distributed Hierarchization begins");
   // hierarchize distributed fg
 
-  DistributedHierarchization::hierarchizeHierachicalBasis<std::complex<double>>(
-      dfg, hierarchizationDimensions, lmin);
+  {
+    std::vector<BasisFunctionType> hatBases(dim, BasisFunctionType::HAT);
+    if (lmin.size() == 0) lmin = LevelVector(dim, 0);
+    DistributedHierarchization::hierarchize(dfg, hierarchizationDimensions, hatBases, lmin);
+  }
 
   if (checkValues) {
     if (lmin.size() > 0) {
@@ -590,8 +586,11 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>, 
 
   // dehierarchize distributed fg
   BOOST_TEST_CHECKPOINT("Distributed Dehierarchization begins");
-  DistributedHierarchization::dehierarchizeHierachicalBasis<std::complex<double>>(
-      dfg, hierarchizationDimensions, lmin);
+  {
+    std::vector<BasisFunctionType> hatBases(dim, BasisFunctionType::HAT);
+    if (lmin.size() == 0) lmin = LevelVector(dim, 0);
+    DistributedHierarchization::dehierarchize(dfg, hierarchizationDimensions, hatBases, lmin);
+  }
 
   if (checkValues) {
     // compare function values
@@ -1564,12 +1563,12 @@ BOOST_AUTO_TEST_CASE(momentum) {
       // usually, momentum will not be conserved for periodic BC, but for constant functions it
       // should work
       [[maybe_unused]] auto momentum = checkConservationOfMomentum<real, 3>(
-          dfg3, DistributedHierarchization::hierarchizeBiorthogonalPeriodic<real, 3>);
+          dfg3, BasisFunctionType::BIORTHOGONAL_PERIODIC);
     }
     {
       fillDFGbyFunction(constFctn, dfg3);
       auto momentum = checkConservationOfMomentum<real, 3>(
-          dfg3, DistributedHierarchization::hierarchizeFullWeightingPeriodic<real, 3>);
+          dfg3, BasisFunctionType::FULLWEIGHTING_PERIODIC);
       BOOST_TEST(momentum == std::pow(0.5, dim) * 11., boost::test_tools::tolerance(5e-2));
     }
   }
@@ -1577,27 +1576,27 @@ BOOST_AUTO_TEST_CASE(momentum) {
 
 BOOST_AUTO_TEST_CASE(test_hierarchical_offset_hat_2d) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
-  checkHierarchicalOffset<HierarchicalHatBasisFunction, 2>({4, 4}, {1, 1});
+  checkHierarchicalOffset<BasisFunctionType::HAT, 2>({4, 4}, {1, 1});
 }
 
 BOOST_AUTO_TEST_CASE(test_hierarchical_offset_hat_periodic_3d) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
-  checkHierarchicalOffset<HierarchicalHatPeriodicBasisFunction, 3>({3, 3, 3}, {1, 1, 1});
+  checkHierarchicalOffset<BasisFunctionType::HAT_PERIODIC, 3>({3, 3, 3}, {1, 1, 1});
 }
 
 BOOST_AUTO_TEST_CASE(test_hierarchical_offset_biorthogonal_periodic_2d) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
-  checkHierarchicalOffset<BiorthogonalPeriodicBasisFunction, 2>({4, 4}, {1, 1});
+  checkHierarchicalOffset<BasisFunctionType::BIORTHOGONAL_PERIODIC, 2>({4, 4}, {1, 1});
 }
 
 BOOST_AUTO_TEST_CASE(test_hierarchical_offset_fullweighting_periodic_2d) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
-  checkHierarchicalOffset<FullWeightingPeriodicBasisFunction, 2>({4, 4}, {1, 1});
+  checkHierarchicalOffset<BasisFunctionType::FULLWEIGHTING_PERIODIC, 2>({4, 4}, {1, 1});
 }
 
 BOOST_AUTO_TEST_CASE(test_hierarchical_offset_hat_periodic_anisotropic) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
-  checkHierarchicalOffset<HierarchicalHatPeriodicBasisFunction, 2>({5, 3}, {2, 1});
+  checkHierarchicalOffset<BasisFunctionType::HAT_PERIODIC, 2>({5, 3}, {2, 1});
 }
 
 #ifdef NDEBUG
@@ -1635,10 +1634,6 @@ BOOST_AUTO_TEST_CASE(test_timing_parallel) {
 #ifdef DISCOTEC_USE_PALIWA
 constexpr auto PALIWA = HierarchizationBackend::PALIWA;
 
-// ---------------------------------------------------------------------------
-// Paliwa hierarchization tests
-// ---------------------------------------------------------------------------
-
 template <DimType DIM>
 void checkRoundtrip(const LevelVector& levels, const LevelVector& lmin,
                     HierarchizationBackend backend) {
@@ -1657,8 +1652,7 @@ void checkRoundtrip(const LevelVector& levels, const LevelVector& lmin,
 
   std::vector<real> original(dfg.getData(), dfg.getData() + dfg.getNrLocalElements());
 
-  HierarchicalHatPeriodicBasisFunction hatPeriodic;
-  std::vector<BasisFunctionBasis*> bases(DIM, &hatPeriodic);
+  std::vector<BasisFunctionType> bases(DIM, BasisFunctionType::HAT_PERIODIC);
   std::vector<bool> dims(DIM, true);
 
   DistributedHierarchization::hierarchize(dfg, dims, bases, lmin, backend);
@@ -1690,34 +1684,24 @@ BOOST_AUTO_TEST_CASE(test_paliwa_with_lmin) {
   checkRoundtrip<2>({4, 4}, {2, 2}, PALIWA);
 }
 
-// ---------------------------------------------------------------------------
-// Paliwa partition-of-unity / hierarchical offset tests
-// (reuse checkHierarchicalOffset with PALIWA backend)
-// ---------------------------------------------------------------------------
-
-BOOST_AUTO_TEST_CASE(test_paliwa_hierarchical_offset_hat_2d) {
-  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
-  checkHierarchicalOffset<HierarchicalHatPeriodicBasisFunction, 2>({4, 4}, {1, 1}, PALIWA);
-}
-
 BOOST_AUTO_TEST_CASE(test_paliwa_hierarchical_offset_hat_3d) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
-  checkHierarchicalOffset<HierarchicalHatPeriodicBasisFunction, 3>({3, 3, 3}, {1, 1, 1}, PALIWA);
+  checkHierarchicalOffset<BasisFunctionType::HAT_PERIODIC, 3>({3, 3, 3}, {1, 1, 1}, PALIWA);
 }
 
 BOOST_AUTO_TEST_CASE(test_paliwa_hierarchical_offset_biorthogonal_2d) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
-  checkHierarchicalOffset<BiorthogonalPeriodicBasisFunction, 2>({4, 4}, {1, 1}, PALIWA);
+  checkHierarchicalOffset<BasisFunctionType::BIORTHOGONAL_PERIODIC, 2>({4, 4}, {1, 1}, PALIWA);
 }
 
 BOOST_AUTO_TEST_CASE(test_paliwa_hierarchical_offset_fullweighting_2d) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
-  checkHierarchicalOffset<FullWeightingPeriodicBasisFunction, 2>({4, 4}, {1, 1}, PALIWA);
+  checkHierarchicalOffset<BasisFunctionType::FULLWEIGHTING_PERIODIC, 2>({4, 4}, {1, 1}, PALIWA);
 }
 
 BOOST_AUTO_TEST_CASE(test_paliwa_hierarchical_offset_hat_higher_lmin) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
-  checkHierarchicalOffset<HierarchicalHatPeriodicBasisFunction, 2>({4, 4}, {2, 2}, PALIWA);
+  checkHierarchicalOffset<BasisFunctionType::HAT_PERIODIC, 2>({4, 4}, {2, 2}, PALIWA);
 }
 #endif  // DISCOTEC_USE_PALIWA
 

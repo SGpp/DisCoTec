@@ -86,7 +86,7 @@ class DistributedFullGrid {
    */
   DistributedFullGrid(DimType dim, const LevelVector& levels, CommunicatorType const& comm,
                       const std::vector<BoundaryType>& hasBdrPoints, FG_ELEMENT* dataPointer,
-                      const std::vector<int>& procs, bool forwardDecomposition = true,
+                      const std::vector<int>& procs, bool forwardDecomposition = false,
                       const std::vector<IndexVector>& decomposition = std::vector<IndexVector>());
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
@@ -1936,7 +1936,7 @@ class OwningDistributedFullGrid : public DistributedFullGrid<FG_ELEMENT, DIM> {
   explicit OwningDistributedFullGrid(
       DimType dim, const LevelVector& levels, CommunicatorType const& comm,
       const std::vector<BoundaryType>& hasBdrPoints, const std::vector<int>& procs,
-      bool forwardDecomposition = true,
+      bool forwardDecomposition = false,
       const std::vector<IndexVector>& decomposition = std::vector<IndexVector>())
       : DistributedFullGrid<FG_ELEMENT, DIM>(dim, levels, comm, hasBdrPoints,
                                              ownedDataVector_.data(), procs, forwardDecomposition,
@@ -2041,7 +2041,7 @@ template <typename FG_ELEMENT>
 DistributedFullGridVariant<FG_ELEMENT> makeDistributedFullGrid(
     DimType dim, const LevelVector& levels, CommunicatorType const& comm,
     const std::vector<BoundaryType>& hasBdrPoints, FG_ELEMENT* dataPointer,
-    const std::vector<int>& procs, bool forwardDecomposition = true,
+    const std::vector<int>& procs, bool forwardDecomposition = false,
     const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) {
   switch (dim) {
     case 1:
@@ -2075,7 +2075,7 @@ template <typename FG_ELEMENT>
 OwningDistributedFullGridVariant<FG_ELEMENT> makeOwningDistributedFullGrid(
     DimType dim, const LevelVector& levels, CommunicatorType const& comm,
     const std::vector<BoundaryType>& hasBdrPoints, const std::vector<int>& procs,
-    bool forwardDecomposition = true,
+    bool forwardDecomposition = false,
     const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) {
   switch (dim) {
     case 1:

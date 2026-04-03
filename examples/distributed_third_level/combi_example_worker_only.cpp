@@ -8,18 +8,11 @@
 #include <string>
 #include <vector>
 
-#include "discotec/combischeme/CombiMinMaxScheme.hpp"
-#include "discotec/fault_tolerance/FaultCriterion.hpp"
-#include "discotec/fault_tolerance/StaticFaults.hpp"
-#include "discotec/fault_tolerance/WeibullFaults.hpp"
-#include "discotec/io/BroadcastParameters.hpp"
 #include "discotec/io/H5InputOutput.hpp"
+#include "discotec/io/ParameterIO.hpp"
 #include "discotec/loadmodel/LinearLoadModel.hpp"
-#include "discotec/manager/CombiParameters.hpp"
 #include "discotec/manager/ProcessGroupWorker.hpp"
-#include "discotec/task/Task.hpp"
 #include "discotec/utils/MonteCarlo.hpp"
-#include "discotec/utils/Types.hpp"
 
 // to allow using test tasks
 #define BOOST_CHECK
@@ -34,302 +27,209 @@ BOOST_CLASS_EXPORT(TaskAdvection)
 
 int main(int argc, char** argv) {
   [[maybe_unused]] auto mpiOnOff = MpiOnOff(&argc, &argv);
-  /* when using timers (TIMING is defined in Stats), the Stats class must be
-   * initialized at the beginning of the program. (and finalized in the end)
-   */
   Stats::initialize();
   auto startInit = std::chrono::high_resolution_clock::now();
 
-  // only one rank reads inputs and broadcasts to others
-  std::string paramfile = "ctparam";
-  if (argc > 1) paramfile = argv[1];
-  boost::property_tree::ptree cfg =
-      broadcastParameters::getParametersFromRankZero(paramfile, MPI_COMM_WORLD);
-
-  // number of process groups and number of processes per group
-  size_t ngroup = cfg.get<size_t>("manager.ngroup");
-  size_t nprocs = cfg.get<size_t>("manager.nprocs");
+  // read ctparam: rank 0 reads and broadcasts
+  std::string paramfile = argc > 1 ? argv[1] : "ctparam";
+  auto [ngroup, nprocs, cfg] = readParameterFile(paramfile, MPI_COMM_WORLD);
 
   theMPISystem()->initWorldReusable(MPI_COMM_WORLD, ngroup, nprocs, false, true);
-  {
-    /* read other parameters from ctparam */
-    DimType dim = cfg.get<DimType>("ct.dim");
-    LevelVector lmin(dim), lmax(dim);
-    std::vector<int> p(dim);
-    combigrid::real dt;
-    size_t nsteps, ncombi;
-    cfg.get<std::string>("ct.lmin") >> lmin;
-    cfg.get<std::string>("ct.lmax") >> lmax;
-    cfg.get<std::string>("ct.p") >> p;
-    ncombi = cfg.get<size_t>("ct.ncombi");
-    uint32_t chunkSizeInMebibyte = cfg.get<uint32_t>("ct.chunkSize", 64);
-    std::string ctschemeFile = cfg.get<std::string>("ct.ctscheme", "");
-    dt = cfg.get<combigrid::real>("application.dt");
-    nsteps = cfg.get<size_t>("application.nsteps");
-    bool evalMCError = cfg.get<bool>("application.mcerror", false);
-    uint16_t numberOfFileParts = cfg.get<uint16_t>("io.numberParts", 1);
 
-    theMPISystem()->initOutputGroupComm(numberOfFileParts);
+  // build CombiParameters and get task distribution
+  auto [params, tasks] = buildCombiParametersFromConfig(cfg);
 
-    // read in third level parameters if available
-    std::string thirdLevelHost, thirdLevelSSHCommand = "";
-    unsigned int systemNumber = 0, numSystems = 1;
-    unsigned short thirdLevelPort = 0;
-    bool hasThirdLevel = static_cast<bool>(cfg.get_child_optional("thirdLevel"));
-    bool extraSparseGrid = true;
-    if (hasThirdLevel) {
-      systemNumber = cfg.get<unsigned int>("thirdLevel.systemNumber");
-      numSystems = cfg.get<unsigned int>("thirdLevel.numSystems");
-      assert(numSystems > 1);
-      assert(systemNumber < numSystems);
-      extraSparseGrid = cfg.get<bool>("thirdLevel.extraSparseGrid", true);
-      MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "running in file-based third level mode"
-                                                 << std::endl;
-    }
+  // application-specific parameters
+  DimType dim = cfg.get<DimType>("ct.dim");
+  combigrid::real dt = cfg.get<combigrid::real>("application.dt");
+  size_t nsteps = cfg.get<size_t>("application.nsteps");
+  size_t ncombi = cfg.get<size_t>("ct.ncombi");
+  bool evalMCError = cfg.get<bool>("application.mcerror", false);
+  uint16_t numberOfFileParts = cfg.get<uint16_t>("io.numberParts", 1);
 
-    // periodic boundary conditions
-    std::vector<BoundaryType> boundary(dim, 1);
-    auto forwardDecomposition = false;
+  theMPISystem()->initOutputGroupComm(numberOfFileParts);
 
-    // check whether parallelization vector p agrees with nprocs
-    int checkProcs = 1;
-    for (auto k : p) checkProcs *= k;
-    if (checkProcs != IndexType(nprocs)) {
-      throw std::invalid_argument("process group size and parallelization do not match");
-    }
+  // third-level parameters
+  bool hasThirdLevel = static_cast<bool>(cfg.get_child_optional("thirdLevel"));
+  unsigned int systemNumber = 0, numSystems = 1;
+  bool extraSparseGrid = true;
+  if (hasThirdLevel) {
+    systemNumber = cfg.get<unsigned int>("thirdLevel.systemNumber");
+    numSystems = cfg.get<unsigned int>("thirdLevel.numSystems");
+    assert(numSystems > 1);
+    assert(systemNumber < numSystems);
+    extraSparseGrid = cfg.get<bool>("thirdLevel.extraSparseGrid", true);
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION
+    std::cout << "running in file-based third level mode" << std::endl;
+  }
 
-    std::vector<LevelVector> levels;
-    std::vector<combigrid::real> coeffs;
-    std::vector<size_t> taskNumbers;  // only used in case of static task assignment
-    bool useStaticTaskAssignment = false;
-    if (ctschemeFile == "") {
-      throw std::runtime_error("No CT scheme file specified");
-    } else {
-      // read in CT scheme, if applicable
-      std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(
-          new CombiMinMaxSchemeFromFile(dim, lmin, lmax, ctschemeFile));
-      const auto& pgroupNumber = theMPISystem()->getProcessGroupNumber();
-      size_t totalNumTasks =
-          combigrid::getAssignedLevels(*scheme, pgroupNumber, levels, coeffs, taskNumbers);
-      useStaticTaskAssignment = true;
-      MASTER_EXCLUSIVE_SECTION {
-        std::cout << getTimeStamp() << " Process group " << pgroupNumber << " will run "
-                  << levels.size() << " of " << totalNumTasks << " tasks." << std::endl;
-        printCombiDegreesOfFreedom(levels, boundary);
-      }
-    }
-    if (!useStaticTaskAssignment) {
-      throw std::runtime_error("Dynamic task assignment not to be used here");
-    }
-    // create load model
-    std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
+  MASTER_EXCLUSIVE_SECTION {
+    auto pgroupNumber = theMPISystem()->getProcessGroupNumber();
+    std::cout << getTimeStamp() << " Process group " << pgroupNumber << " will run "
+              << tasks.levels.size() << " of " << tasks.totalNumTasks << " tasks." << std::endl;
+    printCombiDegreesOfFreedom(tasks.levels, params.getBoundary());
+  }
 
-    // create combiparameters
-    auto reduceCombinationDimsLmax = LevelVector(dim, 1);
-    // lie about ncombi, because default is to not use reduced dims for last combi step,
-    // which we don't want here because it makes the sparse grid too large
-    CombiParameters params(dim, lmin, lmax, boundary, ncombi * 2, 1,
-                           CombinationVariant::chunkedOutgroupSparseGridReduce, p,
-                           LevelVector(dim, 0), reduceCombinationDimsLmax, chunkSizeInMebibyte,
-                           forwardDecomposition, thirdLevelHost, thirdLevelPort, 0);
-    setCombiParametersHierarchicalBasesUniform(params, "hat_periodic");
-    IndexVector minNumPoints(dim), maxNumPoints(dim);
-    for (DimType d = 0; d < dim; ++d) {
-      minNumPoints[d] = combigrid::getNumDofNodal(lmin[d], boundary[d]);
-      maxNumPoints[d] = combigrid::getNumDofNodal(lmax[d], boundary[d]);
-    }
-    // first, test if decomposition possible for small resolution
-    auto decomposition = combigrid::getDefaultDecomposition(minNumPoints, p, forwardDecomposition);
-    // then assign the actual used one
-    decomposition = combigrid::getDefaultDecomposition(maxNumPoints, p, forwardDecomposition);
-    // default decomposition works only for powers of 2!
-    params.setDecomposition(decomposition);
-    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "generated parameters"
-                                               << std::endl;
+  // set decomposition
+  auto& p = params.getParallelization();
+  bool forwardDecomposition = cfg.get<bool>("ct.forwardDecomposition", false);
+  IndexVector maxNumPoints(dim);
+  for (DimType d = 0; d < dim; ++d) {
+    maxNumPoints[d] = getNumDofNodal(params.getLMax()[d], params.getBoundary()[d]);
+  }
+  auto decomposition = getDefaultDecomposition(maxNumPoints, p, forwardDecomposition);
+  params.setDecomposition(decomposition);
+  MIDDLE_PROCESS_EXCLUSIVE_SECTION
+  std::cout << getTimeStamp() << "generated parameters" << std::endl;
 
-    // read interpolation coordinates
-    std::vector<std::vector<double>> interpolationCoords;
-    interpolationCoords.resize(1e5, std::vector<double>(dim, -1.));
-    std::string interpolationCoordsFile = "interpolation_coords_" + std::to_string(dim) + "D_" +
-                                          std::to_string(interpolationCoords.size()) + ".h5";
+  // read interpolation coordinates
+  std::vector<std::vector<double>> interpolationCoords;
+  interpolationCoords.resize(1e5, std::vector<double>(dim, -1.));
+  std::string interpolationCoordsFile = "interpolation_coords_" + std::to_string(dim) + "D_" +
+                                        std::to_string(interpolationCoords.size()) + ".h5";
 #ifdef DISCOTEC_USE_HIGHFIVE
-    // if the file does not exist, one rank creates it
-    if (theMPISystem()->getWorldRank() == 0) {
-      if (!std::filesystem::exists(interpolationCoordsFile)) {
-        interpolationCoords =
-            montecarlo::getRandomCoordinates(static_cast<int>(interpolationCoords.size()), dim);
-        h5io::writeValuesToH5File(interpolationCoords, interpolationCoordsFile, "worker_group",
-                                  "only");
-      }
+  if (theMPISystem()->getWorldRank() == 0) {
+    if (!std::filesystem::exists(interpolationCoordsFile)) {
+      interpolationCoords =
+          montecarlo::getRandomCoordinates(static_cast<int>(interpolationCoords.size()), dim);
+      h5io::writeValuesToH5File(interpolationCoords, interpolationCoordsFile, "worker_group",
+                                "only");
     }
-#endif  // DISCOTEC_USE_HIGHFIVE
-    // get the exact ones e.g. with `wget https://darus.uni-stuttgart.de/api/access/datafile/195524`
-    // (1e6) or `wget https://darus.uni-stuttgart.de/api/access/datafile/195545` (1e5)
-    interpolationCoords = broadcastParameters::getCoordinatesFromRankZero(
-        interpolationCoordsFile, theMPISystem()->getWorldComm());
+  }
+#endif
+  interpolationCoords = broadcastParameters::getCoordinatesFromRankZero(
+      interpolationCoordsFile, theMPISystem()->getWorldComm());
+  if (interpolationCoords.size() != static_cast<size_t>(1e5)) {
+    sleep(1);
+    throw std::runtime_error("not enough interpolation coordinates");
+  }
+  MIDDLE_PROCESS_EXCLUSIVE_SECTION
+  std::cout << getTimeStamp() << "read interpolation coordinates" << std::endl;
 
-    if (interpolationCoords.size() != static_cast<size_t>(1e5)) {
-      sleep(1);
-      throw std::runtime_error("not enough interpolation coordinates");
-    }
-    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "read interpolation coordinates"
-                                               << std::endl;
+  // set up worker, tasks, and sparse grid
+  std::unique_ptr<LoadModel> loadmodel = std::make_unique<LinearLoadModel>();
+  ProcessGroupWorker<> worker;
+  worker.setCombiParameters(std::move(params));
+  worker.initializeAllTasks<TaskAdvection>(tasks.levels, tasks.coeffs, tasks.taskNumbers,
+                                           loadmodel.get(), dt, nsteps, p);
+  MIDDLE_PROCESS_EXCLUSIVE_SECTION
+  std::cout << getTimeStamp() << "worker: initialized tasks" << std::endl;
 
-    ProcessGroupWorker<> worker;
-    worker.setCombiParameters(std::move(params));
+  worker.initCombinedDSGVector();
+  MIDDLE_PROCESS_EXCLUSIVE_SECTION
+  std::cout << getTimeStamp() << "worker: initialized SG" << std::endl;
 
-    worker.initializeAllTasks<TaskAdvection>(levels, coeffs, taskNumbers, loadmodel.get(), dt,
-                                             nsteps, p);
-    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "worker: initialized tasks "
-                                               << std::endl;
+  // read extra sparse grid sizes for third-level
+  std::string ctschemeFile = cfg.get<std::string>("ct.ctscheme", "");
+  if (extraSparseGrid && !ctschemeFile.empty()) {
+    std::string conjointSubspaceFileName =
+        ctschemeFile.substr(
+            0, ctschemeFile.length() - std::string("_part0_00008groups.json").length()) +
+        "conjoint.sizes";
+    worker.reduceExtraSubspaceSizes({conjointSubspaceFileName}, true);
+  }
 
-    worker.initCombinedDSGVector();
-    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "worker: initialized SG"
-                                               << std::endl;
+  MASTER_EXCLUSIVE_SECTION {
+    uint32_t chunkSizeInMebibyte = cfg.get<uint32_t>("ct.chunkSize", 64);
+    std::cout << getTimeStamp() << "group " << theMPISystem()->getProcessGroupNumber()
+              << ": set sparse grid sizes, will allocate "
+              << static_cast<real>(worker.getCombinedDSGVector()[0]->getAccumulatedDataSize() *
+                                   sizeof(CombiDataType)) /
+                     1e6
+              << " MB (but only "
+              << static_cast<real>(
+                     CombiCom::getGlobalReduceChunkSize<CombiDataType>(chunkSizeInMebibyte) *
+                     sizeof(CombiDataType)) /
+                     1e6
+              << " MB at once)" << std::endl;
+  }
 
-    // read (extra) sparse grid sizes, as generated with subspace_writer
-    // for target scenarios, consider `wget
-    // https://darus.uni-stuttgart.de/api/access/datafile/195543` or similar
-    if (extraSparseGrid) {
-      std::string conjointSubspaceFileName =  // cf. subspace_writer.cpp
-          ctschemeFile.substr(
-              0, ctschemeFile.length() - std::string("_part0_00008groups.json").length()) +
-          "conjoint.sizes";
-      worker.reduceExtraSubspaceSizes({conjointSubspaceFileName}, true);
-    }
+  worker.zeroDsgsData();
+  MPI_Barrier(theMPISystem()->getWorldComm());
 
-    OUTPUT_GROUP_EXCLUSIVE_SECTION {
-      std::cout << getTimeStamp() << "group " << theMPISystem()->getProcessGroupNumber()
-                << " sparse grid, will allocate "
-                << static_cast<real>(worker.getCombinedDSGVector()[0]->getAccumulatedDataSize() *
-                                     sizeof(CombiDataType)) /
-                       1e6
-                << " (but only "
-                << static_cast<real>(combigrid::CombiCom::getGlobalReduceChunkSize<CombiDataType>(
-                                         chunkSizeInMebibyte) *
-                                     sizeof(CombiDataType)) /
-                       1e6
-                << " MB at once)"
-                << " plus "
-                << static_cast<real>(worker.getExtraDSGVector()[0]->getAccumulatedDataSize() *
-                                     sizeof(CombiDataType)) /
-                       1e6
-                << " MB" << std::endl;
-    }
+  MIDDLE_PROCESS_EXCLUSIVE_SECTION {
+    auto endInit = std::chrono::high_resolution_clock::now();
+    auto durationInit =
+        std::chrono::duration_cast<std::chrono::seconds>(endInit - startInit).count();
+    std::cout << getTimeStamp() << "initialization took: " << durationInit << " seconds"
+              << std::endl;
+  }
+
+  // simulation loop
+  MIDDLE_PROCESS_EXCLUSIVE_SECTION
+  std::cout << getTimeStamp() << "start simulation loop" << std::endl;
+  for (size_t i = 0; i < ncombi; ++i) {
     MPI_Barrier(theMPISystem()->getWorldComm());
-    // allocate sparse grids now
-    worker.zeroDsgsData();
-    MIDDLE_PROCESS_EXCLUSIVE_SECTION {
-      auto endInit = std::chrono::high_resolution_clock::now();
-      auto durationInit =
-          std::chrono::duration_cast<std::chrono::seconds>(endInit - startInit).count();
-      std::cout << getTimeStamp() << "initialization took: " << durationInit << " seconds"
-                << std::endl;
-    }
-    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "start simulation loop"
-                                               << std::endl;
-    for (size_t i = 0; i < ncombi; ++i) {
-      // run tasks for next time interval
-      worker.runAllTasks();
-      auto durationRun = static_cast<double>(Stats::getDuration("run")) / 1000.0;
-      MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "calculation " << i
-                                                 << " took: " << durationRun << " seconds"
-                                                 << std::endl;
-
-      if (evalMCError) {
-        Stats::startEvent("write interpolated");
-        worker.writeInterpolatedValuesSingleFile(
-            interpolationCoords, "worker_interpolated_" + std::to_string(systemNumber));
-        Stats::stopEvent("write interpolated");
-        OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION {
-          MASTER_EXCLUSIVE_SECTION {
-            std::cout << getTimeStamp() << "interpolation " << i << " took: "
-                      << static_cast<double>(Stats::getDuration("write interpolated")) / 1000.0
-                      << " seconds" << std::endl;
-          }
-        }
-      }
-      MPI_Barrier(theMPISystem()->getWorldComm());
-      Stats::startEvent("combine");
-      auto startCombineWrite = std::chrono::high_resolution_clock::now();
-      std::string writeSparseGridFile =
-          "dsg_" + std::to_string(systemNumber) + "_step" + std::to_string(i);
-      std::string writeSparseGridFileToken = writeSparseGridFile + "_token.txt";
-
-      worker.combineSystemWideAndWrite(writeSparseGridFile, writeSparseGridFileToken);
-      // everyone writes partial stats
-      Stats::writePartial("stats_worker_" + std::to_string(systemNumber) + "_group" +
-                              std::to_string(theMPISystem()->getProcessGroupNumber()) + ".json",
-                          theMPISystem()->getLocalComm());
-
-      MIDDLE_PROCESS_EXCLUSIVE_SECTION {
-        auto endCombineWrite = std::chrono::high_resolution_clock::now();
-        auto durationCombineWrite =
-            std::chrono::duration_cast<std::chrono::seconds>(endCombineWrite - startCombineWrite)
-                .count();
-        std::cout << getTimeStamp() << "combination-local/write " << i
-                  << " took: " << durationCombineWrite << " seconds" << std::endl;
-      }
-      auto startCombineRead = std::chrono::high_resolution_clock::now();
-      std::vector<std::string> readSparseGridFiles;
-      std::vector<std::string> readSparseGridFileTokens;
-      if (hasThirdLevel) {
-        for (unsigned int otherSystemNumber = 0; otherSystemNumber < numSystems;
-             ++otherSystemNumber) {
-          if (otherSystemNumber != systemNumber) {
-            readSparseGridFiles.emplace_back("dsg_" + std::to_string(otherSystemNumber) + "_step" +
-                                             std::to_string(i));
-            readSparseGridFileTokens.emplace_back(readSparseGridFiles.back() + "_token.txt");
-          }
-        }
-        worker.combineReadDistributeSystemWide(readSparseGridFiles, readSparseGridFileTokens, false,
-                                               false);
-
-      } else {
-        readSparseGridFiles.emplace_back(writeSparseGridFile);
-        worker.combineReadDistributeSystemWide(readSparseGridFiles, {writeSparseGridFileToken},
-                                               true, false);
-      }
-      MIDDLE_PROCESS_EXCLUSIVE_SECTION {
-        auto endCombineRead = std::chrono::high_resolution_clock::now();
-        auto durationCombineRead =
-            std::chrono::duration_cast<std::chrono::seconds>(endCombineRead - startCombineRead)
-                .count();
-        std::cout << getTimeStamp() << "combination-wait/read/reduce " << i
-                  << " took: " << durationCombineRead << " seconds ; read " << readSparseGridFiles
-                  << std::endl;
-      }
-      Stats::stopEvent("combine");
-    }
-    // run tasks for last time interval
     worker.runAllTasks();
-    auto durationRun = static_cast<double>(Stats::getDuration("run")) / 1000.0;
-    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "last calculation " << ncombi
-                                               << " took: " << durationRun << " seconds"
-                                               << std::endl;
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION
+    std::cout << getTimeStamp() << "calculation " << i
+              << " took: " << static_cast<double>(Stats::getDuration("run")) / 1000.0 << " seconds"
+              << std::endl;
 
     if (evalMCError) {
       Stats::startEvent("write interpolated");
-      worker.writeInterpolatedValuesSingleFile(
-          interpolationCoords, "worker_interpolated_" + std::to_string(systemNumber));
+      worker.writeInterpolatedValuesSingleFile(interpolationCoords, "worker_interpolated");
       Stats::stopEvent("write interpolated");
-      OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION {
-        MASTER_EXCLUSIVE_SECTION {
-          std::cout << getTimeStamp() << "last interpolation " << ncombi << " took: "
-                    << static_cast<double>(Stats::getDuration("write interpolated")) / 1000.0
-                    << " seconds" << std::endl;
+    }
+
+    MPI_Barrier(theMPISystem()->getWorldComm());
+    auto startCombine = std::chrono::high_resolution_clock::now();
+
+    if (hasThirdLevel) {
+      // third-level file-based exchange
+      std::string writeSparseGridFile =
+          "dsgu_" + std::to_string(theMPISystem()->getProcessGroupNumber()) + ".json";
+      std::string writeSparseGridFileToken =
+          "dsgu_" + std::to_string(theMPISystem()->getProcessGroupNumber()) + "_token";
+      worker.combineSystemWideAndWrite(writeSparseGridFile, writeSparseGridFileToken);
+
+      std::vector<std::string> readSparseGridFiles, readSparseGridFileTokens;
+      for (unsigned int sys = 0; sys < numSystems; ++sys) {
+        if (sys != systemNumber) {
+          readSparseGridFiles.push_back("dsgu_" + std::to_string(sys) + ".json");
+          readSparseGridFileTokens.push_back("dsgu_" + std::to_string(sys) + "_token");
         }
       }
+      if (i < ncombi - 1) {
+        worker.combineReadDistributeSystemWide(readSparseGridFiles, readSparseGridFileTokens, false,
+                                               true);
+      } else {
+        worker.combineReadDistributeSystemWide(readSparseGridFiles, {writeSparseGridFileToken},
+                                               false, true);
+      }
+    } else {
+      worker.combineAtOnce();
     }
-    worker.exit();
 
-    Stats::finalize();
-
-    /* write stats to json file for postprocessing */
-    Stats::write("timers_system" + std::to_string(systemNumber) + "_group" +
-                     std::to_string(theMPISystem()->getProcessGroupNumber()) + ".json",
-                 theMPISystem()->getLocalComm());
+    auto endCombine = std::chrono::high_resolution_clock::now();
+    auto durationCombine =
+        static_cast<double>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(endCombine - startCombine)
+                .count()) /
+        1000.0;
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION
+    std::cout << getTimeStamp() << "combination " << i << " took: " << durationCombine << " seconds"
+              << std::endl;
   }
+
+  // last iteration
+  worker.runAllTasks();
+  MIDDLE_PROCESS_EXCLUSIVE_SECTION
+  std::cout << getTimeStamp() << "last calculation " << ncombi
+            << " took: " << static_cast<double>(Stats::getDuration("run")) / 1000.0 << " seconds"
+            << std::endl;
+  if (evalMCError) {
+    Stats::startEvent("write interpolated");
+    worker.writeInterpolatedValuesSingleFile(interpolationCoords, "worker_interpolated");
+    Stats::stopEvent("write interpolated");
+  }
+
+  worker.exit();
+  Stats::finalize();
+
+  /* write stats to json file for postprocessing */
+  Stats::write("timers_" + std::to_string(theMPISystem()->getProcessGroupNumber()) + ".json",
+               theMPISystem()->getLocalComm());
 
   return 0;
 }

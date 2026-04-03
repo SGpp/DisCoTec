@@ -18,7 +18,7 @@
 #include "discotec/fault_tolerance/StaticFaults.hpp"
 #include "discotec/fault_tolerance/WeibullFaults.hpp"
 #include "discotec/fullgrid/FullGrid.hpp"
-#include "discotec/io/BroadcastParameters.hpp"
+#include "discotec/io/ParameterIO.hpp"
 #include "discotec/loadmodel/LinearLoadModel.hpp"
 #include "discotec/manager/ProcessGroupManager.hpp"
 #include "discotec/manager/ProcessGroupWorker.hpp"
@@ -39,14 +39,11 @@ using namespace combigrid;
 #include "discotec/utils/BoostExports.hpp"
 BOOST_CLASS_EXPORT(TaskAdvection)
 
-
 int main(int argc, char** argv) {
-  
-  // only one rank reads parameter file and broadcasts to others
+  // read ctparam: rank 0 reads and broadcasts
   std::string paramfile = "ctparam";
   if (argc > 1) paramfile = argv[1];
-  boost::property_tree::ptree cfg =
-      broadcastParameters::getParametersFromRankZero(paramfile, MPI_COMM_WORLD);
+  auto [ngroup, nprocs, cfg] = combigrid::readParameterFile(paramfile, MPI_COMM_WORLD);
 
   Stats::initialize();
 

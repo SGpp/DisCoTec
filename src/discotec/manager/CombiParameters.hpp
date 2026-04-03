@@ -3,7 +3,6 @@
 
 #include <boost/serialization/map.hpp>
 
-#include "discotec/hierarchization/CombiLinearBasisFunction.hpp"
 #include "discotec/mpi/MPISystem.hpp"
 #include "discotec/utils/LevelSetUtils.hpp"
 #include "discotec/utils/LevelVector.hpp"
@@ -82,9 +81,9 @@ class CombiParameters {
     hierarchizationDims_ = std::vector<bool>(dim_, true);
     for (DimType d = 0; d < dim_; ++d) {
       if (boundary_[d] == 1) {
-        hierarchicalBases_.push_back(new HierarchicalHatPeriodicBasisFunction());
+        hierarchicalBases_.push_back(BasisFunctionType::HAT_PERIODIC);
       } else {
-        hierarchicalBases_.push_back(new HierarchicalHatBasisFunction());
+        hierarchicalBases_.push_back(BasisFunctionType::HAT);
       }
     }
     setLevelsCoeffs(taskIDs, levels, coeffs);
@@ -145,9 +144,9 @@ class CombiParameters {
     hierarchizationDims_ = std::vector<bool>(dim_, true);
     for (DimType d = 0; d < dim_; ++d) {
       if (boundary_[d] == 1) {
-        hierarchicalBases_.push_back(new HierarchicalHatPeriodicBasisFunction());
+        hierarchicalBases_.push_back(BasisFunctionType::HAT_PERIODIC);
       } else {
-        hierarchicalBases_.push_back(new HierarchicalHatBasisFunction());
+        hierarchicalBases_.push_back(BasisFunctionType::HAT);
       }
     }
     if (parallelization != std::vector<int>({0})) {
@@ -191,7 +190,7 @@ class CombiParameters {
                   const LevelVector& reduceCombinationDimsLmin = LevelVector(0),
                   const LevelVector& reduceCombinationDimsLmax = LevelVector(0),
                   uint32_t sizeForChunkedCommunicationInMebibyte = 64,
-                  bool forwardDecomposition = true, const std::string& thirdLevelHost = "",
+                  bool forwardDecomposition = false, const std::string& thirdLevelHost = "",
                   unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
       : dim_(dim),
         lmin_(lmin),
@@ -210,9 +209,9 @@ class CombiParameters {
         thirdLevelPG_(thirdLevelPG) {
     for (DimType d = 0; d < dim_; ++d) {
       if (boundary_[d] == 1) {
-        hierarchicalBases_.push_back(new HierarchicalHatPeriodicBasisFunction());
+        hierarchicalBases_.push_back(BasisFunctionType::HAT_PERIODIC);
       } else {
-        hierarchicalBases_.push_back(new HierarchicalHatBasisFunction());
+        hierarchicalBases_.push_back(BasisFunctionType::HAT);
       }
     }
     setLevelsCoeffs(taskIDs, levels, coeffs);
@@ -360,37 +359,21 @@ class CombiParameters {
   /**
    * @brief Set the Hierarchical Bases object
    *
-   * set a vector of hierarchicas bases, one for each dimension
+   * set a vector of hierarchical bases, one for each dimension
    * (not necessary if using hierarchical hats in all dimensions)
-   * Takes over ownership of the contents of the bases object,
-   * which are assumed to be on the heap
    */
-  inline void setHierarchicalBases(std::vector<BasisFunctionBasis*>& bases) {
+  inline void setHierarchicalBases(const std::vector<BasisFunctionType>& bases) {
     assert(bases.size() == dim_);
-    // delete old hierarchicalBases_
-    for (auto& b : hierarchicalBases_) {
-      if (b != nullptr) {
-        delete b;
-      }
-      b = nullptr;
-    }
-    for (size_t i = 0; i < bases.size(); ++i) {
-      if (bases[i] == nullptr) {
-        assert(hierarchizationDims_[i] == false);
-      }
-      hierarchicalBases_[i] = bases[i];
-      bases[i] = nullptr;
-    }
+    hierarchicalBases_ = bases;
   }
 
   /**
    * @brief Get the hierarchical bases, one for each dimension
    *        (assuming all the dfgs are using the same number of dimensions and the same bases)
    *
-   * @return std::vector<BasisFunctionBasis*> pointers of the type of basis function
-   *          may be nullptr or anything for a non-hierarchization dimension
+   * @return std::vector<BasisFunctionType> the type of basis function for each dimension
    */
-  inline const std::vector<BasisFunctionBasis*>& getHierarchicalBases() const {
+  inline const std::vector<BasisFunctionType>& getHierarchicalBases() const {
     assert(hierarchicalBases_.size() == dim_);
     return hierarchicalBases_;
   }
@@ -401,9 +384,7 @@ class CombiParameters {
    *
    * @return const std::vector<int>& the number of processes in each dimension
    */
-  inline const std::vector<int>& getParallelization() const {
-    return procs_;
-  }
+  inline const std::vector<int>& getParallelization() const { return procs_; }
 
   /**
    * @brief get the number of combinations
@@ -414,6 +395,14 @@ class CombiParameters {
    * @brief get the combination variant used
    */
   inline CombinationVariant getCombinationVariant() const { return combinationVariant_; }
+
+  inline HierarchizationBackend getHierarchizationBackend() const {
+    return hierarchizationBackend_;
+  }
+
+  inline void setHierarchizationBackend(HierarchizationBackend backend) {
+    hierarchizationBackend_ = backend;
+  }
 
   /**
    * @brief get the reduction chunk size in MiB per OpenMP thread
@@ -445,9 +434,7 @@ class CombiParameters {
   /**
    * @brief set the parallelization
    */
-  inline void setParallelization(const std::vector<int>& p) {
-    procs_ = p;
-  }
+  inline void setParallelization(const std::vector<int>& p) { procs_ = p; }
 
   inline bool isParallelizationSet() const { return !procs_.empty(); }
 
@@ -496,7 +483,7 @@ class CombiParameters {
 
   std::vector<bool> hierarchizationDims_;
 
-  std::vector<BasisFunctionBasis*> hierarchicalBases_;
+  std::vector<BasisFunctionType> hierarchicalBases_;
 
   std::vector<int> procs_;
 
@@ -539,6 +526,8 @@ class CombiParameters {
 
   size_t thirdLevelPG_;
 
+  HierarchizationBackend hierarchizationBackend_ = HierarchizationBackend::DISCOTEC;
+
   // serialize
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version);
@@ -566,36 +555,34 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar & thirdLevelHost_;
   ar & thirdLevelPort_;
   ar & thirdLevelPG_;
+  ar & hierarchizationBackend_;
 }
 
 template <typename T>
 static void setCombiParametersHierarchicalBasesUniform(CombiParameters& combiParameters) {
-  std::vector<BasisFunctionBasis*> bases;
-  for (DimType d = 0; d < combiParameters.getDim(); ++d) {
-    bases.push_back(new T());
-  }
-  assert(bases.size() == combiParameters.getDim());
+  std::vector<BasisFunctionType> bases(combiParameters.getDim(), T::basisFunctionType);
+  combiParameters.setHierarchicalBases(bases);
+}
+
+inline BasisFunctionType parseBasisFunctionType(const std::string& basisName) {
+  if (basisName == "hat") return BasisFunctionType::HAT;
+  if (basisName == "hat_periodic") return BasisFunctionType::HAT_PERIODIC;
+  if (basisName == "fullweighting") return BasisFunctionType::FULLWEIGHTING;
+  if (basisName == "fullweighting_periodic") return BasisFunctionType::FULLWEIGHTING_PERIODIC;
+  if (basisName == "biorthogonal") return BasisFunctionType::BIORTHOGONAL;
+  if (basisName == "biorthogonal_periodic") return BasisFunctionType::BIORTHOGONAL_PERIODIC;
+  throw std::invalid_argument("unknown basis function name: '" + basisName + "'");
+}
+
+inline static void setCombiParametersHierarchicalBasesUniform(CombiParameters& combiParameters,
+                                                              BasisFunctionType basisType) {
+  std::vector<BasisFunctionType> bases(combiParameters.getDim(), basisType);
   combiParameters.setHierarchicalBases(bases);
 }
 
 inline static void setCombiParametersHierarchicalBasesUniform(CombiParameters& combiParameters,
                                                               const std::string& basisName) {
-  if (basisName == "hat") {
-    setCombiParametersHierarchicalBasesUniform<HierarchicalHatBasisFunction>(combiParameters);
-  } else if (basisName == "hat_periodic") {
-    setCombiParametersHierarchicalBasesUniform<HierarchicalHatPeriodicBasisFunction>(
-        combiParameters);
-  } else if (basisName == "fullweighting") {
-    setCombiParametersHierarchicalBasesUniform<FullWeightingBasisFunction>(combiParameters);
-  } else if (basisName == "fullweighting_periodic") {
-    setCombiParametersHierarchicalBasesUniform<FullWeightingPeriodicBasisFunction>(combiParameters);
-  } else if (basisName == "biorthogonal") {
-    setCombiParametersHierarchicalBasesUniform<BiorthogonalBasisFunction>(combiParameters);
-  } else if (basisName == "biorthogonal_periodic") {
-    setCombiParametersHierarchicalBasesUniform<BiorthogonalPeriodicBasisFunction>(combiParameters);
-  } else {
-    throw std::invalid_argument("Hierarchical basis string not known.");
-  }
+  setCombiParametersHierarchicalBasesUniform(combiParameters, parseBasisFunctionType(basisName));
 }
 
 }  // namespace combigrid
