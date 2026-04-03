@@ -37,12 +37,19 @@ bool ProcessManager<CombiDataType>::runfirst(bool doInitDSGUs) {
         " groups");
   }
 
-  for (size_t i = 0; i < tasks_.size(); ++i) {
-    // wait for available process group
-    ProcessGroupManagerID<CombiDataType> g = wait();
+  // First pass: assign one task to each group to ensure no group is starved
+  std::vector<ProcessGroupManagerID<CombiDataType>> assignedGroups;
+  size_t taskIdx = 0;
+  for (; taskIdx < pgroups_.size() && taskIdx < tasks_.size(); ++taskIdx) {
+    ProcessGroupManagerID<CombiDataType> g = waitAvoid(assignedGroups);
+    g->runfirst(tasks_[taskIdx]);
+    assignedGroups.push_back(g);
+  }
 
-    // assign instance to group
-    g->runfirst(tasks_[i]);
+  // Second pass: assign remaining tasks to any available group
+  for (; taskIdx < tasks_.size(); ++taskIdx) {
+    ProcessGroupManagerID<CombiDataType> g = wait();
+    g->runfirst(tasks_[taskIdx]);
   }
 
   bool group_failed = waitAllFinished();
