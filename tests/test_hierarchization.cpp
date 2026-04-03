@@ -273,6 +273,7 @@ void checkBiorthogonalHierarchization(Functor& f,
   }
 
   auto dim = dfg.getDimension();
+  if (lmin.size() == 0) lmin = LevelVector(dim, 0);
   std::vector<bool> hierarchizationDimensions(dim, true);
   std::vector<BasisFunctionType> bioBases(dim, BasisFunctionType::BIORTHOGONAL);
   DistributedHierarchization::hierarchize<std::complex<double>, DIM>(
@@ -319,6 +320,7 @@ void checkFullWeightingHierarchization(Functor& f,
   }
 
   auto dim = dfg.getDimension();
+  if (lmin.size() == 0) lmin = LevelVector(dim, 0);
   std::vector<bool> hierarchizationDimensions(dim, true);
   std::vector<BasisFunctionType> fwBases(dim, BasisFunctionType::FULLWEIGHTING);
   DistributedHierarchization::hierarchize<std::complex<double>, DIM>(
