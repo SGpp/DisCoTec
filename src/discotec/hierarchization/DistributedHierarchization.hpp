@@ -3,7 +3,6 @@
 
 #include "boost/lexical_cast.hpp"
 #include "discotec/fullgrid/DistributedFullGrid.hpp"
-#include "discotec/manager/CombiParameters.hpp"
 #include "discotec/utils/IndexVector.hpp"
 #include "discotec/utils/PowerOfTwo.hpp"
 #include "discotec/utils/Stats.hpp"
@@ -1129,14 +1128,12 @@ void dehierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
   }
 }
 
-// HierarchizationBackend is defined in CombiParameters.hpp
-
 class DistributedHierarchization {
  public:
   // inplace hierarchization
   template <typename FG_ELEMENT, DimType DIM>
   static void hierarchize(DistributedFullGrid<FG_ELEMENT, DIM>& dfg, const std::vector<bool>& dims,
-                          const std::vector<BasisFunctionBasis*>& hierarchicalBases,
+                          const std::vector<BasisFunctionType>& hierarchicalBases,
                           const LevelVector& lmin,
                           HierarchizationBackend backend = HierarchizationBackend::DISCOTEC) {
     if (backend == HierarchizationBackend::PALIWA) {
@@ -1156,8 +1153,8 @@ class DistributedHierarchization {
       if (lmin[dim] >= dfg.getLevels()[dim]) continue;
 
       RemoteDataCollector<FG_ELEMENT> remoteData;
-      if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr ||
-          dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
+      if (hierarchicalBases[dim] == BasisFunctionType::HAT ||
+          hierarchicalBases[dim] == BasisFunctionType::HAT_PERIODIC) {
         exchangeData1d(dfg, dim, remoteData, lmin[dim]);
       } else {
         exchangeAllData1d(dfg, dim, remoteData);
@@ -1165,28 +1162,25 @@ class DistributedHierarchization {
 
       if (dfg.returnBoundaryFlags()[dim] > 0) {
         // sorry for the code duplication, could not figure out a clean way
-        if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
+        if (hierarchicalBases[dim] == BasisFunctionType::HAT) {
           hierarchizeWithBoundary<FG_ELEMENT, hierarchize_hat_boundary_kernel<FG_ELEMENT>>(
               dfg, remoteData, dim, lmin[dim]);
-        } else if (dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
-                   nullptr) {
+        } else if (hierarchicalBases[dim] == BasisFunctionType::HAT_PERIODIC) {
           hierarchizeWithBoundary<FG_ELEMENT, hierarchize_hat_boundary_kernel<FG_ELEMENT, true>>(
               dfg, remoteData, dim, lmin[dim]);
-        } else if (dynamic_cast<FullWeightingBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
+        } else if (hierarchicalBases[dim] == BasisFunctionType::FULLWEIGHTING) {
           hierarchizeWithBoundary<FG_ELEMENT,
                                   hierarchize_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
               dfg, remoteData, dim, lmin[dim]);
-        } else if (dynamic_cast<FullWeightingPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
-                   nullptr) {
+        } else if (hierarchicalBases[dim] == BasisFunctionType::FULLWEIGHTING_PERIODIC) {
           hierarchizeWithBoundary<FG_ELEMENT,
                                   hierarchize_full_weighting_boundary_kernel<FG_ELEMENT, true>>(
               dfg, remoteData, dim, lmin[dim]);
-        } else if (dynamic_cast<BiorthogonalBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
+        } else if (hierarchicalBases[dim] == BasisFunctionType::BIORTHOGONAL) {
           hierarchizeWithBoundary<FG_ELEMENT,
                                   hierarchize_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
               dfg, remoteData, dim, lmin[dim]);
-        } else if (dynamic_cast<BiorthogonalPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
-                   nullptr) {
+        } else if (hierarchicalBases[dim] == BasisFunctionType::BIORTHOGONAL_PERIODIC) {
           hierarchizeWithBoundary<FG_ELEMENT,
                                   hierarchize_biorthogonal_boundary_kernel<FG_ELEMENT, true>>(
               dfg, remoteData, dim, lmin[dim]);
@@ -1194,7 +1188,7 @@ class DistributedHierarchization {
           throw std::logic_error("Not implemented");
         }
       } else {
-        if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) == nullptr) {
+        if (hierarchicalBases[dim] != BasisFunctionType::HAT) {
           throw std::logic_error("currently only hats supported for non-boundary grids");
         }
         assert(lmin[dim] == 0);
@@ -1202,18 +1196,6 @@ class DistributedHierarchization {
       }
       remoteData.clear();
     }
-  }
-
-  template <typename FG_ELEMENT, class T = HierarchicalHatBasisFunction, DimType DIM>
-  static void hierarchizeHierachicalBasis(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
-                                          const std::vector<bool>& dims,
-                                          LevelVector lmin = LevelVector(0)) {
-    T basisFctn;
-    std::vector<BasisFunctionBasis*> bases(dfg.getDimension(), &basisFctn);
-    if (lmin.size() == 0) {
-      lmin = LevelVector(dims.size(), 0);
-    }
-    return hierarchize<FG_ELEMENT, DIM>(dfg, dims, bases, lmin);
   }
 
   template <typename FG_ELEMENT, DimType DIM>
@@ -1224,8 +1206,7 @@ class DistributedHierarchization {
     if (lmin.size() == 0) {
       lmin = LevelVector(dfg.getDimension(), 0);
     }
-    HierarchicalHatBasisFunction basisFctn;
-    std::vector<BasisFunctionBasis*> bases(dfg.getDimension(), &basisFctn);
+    std::vector<BasisFunctionType> bases(dfg.getDimension(), BasisFunctionType::HAT);
     return hierarchize<FG_ELEMENT, DIM>(dfg, dims, bases, lmin, backend);
   }
 
@@ -1233,7 +1214,7 @@ class DistributedHierarchization {
   template <typename FG_ELEMENT, DimType DIM>
   static void dehierarchize(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                             const std::vector<bool>& dims,
-                            const std::vector<BasisFunctionBasis*>& hierarchicalBases,
+                            const std::vector<BasisFunctionType>& hierarchicalBases,
                             const LevelVector& lmin,
                             HierarchizationBackend backend = HierarchizationBackend::DISCOTEC) {
     if (backend == HierarchizationBackend::PALIWA) {
@@ -1252,8 +1233,8 @@ class DistributedHierarchization {
       if (lmin[dim] >= dfg.getLevels()[dim]) continue;
 
       RemoteDataCollector<FG_ELEMENT> remoteData;
-      if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr ||
-          dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
+      if (hierarchicalBases[dim] == BasisFunctionType::HAT ||
+          hierarchicalBases[dim] == BasisFunctionType::HAT_PERIODIC) {
         exchangeData1dDehierarchization(dfg, dim, remoteData, lmin[dim]);
       } else {
         exchangeAllData1d(dfg, dim, remoteData);
@@ -1261,28 +1242,25 @@ class DistributedHierarchization {
 
       if (dfg.returnBoundaryFlags()[dim] > 0) {
         // sorry for the code duplication, could not figure out a clean way
-        if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
+        if (hierarchicalBases[dim] == BasisFunctionType::HAT) {
           hierarchizeWithBoundary<FG_ELEMENT, dehierarchize_hat_boundary_kernel<FG_ELEMENT>>(
               dfg, remoteData, dim, lmin[dim]);
-        } else if (dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
-                   nullptr) {
+        } else if (hierarchicalBases[dim] == BasisFunctionType::HAT_PERIODIC) {
           hierarchizeWithBoundary<FG_ELEMENT, dehierarchize_hat_boundary_kernel<FG_ELEMENT, true>>(
               dfg, remoteData, dim, lmin[dim]);
-        } else if (dynamic_cast<FullWeightingBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
+        } else if (hierarchicalBases[dim] == BasisFunctionType::FULLWEIGHTING) {
           hierarchizeWithBoundary<FG_ELEMENT,
                                   dehierarchize_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
               dfg, remoteData, dim, lmin[dim]);
-        } else if (dynamic_cast<FullWeightingPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
-                   nullptr) {
+        } else if (hierarchicalBases[dim] == BasisFunctionType::FULLWEIGHTING_PERIODIC) {
           hierarchizeWithBoundary<FG_ELEMENT,
                                   dehierarchize_full_weighting_boundary_kernel<FG_ELEMENT, true>>(
               dfg, remoteData, dim, lmin[dim]);
-        } else if (dynamic_cast<BiorthogonalBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
+        } else if (hierarchicalBases[dim] == BasisFunctionType::BIORTHOGONAL) {
           hierarchizeWithBoundary<FG_ELEMENT,
                                   dehierarchize_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
               dfg, remoteData, dim, lmin[dim]);
-        } else if (dynamic_cast<BiorthogonalPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
-                   nullptr) {
+        } else if (hierarchicalBases[dim] == BasisFunctionType::BIORTHOGONAL_PERIODIC) {
           hierarchizeWithBoundary<FG_ELEMENT,
                                   dehierarchize_biorthogonal_boundary_kernel<FG_ELEMENT, true>>(
               dfg, remoteData, dim, lmin[dim]);
@@ -1290,7 +1268,7 @@ class DistributedHierarchization {
           throw std::logic_error("Not implemented");
         }
       } else {
-        if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) == nullptr) {
+        if (hierarchicalBases[dim] != BasisFunctionType::HAT) {
           throw std::logic_error("currently only hats supported for non-boundary grids");
         }
         assert(lmin[dim] == 0);
@@ -1301,18 +1279,6 @@ class DistributedHierarchization {
 #pragma omp barrier
   }
 
-  template <typename FG_ELEMENT, class T = HierarchicalHatBasisFunction, DimType DIM>
-  static void dehierarchizeHierachicalBasis(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
-                                            const std::vector<bool>& dims,
-                                            LevelVector lmin = LevelVector(0)) {
-    T basisFctn;
-    std::vector<BasisFunctionBasis*> bases(dfg.getDimension(), &basisFctn);
-    if (lmin.size() == 0) {
-      lmin = LevelVector(dfg.getDimension(), 0);
-    }
-    return dehierarchize<FG_ELEMENT, DIM>(dfg, dims, bases, lmin);
-  }
-
   template <typename FG_ELEMENT, DimType DIM>
   static void dehierarchize(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                             LevelVector lmin = LevelVector(0),
@@ -1321,74 +1287,25 @@ class DistributedHierarchization {
     if (lmin.size() == 0) {
       lmin = LevelVector(dfg.getDimension(), 0);
     }
-    HierarchicalHatBasisFunction basisFctn;
-    std::vector<BasisFunctionBasis*> bases(dfg.getDimension(), &basisFctn);
+    std::vector<BasisFunctionType> bases(dfg.getDimension(), BasisFunctionType::HAT);
     return dehierarchize<FG_ELEMENT, DIM>(dfg, dims, bases, lmin, backend);
   }
 
   template <typename FG_ELEMENT, DimType DIM>
   static void dehierarchizeDFG(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                                const std::vector<bool>& hierarchizationDims,
-                               const std::vector<BasisFunctionBasis*>& hierarchicalBases,
+                               const std::vector<BasisFunctionType>& hierarchicalBases,
                                LevelVector lmin = LevelVector(0),
                                HierarchizationBackend backend = HierarchizationBackend::DISCOTEC) {
     DistributedHierarchization::dehierarchize<FG_ELEMENT, DIM>(dfg, hierarchizationDims,
                                                                hierarchicalBases, lmin, backend);
   }
 
-  template <typename FG_ELEMENT, DimType DIM>
-  using FunctionPointer = void (*)(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
-                                   const std::vector<bool>& dims, LevelVector lmin);
-  // make template specifications visible by alias, hat is the default
-  template <typename FG_ELEMENT, DimType DIM>
-  constexpr static FunctionPointer<FG_ELEMENT, DIM> hierarchizeHierarchicalHat =
-      &hierarchizeHierachicalBasis<FG_ELEMENT, HierarchicalHatBasisFunction, DIM>;
-
-  template <typename FG_ELEMENT, DimType DIM>
-  constexpr static FunctionPointer<FG_ELEMENT, DIM> hierarchizeHierarchicalHatPeriodic =
-      &hierarchizeHierachicalBasis<FG_ELEMENT, HierarchicalHatPeriodicBasisFunction, DIM>;
-
-  template <typename FG_ELEMENT, DimType DIM>
-  constexpr static FunctionPointer<FG_ELEMENT, DIM> hierarchizeFullWeighting =
-      &hierarchizeHierachicalBasis<FG_ELEMENT, FullWeightingBasisFunction, DIM>;
-
-  template <typename FG_ELEMENT, DimType DIM>
-  constexpr static FunctionPointer<FG_ELEMENT, DIM> hierarchizeFullWeightingPeriodic =
-      &hierarchizeHierachicalBasis<FG_ELEMENT, FullWeightingPeriodicBasisFunction, DIM>;
-
-  template <typename FG_ELEMENT, DimType DIM>
-  constexpr static FunctionPointer<FG_ELEMENT, DIM> hierarchizeBiorthogonal =
-      &hierarchizeHierachicalBasis<FG_ELEMENT, BiorthogonalBasisFunction, DIM>;
-
-  template <typename FG_ELEMENT, DimType DIM>
-  constexpr static FunctionPointer<FG_ELEMENT, DIM> hierarchizeBiorthogonalPeriodic =
-      &hierarchizeHierachicalBasis<FG_ELEMENT, BiorthogonalPeriodicBasisFunction, DIM>;
-
-  template <typename FG_ELEMENT, DimType DIM>
-  constexpr static FunctionPointer<FG_ELEMENT, DIM> dehierarchizeHierarchicalHat =
-      &dehierarchizeHierachicalBasis<FG_ELEMENT, HierarchicalHatBasisFunction, DIM>;
-
-  template <typename FG_ELEMENT, DimType DIM>
-  constexpr static FunctionPointer<FG_ELEMENT, DIM> dehierarchizeFullWeighting =
-      &dehierarchizeHierachicalBasis<FG_ELEMENT, FullWeightingBasisFunction, DIM>;
-
-  template <typename FG_ELEMENT, DimType DIM>
-  constexpr static FunctionPointer<FG_ELEMENT, DIM> dehierarchizeFullWeightingPeriodic =
-      &dehierarchizeHierachicalBasis<FG_ELEMENT, FullWeightingPeriodicBasisFunction, DIM>;
-
-  template <typename FG_ELEMENT, DimType DIM>
-  constexpr static FunctionPointer<FG_ELEMENT, DIM> dehierarchizeBiorthogonal =
-      &dehierarchizeHierachicalBasis<FG_ELEMENT, BiorthogonalBasisFunction, DIM>;
-
-  template <typename FG_ELEMENT, DimType DIM>
-  constexpr static FunctionPointer<FG_ELEMENT, DIM> dehierarchizeBiorthogonalPeriodic =
-      &dehierarchizeHierachicalBasis<FG_ELEMENT, BiorthogonalPeriodicBasisFunction, DIM>;
-
 #ifdef DISCOTEC_USE_PALIWA
   template <typename FG_ELEMENT, DimType DIM>
   static void checkPaliwaParameters(const DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                                     const std::vector<bool>& dims,
-                                    const std::vector<BasisFunctionBasis*>& hierarchicalBases) {
+                                    const std::vector<BasisFunctionType>& hierarchicalBases) {
     // Current limitations of the paliwa path: //TODO remove
     //   - single MPI rank per grid (no domain decomposition yet)
     //   - periodic boundaries only
@@ -1410,9 +1327,9 @@ class DistributedHierarchization {
             "hierarchize with paliwa: currently only full hierarchization is supported");
       }
     }
-    const auto* firstBasis = hierarchicalBases[0];
-    for (const auto* basis : hierarchicalBases) {
-      if (typeid(*basis) != typeid(*firstBasis)) {
+    const auto firstBasis = hierarchicalBases[0];
+    for (const auto& basis : hierarchicalBases) {
+      if (basis != firstBasis) {
         throw std::runtime_error(
             "hierarchize with paliwa: same basis function required in all dimensions");
       }
@@ -1422,7 +1339,7 @@ class DistributedHierarchization {
   template <typename FG_ELEMENT, DimType DIM>
   static void hierarchizePaliwa(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                                 const std::vector<bool>& dims,
-                                const std::vector<BasisFunctionBasis*>& hierarchicalBases,
+                                const std::vector<BasisFunctionType>& hierarchicalBases,
                                 const LevelVector& lmin = LevelVector(0)) {
     static_assert(DIM >= 1 && DIM <= 6, "paliwa hierarchization supports 1 to 6 dimensions");
     checkPaliwaParameters(dfg, dims, hierarchicalBases);
@@ -1447,7 +1364,7 @@ class DistributedHierarchization {
   template <typename FG_ELEMENT, DimType DIM>
   static void dehierarchizePaliwa(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                                   const std::vector<bool>& dims,
-                                  const std::vector<BasisFunctionBasis*>& hierarchicalBases,
+                                  const std::vector<BasisFunctionType>& hierarchicalBases,
                                   const LevelVector& lmin = LevelVector(0)) {
     static_assert(DIM >= 1 && DIM <= 6, "paliwa dehierarchization supports 1 to 6 dimensions");
     checkPaliwaParameters(dfg, dims, hierarchicalBases);

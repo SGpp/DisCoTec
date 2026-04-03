@@ -96,7 +96,7 @@ class SparseGridWorker {
    * @param lmin the minimum level vector the grids are hierarchized to
    */
   inline void fillDFGFromDSGU(Task<CombiDataType>& t, const std::vector<bool>& hierarchizationDims,
-                              const std::vector<BasisFunctionBasis*>& hierarchicalBases,
+                              const std::vector<BasisFunctionType>& hierarchicalBases,
                               const LevelVector& lmin) const;
 
   /**
@@ -159,7 +159,7 @@ class SparseGridWorker {
   inline void interpolateAndPlotOnLevel(
       const std::string& filename, const LevelVector& levelToEvaluate,
       const std::vector<BoundaryType>& boundary, const std::vector<bool>& hierarchizationDims,
-      const std::vector<BasisFunctionBasis*>& hierarchicalBases, const LevelVector& lmin,
+      const std::vector<BasisFunctionType>& hierarchicalBases, const LevelVector& lmin,
       const std::vector<int>& parallelization, const std::vector<LevelVector>& decomposition) const;
 
   /**
@@ -352,7 +352,7 @@ class SparseGridWorker {
   inline void fillDFGFromDSGU(DistributedFullGrid<CombiDataType, DIM>& dfg, size_t g,
                               const std::vector<BoundaryType>& boundary,
                               const std::vector<bool>& hierarchizationDims,
-                              const std::vector<BasisFunctionBasis*>& hierarchicalBases,
+                              const std::vector<BasisFunctionType>& hierarchicalBases,
                               const LevelVector& lmin) const;
 };
 
@@ -639,7 +639,7 @@ template <DimType DIM>
 inline void SparseGridWorker<CombiDataType>::fillDFGFromDSGU(
     DistributedFullGrid<CombiDataType, DIM>& dfg, size_t g,
     const std::vector<BoundaryType>& boundary, const std::vector<bool>& hierarchizationDims,
-    const std::vector<BasisFunctionBasis*>& hierarchicalBases, const LevelVector& lmin) const {
+    const std::vector<BasisFunctionType>& hierarchicalBases, const LevelVector& lmin) const {
   // fill dfg with hierarchical coefficients from distributed sparse grid
   dfg.extractFromUniformSG(*this->getCombinedUniDSGVector()[g]);
 
@@ -658,7 +658,7 @@ inline void SparseGridWorker<CombiDataType>::fillDFGFromDSGU(
 template <typename CombiDataType>
 inline void SparseGridWorker<CombiDataType>::fillDFGFromDSGU(
     Task<CombiDataType>& t, const std::vector<bool>& hierarchizationDims,
-    const std::vector<BasisFunctionBasis*>& hierarchicalBases, const LevelVector& lmin) const {
+    const std::vector<BasisFunctionType>& hierarchicalBases, const LevelVector& lmin) const {
   for (size_t g = 0; g < this->getNumberOfGrids(); g++) {
     assert(this->getCombinedUniDSGVector()[g] != nullptr);
     t.visitDistributedFullGrid(
@@ -776,7 +776,7 @@ template <typename CombiDataType>
 inline void SparseGridWorker<CombiDataType>::interpolateAndPlotOnLevel(
     const std::string& filename, const LevelVector& levelToEvaluate,
     const std::vector<BoundaryType>& boundary, const std::vector<bool>& hierarchizationDims,
-    const std::vector<BasisFunctionBasis*>& hierarchicalBases, const LevelVector& lmin,
+    const std::vector<BasisFunctionType>& hierarchicalBases, const LevelVector& lmin,
     const std::vector<int>& parallelization, const std::vector<IndexVector>& decomposition) const {
   assert(levelToEvaluate.size() == parallelization.size());
   // create dfg

@@ -3,36 +3,38 @@
 
 // to resolve https://github.com/open-mpi/ompi/issues/5157
 #define OMPI_SKIP_MPICXX 1
-#include <mpi.h>
-#include <cassert>
-#include <vector>
-#include <stdexcept>
-#include "discotec/utils/Config.hpp"
-#include <stdint.h>
 #include <limits.h>
+#include <mpi.h>
+#include <stdint.h>
+
 #include <boost/cstdint.hpp>
+#include <cassert>
+#include <stdexcept>
+#include <vector>
+
+#include "discotec/utils/Config.hpp"
 
 #if SIZE_MAX == UCHAR_MAX
-   #define MPI_SIZE_T MPI_UNSIGNED_CHAR
+#define MPI_SIZE_T MPI_UNSIGNED_CHAR
 #elif SIZE_MAX == USHRT_MAX
-   #define MPI_SIZE_T MPI_UNSIGNED_SHORT
+#define MPI_SIZE_T MPI_UNSIGNED_SHORT
 #elif SIZE_MAX == UINT_MAX
-   #define MPI_SIZE_T MPI_UNSIGNED
+#define MPI_SIZE_T MPI_UNSIGNED
 #elif SIZE_MAX == ULONG_MAX
-   #define MPI_SIZE_T MPI_UNSIGNED_LONG
+#define MPI_SIZE_T MPI_UNSIGNED_LONG
 #elif SIZE_MAX == ULLONG_MAX
-   #define MPI_SIZE_T MPI_UNSIGNED_LONG_LONG
+#define MPI_SIZE_T MPI_UNSIGNED_LONG_LONG
 #else
-   #error "size_t is some strange datatype"
+#error "size_t is some strange datatype"
 #endif
 
 /* only change these types of if you know what you're doing! */
 
 namespace combigrid {
 
-  // IndexType must be signed! because we use -1 in some functions as a return
-  // value. and large enough so that all grid points can be
-  // numbered. i.e levelsum (with boundary) < 30 for int32 and < 62 for int64
+// IndexType must be signed! because we use -1 in some functions as a return
+// value. and large enough so that all grid points can be
+// numbered. i.e levelsum (with boundary) < 30 for int32 and < 62 for int64
 typedef int32_t IndexType;
 
 typedef IndexType LevelType;
@@ -54,6 +56,17 @@ enum CombinationVariant : uint8_t {
   subspaceReduce,
   outgroupSparseGridReduce,
   chunkedOutgroupSparseGridReduce
+};
+
+enum class HierarchizationBackend : uint8_t { DISCOTEC, PALIWA };
+
+enum class BasisFunctionType : uint8_t {
+  HAT,
+  HAT_PERIODIC,
+  FULLWEIGHTING,
+  FULLWEIGHTING_PERIODIC,
+  BIORTHOGONAL,
+  BIORTHOGONAL_PERIODIC
 };
 
 typedef MPI_Comm CommunicatorType;
@@ -206,19 +219,17 @@ inline MPI_Datatype getMPIDatatype(abstraction::DataType type) {
 
   throw new std::invalid_argument("MPI_Datatype Convert(abstraction::DataType) failed!");
 }
-  template <typename T>
-  inline std::string toString(std::vector<T> const& v){
-      std::stringstream ss;
-      ss << "[[";
-      for(size_t i = 0; i < v.size(); ++i)
-      {
-          if(i != 0)
-              ss << ",";
-          ss << v[i];
-      }
-      ss << "]]";
-      return ss.str();
+template <typename T>
+inline std::string toString(std::vector<T> const& v) {
+  std::stringstream ss;
+  ss << "[[";
+  for (size_t i = 0; i < v.size(); ++i) {
+    if (i != 0) ss << ",";
+    ss << v[i];
   }
+  ss << "]]";
+  return ss.str();
+}
 }  // namespace abstraction
 
 #endif /* TYPES_HPP_ */

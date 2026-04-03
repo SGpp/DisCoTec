@@ -9,8 +9,6 @@
 #include <typeinfo>
 #include <utility>
 
-#include "discotec/hierarchization/CombiBasisFunctionBasis.hpp"
-#include "discotec/hierarchization/CombiLinearBasisFunction.hpp"
 #include "discotec/utils/Types.hpp"
 #include "paliwa/paliwa_dimensions.hpp"
 #include "paliwa/paliwa_domains.hpp"
@@ -119,19 +117,17 @@ typename PaliwaDimTraits<DIM>::Vector levelToPaliwaVector(const LevelArray<DIM>&
   return PaliwaDimTraits<DIM>::toVector(arr);
 }
 
-inline std::string paliwaWaveletName(const BasisFunctionBasis* basis) {
-  if (dynamic_cast<const HierarchicalHatPeriodicBasisFunction*>(basis) != nullptr ||
-      dynamic_cast<const HierarchicalHatBasisFunction*>(basis) != nullptr) {
+inline std::string paliwaWaveletName(BasisFunctionType basis) {
+  if (basis == BasisFunctionType::HAT || basis == BasisFunctionType::HAT_PERIODIC) {
     return "hat";
-  } else if (dynamic_cast<const BiorthogonalPeriodicBasisFunction*>(basis) != nullptr ||
-             dynamic_cast<const BiorthogonalBasisFunction*>(basis) != nullptr) {
+  } else if (basis == BasisFunctionType::BIORTHOGONAL ||
+             basis == BasisFunctionType::BIORTHOGONAL_PERIODIC) {
     return "biorthogonal";
-  } else if (dynamic_cast<const FullWeightingPeriodicBasisFunction*>(basis) != nullptr ||
-             dynamic_cast<const FullWeightingBasisFunction*>(basis) != nullptr) {
+  } else if (basis == BasisFunctionType::FULLWEIGHTING ||
+             basis == BasisFunctionType::FULLWEIGHTING_PERIODIC) {
     return "fullweighting";
   } else {
-    throw std::runtime_error("paliwaWaveletName: unsupported basis function type: " +
-                             std::string(typeid(*basis).name()));
+    throw std::runtime_error("paliwaWaveletName: unsupported basis function type");
   }
 }
 

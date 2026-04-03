@@ -1,17 +1,12 @@
 #ifndef COMBIFULLGRID_HPP_
 #define COMBIFULLGRID_HPP_
 
-#include "discotec/hierarchization/CombiLinearBasisFunction.hpp"
-#include "discotec/utils/LevelVector.hpp"
-#include "discotec/utils/PowerOfTwo.hpp"
-#include "discotec/utils/Types.hpp"
-
 #include <assert.h>
 
 #include <boost/serialization/access.hpp>
-#include <string>
 #include <fstream>
 #include <iostream>
+#include <string>
 
 #include "boost/archive/binary_iarchive.hpp"
 #include "boost/archive/binary_oarchive.hpp"
@@ -19,6 +14,9 @@
 #include "boost/archive/text_oarchive.hpp"
 #include "boost/serialization/complex.hpp"
 #include "boost/serialization/vector.hpp"
+#include "discotec/utils/LevelVector.hpp"
+#include "discotec/utils/PowerOfTwo.hpp"
+#include "discotec/utils/Types.hpp"
 
 namespace combigrid {
 
@@ -33,18 +31,18 @@ class FullGrid {
  public:
   /** simplest Ctor with homogeneous  levels */
   FullGrid(DimType dim, LevelType level, BoundaryType hasBdrPoints = 2,
-           const BasisFunctionBasis* basis = NULL);
+           BasisFunctionType basis = BasisFunctionType::HAT);
 
   /** dimension adaptive Ctor */
   FullGrid(DimType dim, const LevelVector& levels, BoundaryType hasBdrPoints = 2,
-           const BasisFunctionBasis* basis = NULL);
+           BasisFunctionType basis = BasisFunctionType::HAT);
 
   /** dimension adaptive Ctor */
   FullGrid(DimType dim, const LevelVector& levels, const std::vector<BoundaryType>& hasBdrPoints,
-           const BasisFunctionBasis* basis = NULL);
+           BasisFunctionType basis = BasisFunctionType::HAT);
 
   // load archived fg from file
-  FullGrid(const char* filename, const BasisFunctionBasis* basis = NULL);
+  FullGrid(const char* filename, BasisFunctionType basis = BasisFunctionType::HAT);
 
   /* create hierarchized fullgrid from SGrid */
   FullGrid(const LevelVector& levels, const SGrid<FG_ELEMENT>& sg);
@@ -84,8 +82,8 @@ class FullGrid {
    * @param axisIndex [IN] the vector index */
   inline IndexType getLinearIndex(const IndexVector& axisIndex) const;
 
-  /** returns pointer to the basis function */
-  inline const BasisFunctionBasis* getBasisFct() const;
+  /** returns the basis function type */
+  inline BasisFunctionType getBasisFct() const;
 
   /** returns the dimension of the full grid */
   inline DimType getDimension() const;
@@ -192,8 +190,8 @@ class FullGrid {
   /** the full grid vector, this contains the elements of the full grid */
   std::vector<FG_ELEMENT> fullgridVector_;
 
-  /** pointer to the function basis*/
-  const BasisFunctionBasis* basis_;
+  /** the basis function type*/
+  BasisFunctionType basis_;
 
   friend class boost::serialization::access;
 
@@ -223,14 +221,8 @@ namespace combigrid {
 
 template <typename FG_ELEMENT>
 FullGrid<FG_ELEMENT>::FullGrid(DimType dim, LevelType level, BoundaryType hasBdrPoints,
-                               const BasisFunctionBasis* basis) {
-  // set the basis function for the full grid
-  if (basis == NULL)
-    // TODO deal with memory leak
-    basis_ = new LinearBasisFunction();  // LinearBasisFunction::getDefaultBasis();
-  else
-    basis_ = basis;
-
+                               BasisFunctionType basis)
+    : basis_(basis) {
   isFGcreated_ = false;
   dim_ = dim;
   levels_.resize(dim, level);
@@ -252,14 +244,8 @@ FullGrid<FG_ELEMENT>::FullGrid(DimType dim, LevelType level, BoundaryType hasBdr
 /** dimension adaptive Ctor */
 template <typename FG_ELEMENT>
 FullGrid<FG_ELEMENT>::FullGrid(DimType dim, const LevelVector& levels, BoundaryType hasBdrPoints,
-                               const BasisFunctionBasis* basis) {
-  // set the basis function for the full grid
-  if (basis == NULL)
-    // TODO deal with memory leak
-    basis_ = new LinearBasisFunction();  // LinearBasisFunction::getDefaultBasis();
-  else
-    basis_ = basis;
-
+                               BasisFunctionType basis)
+    : basis_(basis) {
   dim_ = dim;
   isFGcreated_ = false;
   levels_ = levels;
@@ -282,16 +268,11 @@ FullGrid<FG_ELEMENT>::FullGrid(DimType dim, const LevelVector& levels, BoundaryT
 template <typename FG_ELEMENT>
 FullGrid<FG_ELEMENT>::FullGrid(DimType dim, const LevelVector& levels,
                                const std::vector<BoundaryType>& hasBdrPoints,
-                               const BasisFunctionBasis* basis) {
+                               BasisFunctionType basis)
+    : basis_(basis) {
   assert(levels.size() == dim);
   assert(hasBdrPoints.size() == dim);
 
-  // set the basis function for the full grid
-  if (basis == NULL)
-    // TODO deal with memory leak
-    basis_ = new LinearBasisFunction();  // LinearBasisFunction::getDefaultBasis();
-  else
-    basis_ = basis;
   dim_ = dim;
   isFGcreated_ = false;
   levels_ = levels;
@@ -311,12 +292,11 @@ FullGrid<FG_ELEMENT>::FullGrid(DimType dim, const LevelVector& levels,
 }
 
 template <typename FG_ELEMENT>
-FullGrid<FG_ELEMENT>::FullGrid(const char* filename, const BasisFunctionBasis* basis) {
+FullGrid<FG_ELEMENT>::FullGrid(const char* filename, BasisFunctionType basis) : basis_(basis) {
   std::ifstream ifs(filename, std::ios::binary);
   // boost::archive::binary_iarchive ia(ifs);
   boost::archive::text_iarchive ia(ifs);
   ia >> *this;
-
 }
 
 /* create hierarchized fullgrid from SGrid */
@@ -333,8 +313,7 @@ FullGrid<FG_ELEMENT>::FullGrid(const LevelVector& levels, const SGrid<FG_ELEMENT
 
   // set the basis function for the full grid
   // at the moment we don't have any other basis for sg
-  // TODO deal with memory leak
-  basis_ = new LinearBasisFunction();  // LinearBasisFunction::getDefaultBasis();
+  basis_ = BasisFunctionType::HAT;
 
   dim_ = sg2.getDim();
   isFGcreated_ = false;
@@ -592,10 +571,9 @@ inline IndexType FullGrid<FG_ELEMENT>::getLinearIndex(const IndexVector& axisInd
   return tmp;
 }
 
-
-/** returns pointer to the basis function */
+/** returns the basis function type */
 template <typename FG_ELEMENT>
-inline const BasisFunctionBasis* FullGrid<FG_ELEMENT>::getBasisFct() const {
+inline BasisFunctionType FullGrid<FG_ELEMENT>::getBasisFct() const {
   return basis_;
 }
 
@@ -812,15 +790,15 @@ void FullGrid<FG_ELEMENT>::addGENE(const FullGrid<FG_ELEMENT>& fg, real coeff) {
 template <typename FG_ELEMENT>
 template <class Archive>
 void FullGrid<FG_ELEMENT>::serialize(Archive& ar, const unsigned int version) {
-  ar& dim_;
-  ar& nrElements_;
-  ar& isFGcreated_;
-  ar& levels_;
-  ar& nrPoints_;
-  ar& hasBoundaryPoints_;
-  ar& offsets_;
-  ar& fullgridVector_;
-  ar& isHierarchized_;
+  ar & dim_;
+  ar & nrElements_;
+  ar & isFGcreated_;
+  ar & levels_;
+  ar & nrPoints_;
+  ar & hasBoundaryPoints_;
+  ar & offsets_;
+  ar & fullgridVector_;
+  ar & isHierarchized_;
 }
 
 template <typename FG_ELEMENT>

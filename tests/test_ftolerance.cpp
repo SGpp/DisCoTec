@@ -22,7 +22,6 @@
 #include "discotec/fault_tolerance/WeibullFaults.hpp"
 #include "discotec/fullgrid/DistributedFullGrid.hpp"
 #include "discotec/fullgrid/FullGrid.hpp"
-#include "discotec/hierarchization/CombiLinearBasisFunction.hpp"
 #include "discotec/loadmodel/LearningLoadModel.hpp"
 #include "discotec/loadmodel/LinearLoadModel.hpp"
 #include "discotec/manager/CombiParameters.hpp"
@@ -30,9 +29,9 @@
 #include "discotec/manager/ProcessGroupWorker.hpp"
 #include "discotec/manager/ProcessManager.hpp"
 #include "discotec/task/Task.hpp"
-#include "test_helper.hpp"
 #include "discotec/utils/Config.hpp"
 #include "discotec/utils/Types.hpp"
+#include "test_helper.hpp"
 
 // this is necessary for correct function of task serialization
 #include "discotec/utils/BoostExports.hpp"

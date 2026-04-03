@@ -17,9 +17,9 @@
 #include "discotec/hierarchization/DistributedHierarchization.hpp"
 #include "discotec/io/H5InputOutput.hpp"
 #include "discotec/mpi/MPIMemory.hpp"
-#include "test_helper.hpp"
 #include "discotec/utils/MonteCarlo.hpp"
 #include "discotec/utils/Types.hpp"
+#include "test_helper.hpp"
 
 using namespace combigrid;
 
@@ -1277,10 +1277,9 @@ BOOST_AUTO_TEST_CASE(test_massLoss2D) {
                                                                                tooPeaky};
     const std::vector<LevelVector> fullGridLevels = {{3, 1}, {2, 1}, {2, 2}, {1, 2}, {1, 3}};
     const std::vector<real> coefficients{1., -1., 1., -1., 1.};
-    auto hat = HierarchicalHatPeriodicBasisFunction();
-    auto biorthogonal = BiorthogonalPeriodicBasisFunction();
-    auto fullWeighting = FullWeightingPeriodicBasisFunction();
-    std::vector<BasisFunctionBasis*> bases{&hat, &biorthogonal, &fullWeighting};
+    std::vector<BasisFunctionType> bases{BasisFunctionType::HAT_PERIODIC,
+                                         BasisFunctionType::BIORTHOGONAL_PERIODIC,
+                                         BasisFunctionType::FULLWEIGHTING_PERIODIC};
 
     // for different scenarios
     for (size_t s = 0; s < fileNamePrefixes.size(); ++s) {
@@ -1289,7 +1288,7 @@ BOOST_AUTO_TEST_CASE(test_massLoss2D) {
       BOOST_WARN_GE(deleteStatus, 0);
       // for different basis functions
       for (size_t b = 0; b < bases.size(); ++b) {
-        auto basisTypeVector = std::vector<BasisFunctionBasis*>(dim, bases[b]);
+        auto basisTypeVector = std::vector<BasisFunctionType>(dim, bases[b]);
 
         // create and initialize DFG
         std::vector<OwningDistributedFullGrid<real, 2>> dfgs;

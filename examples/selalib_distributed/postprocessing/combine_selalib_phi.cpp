@@ -126,8 +126,9 @@ int main(int argc, char** argv) {
       }
 
       Stats::startEvent("hierarchize");
-      DistributedHierarchization::hierarchizeHierarchicalHat<double>(componentGrid,
-                                                                     {true, true, true}, lmin_x);
+      DistributedHierarchization::hierarchize(
+          componentGrid, std::vector<bool>{true, true, true},
+          std::vector<BasisFunctionType>(3, BasisFunctionType::HAT), lmin_x);
       Stats::stopEvent("hierarchize");
       auto durationHierarchize = Stats::getDuration("hierarchize");
       std::cout << "hierarchized in " << durationHierarchize << " milliseconds" << std::endl;
@@ -143,8 +144,9 @@ int main(int argc, char** argv) {
     combinedFullGrid.extractFromUniformSG(combinedSparseGrid);
     Stats::stopEvent("scatter");
     Stats::startEvent("dehierarchize");
-    DistributedHierarchization::dehierarchizeHierarchicalHat<double>(combinedFullGrid,
-                                                                     {true, true, true}, lmin_x);
+    DistributedHierarchization::dehierarchize(
+        combinedFullGrid, std::vector<bool>{true, true, true},
+        std::vector<BasisFunctionType>(3, BasisFunctionType::HAT), lmin_x);
     Stats::stopEvent("dehierarchize");
     std::cout << "scattered in " << Stats::getDuration("scatter") << " and dehierarchized in "
               << Stats::getDuration("dehierarchize") << " milliseconds" << std::endl;

@@ -11,7 +11,9 @@
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <iostream>
+#include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "discotec/combischeme/CombiMinMaxScheme.hpp"
@@ -141,13 +143,17 @@ inline std::pair<CombiParameters, LocalTasks> buildCombiParametersFromConfig(
 
   // Combination variant
   std::string variantStr = cfg.get<std::string>("ct.combinationVariant", "subspaceReduce");
-  CombinationVariant variant = CombinationVariant::subspaceReduce;
-  if (variantStr == "sparseGridReduce")
+  CombinationVariant variant;
+  if (variantStr == "subspaceReduce")
+    variant = CombinationVariant::subspaceReduce;
+  else if (variantStr == "sparseGridReduce")
     variant = CombinationVariant::sparseGridReduce;
   else if (variantStr == "outgroupSparseGridReduce")
     variant = CombinationVariant::outgroupSparseGridReduce;
   else if (variantStr == "chunkedOutgroupSparseGridReduce")
     variant = CombinationVariant::chunkedOutgroupSparseGridReduce;
+  else
+    throw std::invalid_argument("unknown ct.combinationVariant: '" + variantStr + "'");
 
   // forward decomposition: false at least for periodic setups
   bool forwardDecomposition = cfg.get<bool>("ct.forwardDecomposition", false);
@@ -172,10 +178,12 @@ inline std::pair<CombiParameters, LocalTasks> buildCombiParametersFromConfig(
 
   // Hierarchization backend (optional, default: discotec)
   std::string backendStr = cfg.get<std::string>("ct.hierarchizationBackend", "discotec");
-  if (backendStr == "paliwa") {
+  if (backendStr == "discotec") {
+    params.setHierarchizationBackend(HierarchizationBackend::DISCOTEC);
+  } else if (backendStr == "paliwa") {
     params.setHierarchizationBackend(HierarchizationBackend::PALIWA);
   } else {
-    params.setHierarchizationBackend(HierarchizationBackend::DISCOTEC);
+    throw std::invalid_argument("unknown ct.hierarchizationBackend: '" + backendStr + "'");
   }
 
   return {std::move(params), std::move(tasks)};
