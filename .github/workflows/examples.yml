@@ -1,0 +1,185 @@
+name: DisCoTec examples
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  examples:
+    name: examples
+    runs-on: ubuntu-latest
+    env:
+      SPACK_USER_CACHE_PATH: spack/user_cache
+      SPACK_USER_CONFIG_PATH: spack/user_config
+      SPACK_SYSTEM_CONFIG_PATH: spack/system_config
+    steps:
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake gcc openmpi-bin openmpi-common libopenmpi-dev
+
+      - name: Checkout spack
+        uses: spack/setup-spack@5ab3c91bdefffffad9a7e45d1d156146afebb3a7
+        with:
+          ref: v1.1.0
+          buildcache: true
+          color: true
+          path: spack
+
+      - name: Spack bootstrap & install
+        run: |
+          . ./spack/share/spack/setup-env.sh
+          spack bootstrap now
+          spack compiler find
+          spack external find --exclude curl,perl
+          spack config add "packages:cmake:buildable:false"
+          spack config add "packages:openmpi:buildable:false"
+          spack install gcc
+          spack install --only dependencies -y discotec@main -lto +compression %gcc ^openmpi
+
+      - name: Checkout DisCoTec
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          path: discotec
+
+      - name: Build
+        working-directory: discotec
+        run: |
+          . ../spack/share/spack/setup-env.sh
+          spack load --first openmpi
+          spack load --first cmake boost glpk highfive lz4
+          cmake -B build -S . \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DDISCOTEC_TEST=ON -DDISCOTEC_TIMING=ON \
+            -DDISCOTEC_ENABLEFT=OFF -DDISCOTEC_GENE=OFF \
+            -DDISCOTEC_USE_HIGHFIVE=ON -DDISCOTEC_OPENMP=ON \
+            -DDISCOTEC_USE_LTO=OFF -DDISCOTEC_WITH_COMPRESSION=ON
+          cmake --build build -j
+
+      - name: Set up MPI run command
+        run: echo "MPI_RUN=mpiexec --map-by node:OVERSUBSCRIBE" >> $GITHUB_ENV
+
+      - name: Run combi_workers_only
+        working-directory: discotec
+        timeout-minutes: 5
+        run: |
+          . ../spack/share/spack/setup-env.sh
+          spack load --first openmpi
+          cat > /tmp/ctparam <<'EOF'
+          [ct]
+          dim = 2
+          lmin = 3 3
+          lmax = 5 5
+          p = 1 1
+          ncombi = 2
+          combinationVariant = chunkedOutgroupSparseGridReduce
+          reduceCombinationDimsLmax = 1 1
+
+          [application]
+          dt = 1e-3
+          nsteps = 1
+          mcerror = 0
+
+          [manager]
+          ngroup = 2
+          nprocs = 1
+          EOF
+          $MPI_RUN -n 2 ./examples/combi_workers_only/combi_example_worker_only /tmp/ctparam
+
+      - name: Run combi_example (manager-worker)
+        working-directory: discotec
+        timeout-minutes: 5
+        run: |
+          . ../spack/share/spack/setup-env.sh
+          spack load --first openmpi
+          cat > /tmp/ctparam_mgr <<'EOF'
+          [ct]
+          dim = 2
+          lmin = 3 3
+          lmax = 5 5
+          leval = 5 5
+          p = 1 1
+          ncombi = 2
+
+          [application]
+          dt = 1e-3
+          nsteps = 1
+
+          [manager]
+          ngroup = 2
+          nprocs = 1
+          EOF
+          $MPI_RUN -n 3 ./examples/combi_example/combi_example /tmp/ctparam_mgr
+
+      - name: Run advection_example
+        working-directory: discotec
+        timeout-minutes: 5
+        run: |
+          . ../spack/share/spack/setup-env.sh
+          spack load --first openmpi
+          cat > /tmp/ctparam_adv <<'EOF'
+          [ct]
+          dim = 2
+          lmin = 3 3
+          lmax = 5 5
+          leval = 5 5
+          p = 1 1
+          ncombi = 2
+
+          [application]
+          dt = 1e-3
+          nsteps = 1
+          mcerror = 0
+
+          [manager]
+          ngroup = 2
+          nprocs = 1
+          EOF
+          $MPI_RUN -n 3 ./examples/distributed_advection/advection_example /tmp/ctparam_adv
+
+      - name: Run distributed_third_level (workers only, 2 systems)
+        working-directory: discotec
+        timeout-minutes: 5
+        run: |
+          . ../spack/share/spack/setup-env.sh
+          spack load --first openmpi
+          cat > /tmp/ctparam_tl0 <<'EOF'
+          [ct]
+          dim = 2
+          lmin = 3 3
+          lmax = 5 5
+          p = 1 1
+          ncombi = 2
+          combinationVariant = outgroupSparseGridReduce
+
+          [application]
+          dt = 1e-3
+          nsteps = 1
+          mcerror = 0
+
+          [manager]
+          ngroup = 1
+          nprocs = 1
+
+          [thirdLevel]
+          systemNumber = 0
+          numSystems = 2
+          extraSparseGrid = 0
+          EOF
+          sed 's/systemNumber = 0/systemNumber = 1/' /tmp/ctparam_tl0 > /tmp/ctparam_tl1
+
+          cd /tmp
+          $MPI_RUN -n 1 $OLDPWD/examples/distributed_third_level/distributed_third_level_workers_only /tmp/ctparam_tl0 &
+          PID0=$!
+          $MPI_RUN -n 1 $OLDPWD/examples/distributed_third_level/distributed_third_level_workers_only /tmp/ctparam_tl1 &
+          PID1=$!
+          wait $PID0 $PID1
