@@ -190,7 +190,7 @@ class CombiParameters {
                   const LevelVector& reduceCombinationDimsLmin = LevelVector(0),
                   const LevelVector& reduceCombinationDimsLmax = LevelVector(0),
                   uint32_t sizeForChunkedCommunicationInMebibyte = 64,
-                  bool forwardDecomposition = true, const std::string& thirdLevelHost = "",
+                  bool forwardDecomposition = false, const std::string& thirdLevelHost = "",
                   unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
       : dim_(dim),
         lmin_(lmin),

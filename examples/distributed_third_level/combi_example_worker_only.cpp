@@ -72,7 +72,7 @@ int main(int argc, char** argv) {
 
   // set decomposition
   auto& p = params.getParallelization();
-  bool forwardDecomposition = cfg.get<bool>("ct.forwardDecomposition", true);
+  bool forwardDecomposition = cfg.get<bool>("ct.forwardDecomposition", false);
   IndexVector maxNumPoints(dim);
   for (DimType d = 0; d < dim; ++d) {
     maxNumPoints[d] = getNumDofNodal(params.getLMax()[d], params.getBoundary()[d]);
