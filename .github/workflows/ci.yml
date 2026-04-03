@@ -124,3 +124,103 @@ jobs:
           ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_write* --log_level=message
           ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_sparse* --log_level=message
           ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid
+
+  test-paliwa:
+    name: build-and-test-paliwa (${{ matrix.mpi }}, ${{ matrix.build_type }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        mpi:      [openmpi]
+        build_type:  [Release]
+      fail-fast: false
+    env:
+      SPACK_USER_CACHE_PATH: spack/user_cache
+      SPACK_USER_CONFIG_PATH: spack/user_config
+      SPACK_SYSTEM_CONFIG_PATH: spack/system_config
+    steps:
+      - name: Update system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake gcc
+          if [ "${{ matrix.mpi }}" == "openmpi" ]; then
+            sudo apt-get install -y openmpi-bin openmpi-common libopenmpi-dev
+          elif [ "${{ matrix.mpi }}" == "mpich" ]; then
+            sudo apt-get install -y mpich libmpich-dev
+          fi
+
+      - name: Checkout spack
+        uses: spack/setup-spack@5ab3c91bdefffffad9a7e45d1d156146afebb3a7
+        with:
+          ref: v1.1.0
+          buildcache: true
+          color: true
+          path: spack
+
+      - name: Checkout DisCoTec
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          path: discotec
+
+      - name: Checkout paliwa
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          repository: freifrauvonbleifrei/paliwa
+          path: paliwa
+
+      - name: Spack bootstrap & install dependencies
+        run: |
+          . ./spack/share/spack/setup-env.sh
+          spack bootstrap now
+          spack compiler find
+          spack external find --exclude curl,perl
+          spack config add "packages:cmake:buildable:false"
+          spack config add "packages:openmpi:buildable:false"
+          spack config add "packages:mpich:buildable:false"
+          spack repo add discotec/spack_repo/discotec
+          spack repo add paliwa/spack_repo/paliwa
+          spack install gcc
+          spack install ddc@0.11.0 ~splines ~fft ~tests ~pdi %gcc
+          spack install --only dependencies -y discotec@main -lto +compression +paliwa %gcc ^${{ matrix.mpi }}
+
+      - name: Build & install paliwa
+        run: |
+          . ./spack/share/spack/setup-env.sh
+          spack load gcc ${{ matrix.mpi }} cmake kokkos ddc
+          cmake -S paliwa -B paliwa/build \
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/paliwa_install \
+            -DPALIWA_BUILD_TESTS=OFF -DPALIWA_WITH_MPI=ON
+          cmake --install paliwa/build
+
+      - name: CMake Configure DisCoTec with paliwa
+        working-directory: discotec
+        run: |
+          . ../spack/share/spack/setup-env.sh
+          spack load gcc ${{ matrix.mpi }} cmake boost glpk highfive lz4 kokkos ddc
+          cmake -B build -S . \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_PREFIX_PATH="${{ github.workspace }}/paliwa_install" \
+            -DDISCOTEC_TEST=ON -DDISCOTEC_TIMING=ON \
+            -DDISCOTEC_ENABLEFT=OFF -DDISCOTEC_GENE=OFF \
+            -DDISCOTEC_USE_HIGHFIVE=ON -DDISCOTEC_OPENMP=ON \
+            -DDISCOTEC_USE_LTO=OFF -DDISCOTEC_WITH_COMPRESSION=ON \
+            -DDISCOTEC_USE_PALIWA=ON
+
+      - name: Build
+        working-directory: discotec
+        run: cmake --build build -j$(nproc)
+
+      - name: Unit tests
+        working-directory: discotec/tests
+        timeout-minutes: 60
+        run: |
+          . ../../spack/share/spack/setup-env.sh
+          spack load --first ${{ matrix.mpi }}
+          if [ "${{ matrix.mpi }}" == "openmpi" ]; then
+            export MPI_RUN_COMMAND="mpiexec --map-by node:OVERSUBSCRIBE "
+          elif [ "${{ matrix.mpi }}" == "mpich" ]; then
+            export MPI_RUN_COMMAND="mpiexec "
+          fi
+
+          export OMP_NUM_THREADS=2
+          set -x
+          ${MPI_RUN_COMMAND} -n 9 ./test_distributedcombigrid_boost --run_test=hierarchization --log_level=message
