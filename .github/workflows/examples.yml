@@ -177,9 +177,11 @@ jobs:
           EOF
           sed 's/systemNumber = 0/systemNumber = 1/' /tmp/ctparam_tl0 > /tmp/ctparam_tl1
 
-          cd /tmp
-          $MPI_RUN -n 1 $OLDPWD/examples/distributed_third_level/distributed_third_level_workers_only /tmp/ctparam_tl0 &
+          BINARY=$(pwd)/examples/distributed_third_level/distributed_third_level_workers_only
+          # Run in separate directories to avoid HDF5 file lock conflicts
+          mkdir -p /tmp/tl_sys0 /tmp/tl_sys1
+          (cd /tmp/tl_sys0 && $MPI_RUN -n 1 "$BINARY" /tmp/ctparam_tl0) &
           PID0=$!
-          $MPI_RUN -n 1 $OLDPWD/examples/distributed_third_level/distributed_third_level_workers_only /tmp/ctparam_tl1 &
+          (cd /tmp/tl_sys1 && $MPI_RUN -n 1 "$BINARY" /tmp/ctparam_tl1) &
           PID1=$!
           wait $PID0 $PID1
