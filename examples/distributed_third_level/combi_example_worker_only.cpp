@@ -92,8 +92,11 @@ int main(int argc, char** argv) {
     if (!std::filesystem::exists(interpolationCoordsFile)) {
       interpolationCoords =
           montecarlo::getRandomCoordinates(static_cast<int>(interpolationCoords.size()), dim);
-      h5io::writeValuesToH5File(interpolationCoords, interpolationCoordsFile, "worker_group",
-                                "only");
+      // write to a temporary file and rename atomically to avoid races
+      // when multiple systems start concurrently in the same directory
+      std::string tmpFile = interpolationCoordsFile + ".tmp_sys" + std::to_string(systemNumber);
+      h5io::writeValuesToH5File(interpolationCoords, tmpFile, "worker_group", "only");
+      std::filesystem::rename(tmpFile, interpolationCoordsFile);
     }
   }
 #endif

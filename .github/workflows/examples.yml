@@ -178,10 +178,12 @@ jobs:
           sed 's/systemNumber = 0/systemNumber = 1/' /tmp/ctparam_tl0 > /tmp/ctparam_tl1
 
           BINARY=$(pwd)/examples/distributed_third_level/distributed_third_level_workers_only
-          # Run in separate directories to avoid HDF5 file lock conflicts
-          mkdir -p /tmp/tl_sys0 /tmp/tl_sys1
-          (cd /tmp/tl_sys0 && $MPI_RUN -n 1 "$BINARY" /tmp/ctparam_tl0) &
+          # Both systems share a directory for sparse grid file exchange.
+          # Each writes its own interpolation coords HDF5 (keyed by systemNumber).
+          mkdir -p /tmp/tl_shared
+          cd /tmp/tl_shared
+          $MPI_RUN -n 1 "$BINARY" /tmp/ctparam_tl0 &
           PID0=$!
-          (cd /tmp/tl_sys1 && $MPI_RUN -n 1 "$BINARY" /tmp/ctparam_tl1) &
+          $MPI_RUN -n 1 "$BINARY" /tmp/ctparam_tl1 &
           PID1=$!
           wait $PID0 $PID1
