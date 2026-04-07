@@ -103,7 +103,7 @@ class CombiMinMaxScheme {
 
   /**
    * @brief Get the downward closed set of the CombiMinMaxScheme
-   * 
+   *
    * i.e. all hierarchical subspaces / mixed resolutions that will be covered by the scheme
    */
   inline const std::vector<LevelVector>& getDownSet() { return levels_; }

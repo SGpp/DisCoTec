@@ -92,8 +92,11 @@ int main(int argc, char** argv) {
     if (!std::filesystem::exists(interpolationCoordsFile)) {
       interpolationCoords =
           montecarlo::getRandomCoordinates(static_cast<int>(interpolationCoords.size()), dim);
-      h5io::writeValuesToH5File(interpolationCoords, interpolationCoordsFile, "worker_group",
-                                "only");
+      // write to a temporary file and rename atomically to avoid races
+      // when multiple systems start concurrently in the same directory
+      std::string tmpFile = interpolationCoordsFile + ".tmp_sys" + std::to_string(systemNumber);
+      h5io::writeValuesToH5File(interpolationCoords, tmpFile, "worker_group", "only");
+      std::filesystem::rename(tmpFile, interpolationCoordsFile);
     }
   }
 #endif
@@ -176,27 +179,24 @@ int main(int argc, char** argv) {
     auto startCombine = std::chrono::high_resolution_clock::now();
 
     if (hasThirdLevel) {
-      // third-level file-based exchange
+      // third-level file-based exchange with iteration-keyed filenames
+      std::string iterStr = std::to_string(i);
       std::string writeSparseGridFile =
-          "dsgu_" + std::to_string(theMPISystem()->getProcessGroupNumber()) + ".json";
+          "dsgu_" + std::to_string(systemNumber) + "_i" + iterStr + ".json";
       std::string writeSparseGridFileToken =
-          "dsgu_" + std::to_string(theMPISystem()->getProcessGroupNumber()) + "_token";
+          "dsgu_" + std::to_string(systemNumber) + "_i" + iterStr + "_token";
       worker.combineSystemWideAndWrite(writeSparseGridFile, writeSparseGridFileToken);
 
       std::vector<std::string> readSparseGridFiles, readSparseGridFileTokens;
       for (unsigned int sys = 0; sys < numSystems; ++sys) {
         if (sys != systemNumber) {
-          readSparseGridFiles.push_back("dsgu_" + std::to_string(sys) + ".json");
-          readSparseGridFileTokens.push_back("dsgu_" + std::to_string(sys) + "_token");
+          readSparseGridFiles.push_back("dsgu_" + std::to_string(sys) + "_i" + iterStr + ".json");
+          readSparseGridFileTokens.push_back("dsgu_" + std::to_string(sys) + "_i" + iterStr +
+                                             "_token");
         }
       }
-      if (i < ncombi - 1) {
-        worker.combineReadDistributeSystemWide(readSparseGridFiles, readSparseGridFileTokens, false,
-                                               true);
-      } else {
-        worker.combineReadDistributeSystemWide(readSparseGridFiles, {writeSparseGridFileToken},
-                                               false, true);
-      }
+      worker.combineReadDistributeSystemWide(readSparseGridFiles, readSparseGridFileTokens, false,
+                                             true);
     } else {
       worker.combineAtOnce();
     }

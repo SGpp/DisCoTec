@@ -895,8 +895,9 @@ inline int SparseGridWorker<CombiDataType>::readReduce(
   while (!indicesStillToReadReduce.empty()) {
     std::string filePartTokenToRead;
     std::string filePartNameToRead;
+    bool useFileParts = this->getExtraUniDSGVector().size() > 0;
     for (auto it = indicesStillToReadReduce.begin(); it != indicesStillToReadReduce.end(); ++it) {
-      if (combigrid::theMPISystem()->getOutputComm() != MPI_COMM_NULL) {
+      if (useFileParts) {
         filePartTokenToRead = startReadingTokenFileNames[*it] + ".part" + std::to_string(filePart);
       } else {
         filePartTokenToRead = startReadingTokenFileNames[*it];
@@ -906,7 +907,7 @@ inline int SparseGridWorker<CombiDataType>::readReduce(
         firstTry = false;
       }
       if (combigrid::getFileExistsRootOnly(filePartTokenToRead, theMPISystem()->getOutputComm())) {
-        if (combigrid::theMPISystem()->getOutputComm() != MPI_COMM_NULL) {
+        if (useFileParts) {
           filePartNameToRead =
               filenamePrefixesToRead[*it] + "_0" + ".part" + std::to_string(filePart);
         } else {
@@ -1087,7 +1088,7 @@ void SparseGridWorker<CombiDataType>::removeReadingFiles(
       auto filePart = theMPISystem()->getFilePartNumber();
       // remove reading token
       auto partTokenString = startReadingTokenFileNames[i];
-      if (combigrid::theMPISystem()->getOutputComm() != MPI_COMM_NULL) {
+      if (this->getExtraUniDSGVector().size() > 0) {
         partTokenString += ".part" + std::to_string(filePart);
       }
       std::filesystem::remove(partTokenString);
@@ -1205,12 +1206,12 @@ template <typename CombiDataType>
 inline void SparseGridWorker<CombiDataType>::writeTokenFiles(
     const std::string& writeCompleteTokenFileName) const {
   OUTPUT_ROOT_EXCLUSIVE_SECTION {
-    if (combigrid::theMPISystem()->getOutputComm() == MPI_COMM_NULL) {
-      // write single token
-      std::ofstream tokenFile(writeCompleteTokenFileName);
-    } else {
+    if (this->getExtraUniDSGVector().size() > 0) {
       auto filePart = theMPISystem()->getFilePartNumber();
       std::ofstream tokenFile(writeCompleteTokenFileName + ".part" + std::to_string(filePart));
+    } else {
+      // write single token
+      std::ofstream tokenFile(writeCompleteTokenFileName);
     }
   }
 }
