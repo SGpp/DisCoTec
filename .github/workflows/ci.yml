@@ -49,7 +49,7 @@ jobs:
       - name: Checkout spack
         uses: spack/setup-spack@5ab3c91bdefffffad9a7e45d1d156146afebb3a7
         with:
-          ref: v1.1.0
+          ref: v1.2.2
           buildcache: true
           color: true
           path: spack
@@ -151,7 +151,7 @@ jobs:
       - name: Checkout spack
         uses: spack/setup-spack@5ab3c91bdefffffad9a7e45d1d156146afebb3a7
         with:
-          ref: v1.1.0
+          ref: v1.2.2
           buildcache: true
           color: true
           path: spack
