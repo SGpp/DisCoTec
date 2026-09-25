@@ -66,8 +66,8 @@ jobs:
           spack external find --exclude curl --exclude perl
           # spack mirror add --unsigned github-actions-buildcache oci://ghcr.io/spack/github-actions-buildcache
           spack config add "packages:cmake:buildable:false"
-          spack config add "packages:mpich:buildable:false"
-          spack config add "packages:openmpi:buildable:false"
+          # MPI packages are outside the default external discovery tags.
+          spack external find --not-buildable ${{ matrix.mpi }}
           spack install ${{ matrix.compiler }}
           spack config blame packages
           spack install --only dependencies -y discotec@main -lto +compression %${{ matrix.compiler }} ^${{ matrix.mpi }}
@@ -178,10 +178,10 @@ jobs:
           . ./spack/share/spack/setup-env.sh
           spack bootstrap now
           spack compiler find
-          spack external find --exclude curl,perl
+          spack external find --exclude curl --exclude perl
           spack config add "packages:cmake:buildable:false"
-          spack config add "packages:openmpi:buildable:false"
-          spack config add "packages:mpich:buildable:false"
+          # MPI packages are outside the default external discovery tags.
+          spack external find --not-buildable ${{ matrix.mpi }}
           spack repo add discotec/spack_repo/discotec
           spack repo add paliwa/spack_repo/paliwa
           spack install gcc
