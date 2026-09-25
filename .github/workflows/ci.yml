@@ -60,9 +60,8 @@ jobs:
         run: |
           . ./spack/share/spack/setup-env.sh
           spack bootstrap now
-          spack compiler find /usr/bin
+          spack compiler find
           spack compiler info gcc
-          spack config add "packages:all:prefer:['%gcc']"
           spack config add "packages:gcc:buildable:false"
           spack external find --exclude curl --exclude perl
           # spack mirror add --unsigned github-actions-buildcache oci://ghcr.io/spack/github-actions-buildcache
