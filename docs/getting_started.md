@@ -117,6 +117,12 @@ source folder.
 - `DISCOTEC_WITH_SELALIB=ON|**OFF**` - Looks for SeLaLib dependencies and
   compiles [the matching example](https://github.com/SGpp/DisCoTec/blob/main/examples/selalib_distributed/)
 
+## Paliwa hierarchization
+
+Select `hierarchizationBackend = paliwa` in the `[ct]` configuration section, or
+use `HierarchizationBackend::PALIWA` in the C++ hierarchization API. Applications
+must keep Kokkos and DDC initialized while using this backend.
+
 ## Run the tests
 
 Beware: Most of the tests in DisCoTec need significant resources
