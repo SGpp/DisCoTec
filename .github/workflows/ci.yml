@@ -117,6 +117,10 @@ jobs:
         run:  cmake --build build -j
 
       - name: Unit tests
+        env:
+          # Hosted runners cannot reliably use UCX's RDMA/verbs transports.
+          # These CPU tests use shared memory, TCP, and process-local loopback.
+          UCX_TLS: "sm,tcp,self"
         working-directory: discotec/tests
         timeout-minutes: 360
         run:  |
@@ -264,6 +268,8 @@ jobs:
         run: cmake --build build -j$(nproc)
 
       - name: Unit tests
+        env:
+          UCX_TLS: "sm,tcp,self"
         working-directory: discotec/tests
         timeout-minutes: 60
         run: |
