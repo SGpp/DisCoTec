@@ -49,6 +49,14 @@ jobs:
           elif [ "${{ matrix.mpi }}" == "mpich" ]; then
             sudo apt-get install -y mpich libmpich-dev
           fi
+          MPI_LAUNCHER=/usr/bin/mpiexec.${{ matrix.mpi }}
+          if [ "${{ matrix.mpi }}" == "mpich" ] && mpichversion | grep -- '--with-pmix' > /dev/null; then
+            # Ubuntu's PMIx-enabled MPICH cannot use Hydra's PMI launcher.
+            # https://github.com/pmodels/mpich/issues/7064#issuecomment-2301026290
+            sudo apt-get install -y openmpi-bin
+            MPI_LAUNCHER=/usr/bin/mpiexec.openmpi
+          fi
+          echo "MPI_LAUNCHER=$MPI_LAUNCHER" >> "$GITHUB_ENV"
       - name: Checkout spack
         uses: spack/setup-spack@5ab3c91bdefffffad9a7e45d1d156146afebb3a7
         with:
@@ -90,7 +98,7 @@ jobs:
           cmake -B build -S . \
             -DMPI_C_COMPILER=mpicc.${{ matrix.mpi }} \
             -DMPI_CXX_COMPILER=mpicxx.${{ matrix.mpi }} \
-            -DMPIEXEC_EXECUTABLE=mpiexec.${{ matrix.mpi }} \
+            -DMPIEXEC_EXECUTABLE="$MPI_LAUNCHER" \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DDISCOTEC_TEST=ON -DDISCOTEC_TIMING=ON \
             -DDISCOTEC_ENABLEFT=OFF -DDISCOTEC_GENE=OFF \
@@ -108,22 +116,22 @@ jobs:
           . ../../spack/share/spack/setup-env.sh
           spack load --first ${{ matrix.mpi }}
           # Record the actual launcher, wrapper flags, and loaded libraries.
-          command -v mpiexec.${{ matrix.mpi }} mpicxx.${{ matrix.mpi }}
-          readlink -f "$(command -v mpiexec.${{ matrix.mpi }})"
-          mpiexec.${{ matrix.mpi }} --version
+          command -v "$MPI_LAUNCHER" mpicxx.${{ matrix.mpi }}
+          readlink -f "$MPI_LAUNCHER"
+          "$MPI_LAUNCHER" --version
           mpicxx.${{ matrix.mpi }} -show
           ldd ./test_distributedcombigrid_boost
           grep -E '^(MPI|HDF5|CMAKE_CXX_COMPILER)' ../build/CMakeCache.txt
-          if [ "${{ matrix.mpi }}" == "openmpi" ]; then
-            export MPI_RUN_COMMAND="mpiexec.openmpi --map-by node:OVERSUBSCRIBE -n "
-          elif [ "${{ matrix.mpi }}" == "mpich" ]; then
-            export MPI_RUN_COMMAND="mpiexec.mpich -np "
+          if [ "$MPI_LAUNCHER" == "/usr/bin/mpiexec.openmpi" ]; then
+            export MPI_RUN_COMMAND="$MPI_LAUNCHER --map-by node:OVERSUBSCRIBE -n "
+          else
+            export MPI_RUN_COMMAND="$MPI_LAUNCHER -np "
           fi
 
           export OMP_NUM_THREADS=2
           set -x # echo commands that are executed
           OMPI_ALLOW_RUN_AS_ROOT=1 \
-            ${MPI_RUN_COMMAND} 9 ./test_distributedcombigrid_boost --run_test=mpisystem         
+            ${MPI_RUN_COMMAND} 9 ./test_distributedcombigrid_boost --run_test=mpisystem --log_level=message
           ${MPI_RUN_COMMAND} 9 ./test_distributedcombigrid_boost --run_test=fullgrid
           ${MPI_RUN_COMMAND} 9 ./test_distributedcombigrid_boost --run_test=io
           ${MPI_RUN_COMMAND} 9 ./test_distributedcombigrid_boost --run_test=loadmodel
@@ -164,6 +172,14 @@ jobs:
           elif [ "${{ matrix.mpi }}" == "mpich" ]; then
             sudo apt-get install -y mpich libmpich-dev
           fi
+          MPI_LAUNCHER=/usr/bin/mpiexec.${{ matrix.mpi }}
+          if [ "${{ matrix.mpi }}" == "mpich" ] && mpichversion | grep -- '--with-pmix' > /dev/null; then
+            # Ubuntu's PMIx-enabled MPICH cannot use Hydra's PMI launcher.
+            # https://github.com/pmodels/mpich/issues/7064#issuecomment-2301026290
+            sudo apt-get install -y openmpi-bin
+            MPI_LAUNCHER=/usr/bin/mpiexec.openmpi
+          fi
+          echo "MPI_LAUNCHER=$MPI_LAUNCHER" >> "$GITHUB_ENV"
 
       - name: Checkout spack
         uses: spack/setup-spack@5ab3c91bdefffffad9a7e45d1d156146afebb3a7
@@ -206,7 +222,7 @@ jobs:
           cmake -S paliwa -B paliwa/build \
             -DMPI_C_COMPILER=mpicc.${{ matrix.mpi }} \
             -DMPI_CXX_COMPILER=mpicxx.${{ matrix.mpi }} \
-            -DMPIEXEC_EXECUTABLE=mpiexec.${{ matrix.mpi }} \
+            -DMPIEXEC_EXECUTABLE="$MPI_LAUNCHER" \
             -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/paliwa_install \
             -DPALIWA_BUILD_TESTS=OFF -DPALIWA_WITH_MPI=ON
           cmake --install paliwa/build
@@ -220,7 +236,7 @@ jobs:
           cmake -B build -S . \
             -DMPI_C_COMPILER=mpicc.${{ matrix.mpi }} \
             -DMPI_CXX_COMPILER=mpicxx.${{ matrix.mpi }} \
-            -DMPIEXEC_EXECUTABLE=mpiexec.${{ matrix.mpi }} \
+            -DMPIEXEC_EXECUTABLE="$MPI_LAUNCHER" \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DCMAKE_PREFIX_PATH="${{ github.workspace }}/paliwa_install" \
             -DDISCOTEC_TEST=ON -DDISCOTEC_TIMING=ON \
@@ -240,16 +256,16 @@ jobs:
           . ../../spack/share/spack/setup-env.sh
           spack load --first ${{ matrix.mpi }}
           # Record the actual launcher, wrapper flags, and loaded libraries.
-          command -v mpiexec.${{ matrix.mpi }} mpicxx.${{ matrix.mpi }}
-          readlink -f "$(command -v mpiexec.${{ matrix.mpi }})"
-          mpiexec.${{ matrix.mpi }} --version
+          command -v "$MPI_LAUNCHER" mpicxx.${{ matrix.mpi }}
+          readlink -f "$MPI_LAUNCHER"
+          "$MPI_LAUNCHER" --version
           mpicxx.${{ matrix.mpi }} -show
           ldd ./test_distributedcombigrid_boost
           grep -E '^(MPI|HDF5|CMAKE_CXX_COMPILER)' ../build/CMakeCache.txt
-          if [ "${{ matrix.mpi }}" == "openmpi" ]; then
-            export MPI_RUN_COMMAND="mpiexec.openmpi --map-by node:OVERSUBSCRIBE -n "
-          elif [ "${{ matrix.mpi }}" == "mpich" ]; then
-            export MPI_RUN_COMMAND="mpiexec.mpich -np "
+          if [ "$MPI_LAUNCHER" == "/usr/bin/mpiexec.openmpi" ]; then
+            export MPI_RUN_COMMAND="$MPI_LAUNCHER --map-by node:OVERSUBSCRIBE -n "
+          else
+            export MPI_RUN_COMMAND="$MPI_LAUNCHER -np "
           fi
 
           export OMP_NUM_THREADS=2
