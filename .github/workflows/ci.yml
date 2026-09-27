@@ -56,6 +56,13 @@ jobs:
             sudo apt-get install -y openmpi-bin
             MPI_LAUNCHER=/usr/bin/mpiexec.openmpi
           fi
+          # Spack's external MPI recipes use /usr/bin/mpicc and mpicxx.
+          # Installing openmpi-bin can switch these alternatives to OpenMPI.
+          # Keep dependency builds on the matrix MPI, independently of its launcher.
+          sudo update-alternatives --set mpi /usr/bin/mpicc.${{ matrix.mpi }}
+          test "$(readlink -f /usr/bin/mpicc)" = "$(readlink -f /usr/bin/mpicc.${{ matrix.mpi }})"
+          test "$(readlink -f /usr/bin/mpicxx)" = "$(readlink -f /usr/bin/mpicxx.${{ matrix.mpi }})"
+          /usr/bin/mpicc -show
           echo "MPI_LAUNCHER=$MPI_LAUNCHER" >> "$GITHUB_ENV"
       - name: Checkout spack
         uses: spack/setup-spack@5ab3c91bdefffffad9a7e45d1d156146afebb3a7
@@ -179,6 +186,13 @@ jobs:
             sudo apt-get install -y openmpi-bin
             MPI_LAUNCHER=/usr/bin/mpiexec.openmpi
           fi
+          # Spack's external MPI recipes use /usr/bin/mpicc and mpicxx.
+          # Installing openmpi-bin can switch these alternatives to OpenMPI.
+          # Keep dependency builds on the matrix MPI, independently of its launcher.
+          sudo update-alternatives --set mpi /usr/bin/mpicc.${{ matrix.mpi }}
+          test "$(readlink -f /usr/bin/mpicc)" = "$(readlink -f /usr/bin/mpicc.${{ matrix.mpi }})"
+          test "$(readlink -f /usr/bin/mpicxx)" = "$(readlink -f /usr/bin/mpicxx.${{ matrix.mpi }})"
+          /usr/bin/mpicc -show
           echo "MPI_LAUNCHER=$MPI_LAUNCHER" >> "$GITHUB_ENV"
 
       - name: Checkout spack
