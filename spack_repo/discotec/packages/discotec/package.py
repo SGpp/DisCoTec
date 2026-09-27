@@ -40,7 +40,7 @@ class Discotec(CMakePackage):
     depends_on("highfive+mpi+boost+ipo", when="+hdf5")
     depends_on("lz4", when="+compression")
     depends_on("mpi")
-    depends_on("paliwa", when="+paliwa")
+    depends_on("paliwa +mpi", when="+paliwa")
     depends_on("selalib", when="+selalib")
 
     def cmake_args(self):
