@@ -107,6 +107,13 @@ jobs:
         run:  |
           . ../../spack/share/spack/setup-env.sh
           spack load --first ${{ matrix.mpi }}
+          # Record the actual launcher, wrapper flags, and loaded libraries.
+          command -v mpiexec.${{ matrix.mpi }} mpicxx.${{ matrix.mpi }}
+          readlink -f "$(command -v mpiexec.${{ matrix.mpi }})"
+          mpiexec.${{ matrix.mpi }} --version
+          mpicxx.${{ matrix.mpi }} -show
+          ldd ./test_distributedcombigrid_boost
+          grep -E '^(MPI|HDF5|CMAKE_CXX_COMPILER)' ../build/CMakeCache.txt
           if [ "${{ matrix.mpi }}" == "openmpi" ]; then
             export MPI_RUN_COMMAND="mpiexec.openmpi --map-by node:OVERSUBSCRIBE -n "
           elif [ "${{ matrix.mpi }}" == "mpich" ]; then
@@ -232,6 +239,13 @@ jobs:
         run: |
           . ../../spack/share/spack/setup-env.sh
           spack load --first ${{ matrix.mpi }}
+          # Record the actual launcher, wrapper flags, and loaded libraries.
+          command -v mpiexec.${{ matrix.mpi }} mpicxx.${{ matrix.mpi }}
+          readlink -f "$(command -v mpiexec.${{ matrix.mpi }})"
+          mpiexec.${{ matrix.mpi }} --version
+          mpicxx.${{ matrix.mpi }} -show
+          ldd ./test_distributedcombigrid_boost
+          grep -E '^(MPI|HDF5|CMAKE_CXX_COMPILER)' ../build/CMakeCache.txt
           if [ "${{ matrix.mpi }}" == "openmpi" ]; then
             export MPI_RUN_COMMAND="mpiexec.openmpi --map-by node:OVERSUBSCRIBE -n "
           elif [ "${{ matrix.mpi }}" == "mpich" ]; then

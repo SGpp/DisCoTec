@@ -6,6 +6,7 @@
 #include <mpi.h>
 #include <algorithm>
 #include <complex>
+#include <string>
 #include <numeric>
 #include <vector>
 #include <boost/test/tools/floating_point_comparison.hpp> // new header for boost >= 1.59
@@ -19,6 +20,16 @@ namespace TestHelper{
   static inline bool checkNumMPIProcsAvailable(int nprocs) {
     int size;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
+    if (size < nprocs) {
+      int rank;
+      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+      char version[MPI_MAX_LIBRARY_VERSION_STRING];
+      int length;
+      MPI_Get_library_version(version, &length);
+      BOOST_TEST_MESSAGE("Insufficient MPI ranks: rank=" << rank << ", world size=" << size
+                         << ", required=" << nprocs << "\nMPI runtime: "
+                         << std::string(version, length));
+    }
     return size >= nprocs;
   }
 
