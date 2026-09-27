@@ -86,7 +86,11 @@ jobs:
           spack load --first cmake # %${{ matrix.compiler }} 
           spack load --first boost # %${{ matrix.compiler }}
           spack load --first glpk highfive lz4
+          # Select matching MPI wrappers and launcher instead of system alternatives.
           cmake -B build -S . \
+            -DMPI_C_COMPILER=mpicc.${{ matrix.mpi }} \
+            -DMPI_CXX_COMPILER=mpicxx.${{ matrix.mpi }} \
+            -DMPIEXEC_EXECUTABLE=mpiexec.${{ matrix.mpi }} \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DDISCOTEC_TEST=ON -DDISCOTEC_TIMING=ON \
             -DDISCOTEC_ENABLEFT=OFF -DDISCOTEC_GENE=OFF \
@@ -104,9 +108,9 @@ jobs:
           . ../../spack/share/spack/setup-env.sh
           spack load --first ${{ matrix.mpi }}
           if [ "${{ matrix.mpi }}" == "openmpi" ]; then
-            export MPI_RUN_COMMAND="mpiexec --map-by node:OVERSUBSCRIBE -n "
+            export MPI_RUN_COMMAND="mpiexec.openmpi --map-by node:OVERSUBSCRIBE -n "
           elif [ "${{ matrix.mpi }}" == "mpich" ]; then
-            export MPI_RUN_COMMAND="mpiexec -np "
+            export MPI_RUN_COMMAND="mpiexec.mpich -np "
           fi
 
           export OMP_NUM_THREADS=2
@@ -193,6 +197,9 @@ jobs:
           . ./spack/share/spack/setup-env.sh
           spack load gcc ${{ matrix.mpi }} cmake kokkos ddc
           cmake -S paliwa -B paliwa/build \
+            -DMPI_C_COMPILER=mpicc.${{ matrix.mpi }} \
+            -DMPI_CXX_COMPILER=mpicxx.${{ matrix.mpi }} \
+            -DMPIEXEC_EXECUTABLE=mpiexec.${{ matrix.mpi }} \
             -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/paliwa_install \
             -DPALIWA_BUILD_TESTS=OFF -DPALIWA_WITH_MPI=ON
           cmake --install paliwa/build
@@ -202,7 +209,11 @@ jobs:
         run: |
           . ../spack/share/spack/setup-env.sh
           spack load gcc ${{ matrix.mpi }} cmake boost glpk highfive lz4 kokkos ddc
+          # Select matching MPI wrappers and launcher instead of system alternatives.
           cmake -B build -S . \
+            -DMPI_C_COMPILER=mpicc.${{ matrix.mpi }} \
+            -DMPI_CXX_COMPILER=mpicxx.${{ matrix.mpi }} \
+            -DMPIEXEC_EXECUTABLE=mpiexec.${{ matrix.mpi }} \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DCMAKE_PREFIX_PATH="${{ github.workspace }}/paliwa_install" \
             -DDISCOTEC_TEST=ON -DDISCOTEC_TIMING=ON \
@@ -222,9 +233,9 @@ jobs:
           . ../../spack/share/spack/setup-env.sh
           spack load --first ${{ matrix.mpi }}
           if [ "${{ matrix.mpi }}" == "openmpi" ]; then
-            export MPI_RUN_COMMAND="mpiexec --map-by node:OVERSUBSCRIBE -n "
+            export MPI_RUN_COMMAND="mpiexec.openmpi --map-by node:OVERSUBSCRIBE -n "
           elif [ "${{ matrix.mpi }}" == "mpich" ]; then
-            export MPI_RUN_COMMAND="mpiexec -np "
+            export MPI_RUN_COMMAND="mpiexec.mpich -np "
           fi
 
           export OMP_NUM_THREADS=2
