@@ -35,10 +35,7 @@ jobs:
       - name: update system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake # libhdf5-dev \
-            # liblz4-dev libboost-test-dev libboost-serialization-dev \
-            # libboost-filesystem-dev libboost-system-dev \
-            # libboost-program-options-dev libboost-date-time-dev
+          sudo apt-get install -y build-essential cmake
           if [ "${{ matrix.compiler }}" == "gcc" ]; then
             sudo apt-get install -y gcc g++ gfortran
           elif [ "${{ matrix.compiler }}" == "clang" ]; then
@@ -60,9 +57,6 @@ jobs:
           # Installing openmpi-bin can switch these alternatives to OpenMPI.
           # Keep dependency builds on the matrix MPI, independently of its launcher.
           sudo update-alternatives --set mpi /usr/bin/mpicc.${{ matrix.mpi }}
-          test "$(readlink -f /usr/bin/mpicc)" = "$(readlink -f /usr/bin/mpicc.${{ matrix.mpi }})"
-          test "$(readlink -f /usr/bin/mpicxx)" = "$(readlink -f /usr/bin/mpicxx.${{ matrix.mpi }})"
-          /usr/bin/mpicc -show
           echo "MPI_LAUNCHER=$MPI_LAUNCHER" >> "$GITHUB_ENV"
       - name: Checkout spack
         uses: spack/setup-spack@5ab3c91bdefffffad9a7e45d1d156146afebb3a7
@@ -76,7 +70,6 @@ jobs:
           . ./spack/share/spack/setup-env.sh
           spack bootstrap now
           spack compiler find
-          spack compiler info gcc
           spack config add "packages:gcc:buildable:false"
           spack external find --exclude curl --exclude perl
           # spack mirror add --unsigned github-actions-buildcache oci://ghcr.io/spack/github-actions-buildcache
@@ -84,7 +77,6 @@ jobs:
           # MPI packages are outside the default external discovery tags.
           spack external find --not-buildable ${{ matrix.mpi }}
           spack install ${{ matrix.compiler }}
-          spack config blame packages
           spack install --only dependencies -y discotec@main -lto +compression %${{ matrix.compiler }} ^${{ matrix.mpi }}
 
       - name: Checkout DisCoTec
@@ -96,10 +88,9 @@ jobs:
         working-directory: discotec
         run: |
           . ../spack/share/spack/setup-env.sh
-          spack find
-          spack load --first ${{ matrix.mpi }} # %${{ matrix.compiler }}
-          spack load --first cmake # %${{ matrix.compiler }} 
-          spack load --first boost # %${{ matrix.compiler }}
+          spack load --first ${{ matrix.mpi }}
+          spack load --first cmake
+          spack load --first boost
           spack load --first glpk highfive lz4
           # Select matching MPI wrappers and launcher instead of system alternatives.
           cmake -B build -S . \
@@ -126,13 +117,6 @@ jobs:
         run:  |
           . ../../spack/share/spack/setup-env.sh
           spack load --first ${{ matrix.mpi }}
-          # Record the actual launcher, wrapper flags, and loaded libraries.
-          command -v "$MPI_LAUNCHER" mpicxx.${{ matrix.mpi }}
-          readlink -f "$MPI_LAUNCHER"
-          "$MPI_LAUNCHER" --version
-          mpicxx.${{ matrix.mpi }} -show
-          ldd ./test_distributedcombigrid_boost
-          grep -E '^(MPI|HDF5|CMAKE_CXX_COMPILER)' ../build/CMakeCache.txt
           if [ "$MPI_LAUNCHER" == "/usr/bin/mpiexec.openmpi" ]; then
             export MPI_RUN_COMMAND="$MPI_LAUNCHER --map-by node:OVERSUBSCRIBE -n "
           else
@@ -140,7 +124,6 @@ jobs:
           fi
 
           export OMP_NUM_THREADS=2
-          set -x # echo commands that are executed
           OMPI_ALLOW_RUN_AS_ROOT=1 \
             ${MPI_RUN_COMMAND} 9 ./test_distributedcombigrid_boost --run_test=mpisystem --log_level=message
           ${MPI_RUN_COMMAND} 9 ./test_distributedcombigrid_boost --run_test=fullgrid
@@ -194,9 +177,6 @@ jobs:
           # Installing openmpi-bin can switch these alternatives to OpenMPI.
           # Keep dependency builds on the matrix MPI, independently of its launcher.
           sudo update-alternatives --set mpi /usr/bin/mpicc.${{ matrix.mpi }}
-          test "$(readlink -f /usr/bin/mpicc)" = "$(readlink -f /usr/bin/mpicc.${{ matrix.mpi }})"
-          test "$(readlink -f /usr/bin/mpicxx)" = "$(readlink -f /usr/bin/mpicxx.${{ matrix.mpi }})"
-          /usr/bin/mpicc -show
           echo "MPI_LAUNCHER=$MPI_LAUNCHER" >> "$GITHUB_ENV"
 
       - name: Checkout spack
@@ -275,13 +255,6 @@ jobs:
         run: |
           . ../../spack/share/spack/setup-env.sh
           spack load --first ${{ matrix.mpi }}
-          # Record the actual launcher, wrapper flags, and loaded libraries.
-          command -v "$MPI_LAUNCHER" mpicxx.${{ matrix.mpi }}
-          readlink -f "$MPI_LAUNCHER"
-          "$MPI_LAUNCHER" --version
-          mpicxx.${{ matrix.mpi }} -show
-          ldd ./test_distributedcombigrid_boost
-          grep -E '^(MPI|HDF5|CMAKE_CXX_COMPILER)' ../build/CMakeCache.txt
           if [ "$MPI_LAUNCHER" == "/usr/bin/mpiexec.openmpi" ]; then
             export MPI_RUN_COMMAND="$MPI_LAUNCHER --map-by node:OVERSUBSCRIBE -n "
           else
@@ -289,5 +262,4 @@ jobs:
           fi
 
           export OMP_NUM_THREADS=2
-          set -x
           ${MPI_RUN_COMMAND} 9 ./test_distributedcombigrid_boost --run_test=hierarchization --log_level=message
