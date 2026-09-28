@@ -263,3 +263,7 @@ jobs:
 
           export OMP_NUM_THREADS=2
           ${MPI_RUN_COMMAND} 9 ./test_distributedcombigrid_boost --run_test=hierarchization --log_level=message
+          # Paliwa integration cases require specific communicator sizes.
+          ${MPI_RUN_COMMAND} 1 ./test_distributedcombigrid_boost --run_test=paliwa_mpi/anisotropic_coefficients_serial --log_level=message
+          ${MPI_RUN_COMMAND} 2 ./test_distributedcombigrid_boost --run_test=paliwa_mpi/slabs_two_ranks,reject_nonuniform_partition --log_level=message
+          ${MPI_RUN_COMMAND} 4 ./test_distributedcombigrid_boost --run_test=paliwa_mpi/slabs_four_ranks,complex_four_ranks,one_point_per_rank,cartesian_four_ranks_reordered --log_level=message

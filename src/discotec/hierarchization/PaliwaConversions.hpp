@@ -14,6 +14,9 @@
 #include "paliwa/paliwa_domains.hpp"
 #include "paliwa/paliwa_transform.hpp"
 #include "paliwa/paliwa_wavelets.hpp"
+#ifdef PALIWA_WITH_MPI
+#include "paliwa/paliwa_distributed_transform.hpp"
+#endif
 
 namespace combigrid {
 
@@ -66,6 +69,20 @@ struct PaliwaDimTraitsImpl<DIM, std::index_sequence<Is...>> {
 
   using Domain = ddc::StridedDiscreteDomain<PaliwaDDim<offset + Is>...>;
   using Vector = ddc::DiscreteVector<PaliwaDDim<offset + Is>...>;
+  using Element = ddc::DiscreteElement<PaliwaDDim<offset + Is>...>;
+
+  template <typename FG_ELEMENT>
+  static Domain localDomain(const DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
+                           const std::array<long int, DIM>& maxLevel) {
+    std::array<long int, DIM> begin{}, size{}, stride{};
+    for (DimType d = 0; d < DIM; ++d) {
+      const auto nativeDim = DIM - 1 - d;
+      stride[d] = 1L << (maxLevel[d] - dfg.getLevels()[nativeDim]);
+      begin[d] = dfg.getLowerBounds()[nativeDim] * stride[d];
+      size[d] = dfg.getLocalSizes()[nativeDim];
+    }
+    return Domain(Element{begin[Is]...}, Vector{size[Is]...}, Vector{stride[Is]...});
+  }
 
   template <typename T>
   static Domain domainFromLevel(const std::array<T, DIM>& level,
@@ -92,7 +109,8 @@ auto dfgToPaliwaDomain(const DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
   const auto& levels = dfg.getLevels();
   std::array<long int, dim> ddcLevel{};
   for (DimType d = 0; d < DIM; ++d) {
-    ddcLevel[d] = static_cast<long int>(levels[d]);
+    // DisCoTec is first-axis-fastest; DDC layout_right is last-axis-fastest.
+    ddcLevel[d] = static_cast<long int>(levels[DIM - 1 - d]);
   }
   return PaliwaDimTraits<DIM>::domainFromLevel(ddcLevel, maxLevel);
 }
@@ -102,7 +120,7 @@ typename PaliwaDimTraits<DIM>::Vector levelToPaliwaVector(const LevelVector& lv)
   constexpr auto dim = static_cast<std::size_t>(DIM);
   std::array<long int, dim> arr{};
   for (DimType d = 0; d < DIM; ++d) {
-    arr[d] = static_cast<long int>(lv[d]);
+    arr[d] = static_cast<long int>(lv[DIM - 1 - d]);
   }
   return PaliwaDimTraits<DIM>::toVector(arr);
 }
@@ -112,7 +130,7 @@ typename PaliwaDimTraits<DIM>::Vector levelToPaliwaVector(const LevelArray<DIM>&
   constexpr auto dim = static_cast<std::size_t>(DIM);
   std::array<long int, dim> arr{};
   for (DimType d = 0; d < DIM; ++d) {
-    arr[d] = static_cast<long int>(la[d]);
+    arr[d] = static_cast<long int>(la[DIM - 1 - d]);
   }
   return PaliwaDimTraits<DIM>::toVector(arr);
 }
