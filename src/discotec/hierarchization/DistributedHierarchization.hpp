@@ -1138,7 +1138,7 @@ class DistributedHierarchization {
                           HierarchizationBackend backend = HierarchizationBackend::DISCOTEC) {
     if (backend == HierarchizationBackend::PALIWA) {
 #ifdef DISCOTEC_USE_PALIWA
-      hierarchizePaliwa(dfg, dims, hierarchicalBases, lmin);
+      transformPaliwa<true>(dfg, dims, hierarchicalBases, lmin);
 #else
       throw std::runtime_error("paliwa backend requires building with DISCOTEC_USE_PALIWA");
 #endif
@@ -1219,7 +1219,7 @@ class DistributedHierarchization {
                             HierarchizationBackend backend = HierarchizationBackend::DISCOTEC) {
     if (backend == HierarchizationBackend::PALIWA) {
 #ifdef DISCOTEC_USE_PALIWA
-      dehierarchizePaliwa(dfg, dims, hierarchicalBases, lmin);
+      transformPaliwa<false>(dfg, dims, hierarchicalBases, lmin);
 #else
       throw std::runtime_error("paliwa backend requires building with DISCOTEC_USE_PALIWA");
 #endif
@@ -1306,14 +1306,31 @@ class DistributedHierarchization {
   static void checkPaliwaParameters(const DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
                                     const std::vector<bool>& dims,
                                     const std::vector<BasisFunctionType>& hierarchicalBases) {
-    // Current limitations of the paliwa path: //TODO remove
-    //   - single MPI rank per grid (no domain decomposition yet)
-    //   - periodic boundaries only
-    //   - all dimensions must be hierarchized
-    //   - same basis function in all dimensions
+    // Paliwa currently requires uniform Cartesian partitions, periodic boundaries,
+    // all dimensions transformed, and the same basis in every dimension.
+    if (dims.size() != DIM || hierarchicalBases.size() != DIM) {
+      throw std::invalid_argument("hierarchize with paliwa: dimension/basis size mismatch");
+    }
+#ifndef PALIWA_WITH_MPI
     if (dfg.getCartesianUtils().getCommunicatorSize() > 1) {
-      throw std::runtime_error(
-          "hierarchize with paliwa: currently only local full grids are supported");
+      throw std::runtime_error("hierarchize with paliwa: paliwa was built without MPI support");
+    }
+#endif
+    // The distributed paliwa API derives peer ownership from equal partitions.
+    // Check the complete (replicated) decomposition so every rank rejects an
+    // unsupported partition before any collective/ghost communication begins.
+    for (DimType d = 0; d < DIM; ++d) {
+      const auto& starts = dfg.getDecomposition()[d];
+      const auto n = dfg.getGlobalSizes()[d];
+      const auto ranks = static_cast<IndexType>(starts.size());
+      if (ranks == 0 || n % ranks != 0) {
+        throw std::runtime_error("hierarchize with paliwa: uniform Cartesian partitions required");
+      }
+      for (IndexType r = 0; r < ranks; ++r) {
+        if (starts[static_cast<size_t>(r)] != r * (n / ranks)) {
+          throw std::runtime_error("hierarchize with paliwa: uniform Cartesian partitions required");
+        }
+      }
     }
     for (const auto& flag : dfg.returnBoundaryFlags()) {
       if (flag != 1) {
@@ -1336,55 +1353,63 @@ class DistributedHierarchization {
     }
   }
 
-  template <typename FG_ELEMENT, DimType DIM>
-  static void hierarchizePaliwa(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
-                                const std::vector<bool>& dims,
-                                const std::vector<BasisFunctionType>& hierarchicalBases,
-                                const LevelVector& lmin = LevelVector(0)) {
+  template <bool IsHierarchization, typename FG_ELEMENT, DimType DIM>
+  static void transformPaliwa(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
+                             const std::vector<bool>& dims,
+                             const std::vector<BasisFunctionType>& hierarchicalBases,
+                             const LevelVector& lmin) {
     static_assert(DIM >= 1 && DIM <= 6, "paliwa hierarchization supports 1 to 6 dimensions");
     checkPaliwaParameters(dfg, dims, hierarchicalBases);
+    if (!lmin.empty() && lmin.size() != DIM) {
+      throw std::invalid_argument("hierarchize with paliwa: lmin size mismatch");
+    }
+    for (DimType d = 0; d < DIM; ++d) {
+      if (!lmin.empty() && (lmin[d] < 0 || lmin[d] > dfg.getLevels()[d])) {
+        throw std::invalid_argument("hierarchize with paliwa: lmin must be between zero and level");
+      }
+    }
 
-    constexpr long int paliwaMaxLevel = 20;
-    constexpr auto dim = static_cast<std::size_t>(DIM);
-    std::array<long int, dim> maxLevel{};
-    maxLevel.fill(paliwaMaxLevel);
-
-    const auto domain = dfgToPaliwaDomain(dfg, maxLevel);
-    const auto grid = ddc::ChunkSpan(dfg.getData(), domain);
-    const auto ddcLevel = levelToPaliwaVector<DIM>(dfg.getLevels());
-    const auto ddcLmin = lmin.empty() ? levelToPaliwaVector<DIM>(LevelVector(DIM, 0))
+    // Reverse domain axes and level vectors to wrap native storage without a copy.
+    std::array<long int, static_cast<size_t>(DIM)> maxLevel{};
+    for (DimType d = 0; d < DIM; ++d) {
+      maxLevel[d] = std::max(20L, static_cast<long int>(dfg.getLevels()[DIM - 1 - d]));
+    }
+    const auto fullDomain = dfgToPaliwaDomain(dfg, maxLevel);
+    const auto localDomain = PaliwaDimTraits<DIM>::localDomain(dfg, maxLevel);
+    const auto grid = ddc::ChunkSpan(dfg.getData(), localDomain);
+    const auto level = levelToPaliwaVector<DIM>(dfg.getLevels());
+    const auto minimum = lmin.empty() ? levelToPaliwaVector<DIM>(LevelVector(DIM, 0))
                                       : levelToPaliwaVector<DIM>(lmin);
-    const auto ddcMaxLevel = PaliwaDimTraits<DIM>::toVector(maxLevel);
-    const std::string waveletName = paliwaWaveletName(hierarchicalBases[0]);
+    const auto maximum = PaliwaDimTraits<DIM>::toVector(maxLevel);
+    const std::string wavelet = paliwaWaveletName(hierarchicalBases[0]);
+    Kokkos::DefaultHostExecutionSpace instance;
 
-    paliwa::hierarchize(grid, ddcLevel, ddcLmin, ddcMaxLevel, waveletName,
-                        Kokkos::DefaultHostExecutionSpace{});
+#ifdef PALIWA_WITH_MPI
+    if (dfg.getCartesianUtils().getCommunicatorSize() > 1) {
+      // Domain axes are reversed, but the communicator keeps its native axes.
+      std::array<int, DIM> cartesianAxes{};
+      for (DimType d = 0; d < DIM; ++d) {
+        cartesianAxes[d] = DIM - 1 - d;
+      }
+      if constexpr (IsHierarchization) {
+        paliwa::distributed_hierarchize(grid, fullDomain, level, minimum, maximum,
+                                       wavelet, dfg.getCommunicator(), instance, cartesianAxes);
+      } else {
+        paliwa::distributed_dehierarchize(grid, fullDomain, level, minimum, maximum,
+                                         wavelet, dfg.getCommunicator(), instance, cartesianAxes);
+      }
+      instance.fence();
+      return;
+    }
+#endif
+    if constexpr (IsHierarchization) {
+      paliwa::hierarchize(grid, level, minimum, maximum, wavelet, instance);
+    } else {
+      paliwa::dehierarchize(grid, level, minimum, maximum, wavelet, instance);
+    }
+    instance.fence();
   }
 
-  template <typename FG_ELEMENT, DimType DIM>
-  static void dehierarchizePaliwa(DistributedFullGrid<FG_ELEMENT, DIM>& dfg,
-                                  const std::vector<bool>& dims,
-                                  const std::vector<BasisFunctionType>& hierarchicalBases,
-                                  const LevelVector& lmin = LevelVector(0)) {
-    static_assert(DIM >= 1 && DIM <= 6, "paliwa dehierarchization supports 1 to 6 dimensions");
-    checkPaliwaParameters(dfg, dims, hierarchicalBases);
-
-    constexpr long int paliwaMaxLevel = 20;
-    constexpr auto dim = static_cast<std::size_t>(DIM);
-    std::array<long int, dim> maxLevel{};
-    maxLevel.fill(paliwaMaxLevel);
-
-    const auto domain = dfgToPaliwaDomain(dfg, maxLevel);
-    const auto grid = ddc::ChunkSpan(dfg.getData(), domain);
-    const auto ddcLevel = levelToPaliwaVector<DIM>(dfg.getLevels());
-    const auto ddcLmin = lmin.empty() ? levelToPaliwaVector<DIM>(LevelVector(DIM, 0))
-                                      : levelToPaliwaVector<DIM>(lmin);
-    const auto ddcMaxLevel = PaliwaDimTraits<DIM>::toVector(maxLevel);
-    const std::string waveletName = paliwaWaveletName(hierarchicalBases[0]);
-
-    paliwa::dehierarchize(grid, ddcLevel, ddcLmin, ddcMaxLevel, waveletName,
-                          Kokkos::DefaultHostExecutionSpace{});
-  }
 #endif  // DISCOTEC_USE_PALIWA
 };
 // class DistributedHierarchization
